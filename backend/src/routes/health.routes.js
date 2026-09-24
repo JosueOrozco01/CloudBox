@@ -2,6 +2,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const requireAuth = require('../middlewares/auth.middleware');
 const requireRole = require('../middlewares/role.middleware');
+const validateRegistration = require('../middlewares/registration-validation.middleware');
 
 const router = express.Router();
 
@@ -106,6 +107,23 @@ router.get(
       success: true,
       message: 'Client access granted',
       user: req.user
+    });
+  }
+);
+
+// Use this route to verify registration validation before integrating the real endpoint.
+router.post(
+  '/registration-validation',
+  validateRegistration,
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Registration data is valid',
+      data: {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email
+      }
     });
   }
 );
