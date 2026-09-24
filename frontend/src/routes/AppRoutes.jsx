@@ -1,20 +1,30 @@
-/*
- * CloudBox - Rutas de la Aplicación
- *
- * Este archivo centraliza las rutas del frontend.
- *
- * Rutas principales:
- *
- * /login
- * /register
- * /dashboard
- * /files
- * /folders
- * /shared
- * /payments
- * /profile
- *
- * Las rutas privadas deben requerir autenticación.
- *
- * Evitar definir rutas directamente dentro de cada página.
- */
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate
+} from 'react-router-dom';
+
+import LoginPage from '../pages/Login/LoginPage';
+
+const AppRoutes = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
+
+        <Route
+          path="*"
+          element={<Navigate to="/login" replace />}
+        />
+
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default AppRoutes;

@@ -1,10 +1,7 @@
+import AppRoutes from './routes/AppRoutes';
+
 function App() {
-  return (
-    <div>
-      <h1>CloudBox</h1>
-      <p>Tu almacenamiento en la nube.</p>
-    </div>
-  );
+  return <AppRoutes />;
 }
 
 export default App;
