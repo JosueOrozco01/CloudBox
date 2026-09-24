@@ -3,8 +3,17 @@ const supabase = require('../config/supabase');
 const requireAuth = require('../middlewares/auth.middleware');
 const requireRole = require('../middlewares/role.middleware');
 const validateRegistration = require('../middlewares/registration-validation.middleware');
+const validatePasswordRecovery = require('../middlewares/password-recovery-validation.middleware');
+const {
+  requestPasswordRecovery
+} = require('../services/auth.service');
 
+const validatePasswordUpdate =
+  require('../middlewares/password-update-validation.middleware');
 const router = express.Router();
+const {
+  resendEmailConfirmation
+} = require('../services/auth.service');
 
 router.get('/', (req, res) => {
   res.status(200).json({
@@ -127,3 +136,100 @@ router.post(
     });
   }
 );
+
+
+router.post(
+  '/password-recovery-validation',
+  validatePasswordRecovery,
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Password recovery data is valid',
+      data: {
+        email: req.body.email
+      }
+    });
+  }
+);
+
+router.post(
+  '/password-recovery-test',
+  validatePasswordRecovery,
+  async (req, res) => {
+    try {
+      await requestPasswordRecovery(req.body.email);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password recovery request processed successfully'
+      });
+    } catch (error) {
+      console.error(
+        'Password recovery error:',
+        error.cause?.message || error.message
+      );
+
+      return res.status(500).json({
+        success: false,
+        code: error.code || 'PASSWORD_RECOVERY_FAILED',
+        message: 'Unable to process password recovery request'
+      });
+    }
+  }
+);
+
+router.post(
+  '/password-update-validation',
+  validatePasswordUpdate,
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Password data is valid'
+    });
+  }
+);
+
+router.post(
+  '/email-confirmation-test',
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email || !email.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required'
+        });
+      }
+
+      await resendEmailConfirmation(email);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Email confirmation request processed successfully'
+      });
+    } catch (error) {
+      console.error('Email confirmation error:', {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        cause: error.cause?.message
+      });
+
+      return res.status(error.status || 500).json({
+        success: false,
+        code: error.code || 'EMAIL_CONFIRMATION_FAILED',
+        message: 'Unable to process email confirmation request'
+      });
+    }
+  }
+);
+
+router.get('/error-test', (req, res, next) => {
+  const error = new Error('Test internal error');
+
+  error.code = 'TEST_INTERNAL_ERROR';
+  error.status = 500;
+
+  next(error);
+});
