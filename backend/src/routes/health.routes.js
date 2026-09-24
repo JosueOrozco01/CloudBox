@@ -1,6 +1,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const requireAuth = require('../middlewares/auth.middleware');
+const requireRole = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
@@ -72,15 +73,39 @@ router.get('/database', async (req, res) => {
 });
 
 
-// Verify authentication before exposing protected user data 
-//comentario de prueba 
+
+// Keep this route protected to verify authentication and CloudBox user data.
 router.get('/protected', requireAuth, (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Protected route accessed successfully',
-    user: {
-      id: req.authUser.id,
-      email: req.authUser.email
-    }
+    user: req.user
   });
 });
+
+// Restrict this test route to verify role-based authorization.
+router.get(
+  '/admin-only',
+  requireAuth,
+  requireRole('administrador'),
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Administrator access granted'
+    });
+  }
+);
+
+// Allow this test route only for authenticated client users.
+router.get(
+  '/client-only',
+  requireAuth,
+  requireRole('cliente'),
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Client access granted',
+      user: req.user
+    });
+  }
+);
