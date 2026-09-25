@@ -1,6 +1,12 @@
 const supabase = require('../config/supabase');
-const createSessionSupabaseClient =
-    require('../config/session-supabase');
+const createSessionSupabaseClient = require('../config/session-supabase');
+const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
+
+const supabaseAdmin = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const requestPasswordRecovery = async (email) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -75,6 +81,7 @@ const resendEmailConfirmation = async (email) => {
         throw confirmationError;
     }
 };
+
 const signOutUser = async (accessToken, refreshToken) => {
     if (!accessToken || !refreshToken) {
         const sessionError =
@@ -86,8 +93,7 @@ const signOutUser = async (accessToken, refreshToken) => {
         throw sessionError;
     }
 
-    const sessionSupabase =
-        createSessionSupabaseClient();
+    const sessionSupabase = createSessionSupabaseClient();
 
     const { error: sessionError } =
         await sessionSupabase.auth.setSession({
@@ -123,9 +129,187 @@ const signOutUser = async (accessToken, refreshToken) => {
     }
 };
 
-// Export services only after they have been initialized.
+const registrarUsuario = async (dto) => {
+    const { firstName, lastName, email, password } = dto;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Validate duplicate email before calling Supabase Auth
+    const { data: usuarioExistente } = await supabaseAdmin
+        .from('usuario')
+        .select('id')
+        .eq('correo', normalizedEmail)
+        .maybeSingle();
+
+    if (usuarioExistente) {
+        const err = new Error('El correo electrónico ya se encuentra registrado');
+        err.status = 409;
+        throw err;
+    }
+
+    // 2. Register user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password
+    });
+
+    if (authError) {
+        throw authError;
+    }
+
+    // 3. Persist record in physical 'usuario' table
+    const { error: insertError } = await supabaseAdmin
+        .from('usuario')
+        .insert({
+            nombre: firstName,
+            apellido: lastName,
+            correo: normalizedEmail,
+            espacio_usado_by: 0,
+            fecha_registro: new Date().toISOString().split('T')[0],
+            id_rol: 1,
+            id_estado: 1,
+            auth_user_id: authData.user?.id
+        });
+
+    if (insertError) {
+        if (insertError.code === '23505') {
+            await supabaseAdmin
+                .from('usuario')
+                .update({
+                    nombre: firstName,
+                    apellido: lastName,
+                    auth_user_id: authData.user?.id
+                })
+                .eq('correo', normalizedEmail);
+        } else {
+            throw insertError;
+        }
+    }
+
+    return {
+        message: "Revisa tu correo para verificar tu cuenta"
+    };
+};
+
+const verificarCorreo = async ({ token, email, type = 'signup' }) => {
+    let verifyOptions = { type };
+
+    if (token && token.length > 10) {
+        verifyOptions.token_hash = token;
+    } else {
+        verifyOptions.token = token;
+        verifyOptions.email = email?.trim().toLowerCase();
+    }
+
+    const { data, error } = await supabase.auth.verifyOtp(verifyOptions);
+
+    if (error) {
+        const err = new Error('El enlace de verificación no es válido o ha vencido');
+        err.status = 400;
+        throw err;
+    }
+
+    if (email) {
+        await supabaseAdmin
+            .from('usuario')
+            .update({ id_estado: 1 })
+            .eq('correo', email.trim().toLowerCase());
+    }
+
+    return { message: 'Cuenta verificada correctamente' };
+};
+
+const iniciarSesion = async ({ email, password }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Validate credentials against Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password
+    });
+
+    if (authError) {
+        const err = new Error('Credenciales inválidas o cuenta no verificada');
+        err.status = 401;
+        throw err;
+    }
+
+    // Fetch user profile from physical database
+    const { data: userData, error: dbError } = await supabaseAdmin
+        .from('usuario')
+        .select('id, nombre, apellido, correo, id_rol, id_estado')
+        .eq('auth_user_id', authData.user.id)
+        .single();
+
+    if (dbError || !userData) {
+        const err = new Error('No se pudo recuperar la información del usuario');
+        err.status = 500;
+        throw err;
+    }
+
+    if (userData.id_estado !== 1) {
+        const err = new Error('Cuenta inactiva');
+        err.status = 401;
+        throw err;
+    }
+
+    return {
+        token: authData.session.access_token,
+        user: {
+            id: userData.id,
+            nombre: userData.nombre,
+            apellido: userData.apellido,
+            correo: userData.correo,
+            rol: userData.id_rol
+        }
+    };
+};
+
+const resetPassword = async ({ email, token, newPassword }) => {
+    // Validate minimum password requirements
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+        const err = new Error('La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo');
+        err.status = 400;
+        throw err;
+    }
+
+    let verifyOptions = { type: 'recovery' };
+
+    if (token && token.length > 10) {
+        verifyOptions.token_hash = token;
+    } else {
+        verifyOptions.token = token;
+        verifyOptions.email = email?.trim().toLowerCase();
+    }
+
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp(verifyOptions);
+
+    if (verifyError || !verifyData?.user) {
+        const err = new Error('El código de recuperación es inválido o ha vencido');
+        err.status = 400;
+        throw err;
+    }
+
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        verifyData.user.id,
+        { password: newPassword }
+    );
+
+    if (updateError) {
+        const err = new Error('No se pudo actualizar la contraseña');
+        err.status = 500;
+        throw err;
+    }
+
+    return { message: 'Contraseña restablecida exitosamente' };
+};
+
 module.exports = {
+    registrarUsuario,
+    verificarCorreo,
+    iniciarSesion,
     requestPasswordRecovery,
     resendEmailConfirmation,
+    resetPassword,
     signOutUser
 };
