@@ -253,15 +253,16 @@ const iniciarSesion = async ({ email, password }) => {
     }
 
     return {
-        token: authData.session.access_token,
-        user: {
-            id: userData.id,
-            nombre: userData.nombre,
-            apellido: userData.apellido,
-            correo: userData.correo,
-            rol: userData.id_rol
-        }
-    };
+    token: authData.session.access_token,
+    refreshToken: authData.session.refresh_token,
+    user: {
+      id: userData.id,
+      nombre: userData.nombre,
+      apellido: userData.apellido,
+      correo: userData.correo,
+      rol: userData.id_rol
+    }
+  };
 };
 
 const resetPassword = async ({ email, token, newPassword }) => {

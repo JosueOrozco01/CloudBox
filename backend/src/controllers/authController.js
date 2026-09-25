@@ -17,7 +17,7 @@
  * pueda mantener la sesión del usuario.
  */
 
-const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword } = require('../services/auth.service');
+const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword, signOutUser } = require('../services/auth.service');
 
 const register = async (req, res) => {
     try {
@@ -62,6 +62,7 @@ const login = async (req, res) => {
         return res.status(200).json({
             success: true,
             token: sessionData.token,
+            refreshToken: sessionData.refreshToken,
             user: sessionData.user
         });
     } catch (error) {
@@ -71,7 +72,6 @@ const login = async (req, res) => {
         });
     }
 };
-
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
@@ -108,10 +108,30 @@ const resetPasswordController = async (req, res) => {
     }
 };
 
+const logout = async (req, res) => {
+    try {
+        const accessToken = req.body.accessToken || req.token || req.headers.authorization?.split(' ')[1];
+        const refreshToken = req.body.refreshToken;
+        
+        await signOutUser(accessToken, refreshToken);
+        
+        return res.status(200).json({
+            success: true,
+            message: "Sesión cerrada exitosamente"
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'Error al cerrar sesión'
+        });
+    }
+};
+
 module.exports = {
     register,
     verifyEmail,
     login,
     forgotPassword,
-    resetPassword: resetPasswordController
-};
+    resetPassword: resetPasswordController,
+    logout
+};
