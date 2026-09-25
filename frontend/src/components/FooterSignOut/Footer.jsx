@@ -7,15 +7,13 @@ const columns = [
       { label: "Características", href: "/caracteristicas" },
       { label: "Planes", href: "/planes" },
       { label: "Seguridad", href: "/seguridad" },
-      { label: "Blog", href: "/blog" },
     ],
   },
   {
     title: "Empresa",
     links: [
       { label: "Sobre nosotros", href: "/nosotros" },
-      { label: "Contacto", href: "/contacto" },
-      { label: "Prensa", href: "/prensa" },
+      { label: "Soporte", href: "/soporte" },
     ],
   },
   {

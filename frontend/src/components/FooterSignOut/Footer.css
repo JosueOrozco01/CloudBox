@@ -11,7 +11,7 @@
   background: var(--footer-bg);
   color: var(--footer-text);
   font-family: "Manrope", system-ui, sans-serif;
-  padding: 36px 56px 0;
+  padding: 30px 66px 0;
 }
 
 .footer * {
@@ -19,7 +19,7 @@
 }
 
 .footer-inner {
-  max-width: 1200px;
+  max-width: 1250px;
   margin: 0 auto;
 }
 
@@ -29,13 +29,14 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 48px;
-  padding-bottom: 16px;
+  padding-bottom: 10px;
 }
 
 .footer-brand img {
   height: 100px;
   width: auto;
   display: block;
+  justify-self: center;
 }
 
 .footer-brand p {
@@ -43,6 +44,7 @@
   font-size: 0.85rem;
   line-height: 1.6;
   color: var(--footer-text);
+  text-align: center;
 }
 
 /* ---------- Columnas ---------- */
@@ -85,7 +87,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 26px 0 30px;
+  padding: 18px 0 18px;
   border-top: 1px solid var(--footer-divider);
 }
 

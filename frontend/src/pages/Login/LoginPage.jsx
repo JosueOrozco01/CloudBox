@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import "./Loginstyle.css";
+import Topbar from "../../components/Topbar/Topbar";
 import Footer from "../../components/FooterSignOut/Footer";
 
-export default function Login() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -15,23 +17,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Barra superior */}
-      <header className="topbar">
-        <a className="brand" href="/">
-          {/* Coloca tu logo en la carpeta public con este nombre */}
-          <img src="/logo-cloudbox.png" alt="CloudBox" />
-        </a>
-
-        <nav className="topbar-actions">
-          <button type="button" className="help-btn">
-            ¿Necesitas Ayuda?
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          <a className="btn-small" href="/registro">Crear Cuenta</a>
-        </nav>
-      </header>
+      <Topbar />
 
       <main className="split">
         {/* Panel izquierdo */}
@@ -108,7 +94,7 @@ export default function Login() {
             <button type="submit" className="btn-primary">Iniciar sesión</button>
 
             <p className="signup">
-              ¿No tienes una cuenta? <a href="/registro">Crear cuenta</a>
+              ¿No tienes una cuenta? <Link to="/registro">Crear cuenta</Link>
             </p>
           </form>
         </section>
