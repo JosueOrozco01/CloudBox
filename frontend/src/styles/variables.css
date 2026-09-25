@@ -1,15 +1,16 @@
 :root {
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
+  --primaryColor: #1e56fd;
+  --primaryHover: #1e293b;
+  --secondaryColor: #1565c0;
+  --tertiaryColor: #00b0ff;
 
-  --background-color: #f8fafc;
-  --surface-color: #ffffff;
+  --backgroundColor: #f8fafc;
+  --surfaceColor: #ffffff;
+  --borderColor: #e2e8f0;
 
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
+  --textPrimary: #1e293b;
+  --textSecondary: #64748b;
 
-  --border-color: #e2e8f0;
-
-  --success-color: #22c55e;
-  --danger-color: #ef4444;
+  --successColor: #22c55e;
+  --dangerColor: #ef4444;
 }
