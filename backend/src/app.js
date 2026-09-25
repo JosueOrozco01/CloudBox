@@ -1,20 +1,33 @@
-const express = require("express");
-const cors = require("cors");
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+
+const healthRoutes = require('./routes/health.routes');
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+
+const notFound = require('./middlewares/not-found.middleware');
+const errorHandler = require('./middlewares/error-handler.middleware');
 
 const app = express();
 
+// Global middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get("/api/test", (req, res) => {
-  res.json({
-    success: true,
-    message: "Conexión con CloudBox API exitosa"
-  });
-});
+// Routes
+app.use('/health', healthRoutes);
 
-const PORT = 3000;
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+// app.use('/api/files', fileRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-});
+// Handle requests that do not match any route.
+app.use(notFound);
+
+// Global error handler must always be the last middleware.
+app.use(errorHandler);
+
+module.exports = app;
