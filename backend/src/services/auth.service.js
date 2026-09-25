@@ -1,4 +1,6 @@
 const supabase = require('../config/supabase');
+const createSessionSupabaseClient =
+    require('../config/session-supabase');
 
 const requestPasswordRecovery = async (email) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -73,9 +75,57 @@ const resendEmailConfirmation = async (email) => {
         throw confirmationError;
     }
 };
+const signOutUser = async (accessToken, refreshToken) => {
+    if (!accessToken || !refreshToken) {
+        const sessionError =
+            new Error('Access token and refresh token are required');
+
+        sessionError.code = 'SESSION_TOKENS_REQUIRED';
+        sessionError.status = 400;
+
+        throw sessionError;
+    }
+
+    const sessionSupabase =
+        createSessionSupabaseClient();
+
+    const { error: sessionError } =
+        await sessionSupabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+
+    if (sessionError) {
+        const invalidSessionError =
+            new Error('Unable to restore user session');
+
+        invalidSessionError.code = 'INVALID_SESSION';
+        invalidSessionError.status = 401;
+        invalidSessionError.cause = sessionError;
+
+        throw invalidSessionError;
+    }
+
+    const { error: signOutError } =
+        await sessionSupabase.auth.signOut({
+            scope: 'local'
+        });
+
+    if (signOutError) {
+        const logoutError =
+            new Error('Unable to sign out user');
+
+        logoutError.code = 'AUTH_SIGN_OUT_FAILED';
+        logoutError.status = 500;
+        logoutError.cause = signOutError;
+
+        throw logoutError;
+    }
+};
 
 // Export services only after they have been initialized.
 module.exports = {
     requestPasswordRecovery,
-    resendEmailConfirmation
+    resendEmailConfirmation,
+    signOutUser
 };
