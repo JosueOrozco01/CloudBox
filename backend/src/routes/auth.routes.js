@@ -6,4 +6,8 @@ const router = express.Router();
 
 router.post('/register', validateRegistration, authController.register);
 
+// Verify email routes (Supports both POST with manual code and GET for magic links)
+router.post('/verify-email', authController.verifyEmail);
+router.get('/verify', authController.verifyEmail);
+
 module.exports = router;

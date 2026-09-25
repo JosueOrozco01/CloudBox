@@ -143,9 +143,41 @@ const registrarUsuario = async (dto) => {
   };
 };
 
+const verificarCorreo = async ({ token, email, type = 'signup' }) => {
+  let verifyOptions = { type };
+
+  // Si es un hash largo (enlace de correo)
+  if (token && token.length > 10) {
+    verifyOptions.token_hash = token;
+  } else {
+    // Si es un código numérico de 6 dígitos
+    verifyOptions.token = token;
+    verifyOptions.email = email?.trim().toLowerCase();
+  }
+
+  const { data, error } = await supabase.auth.verifyOtp(verifyOptions);
+
+  if (error) {
+    const err = new Error('El enlace de verificación no es válido o ha vencido');
+    err.status = 400;
+    throw err;
+  }
+
+  // Asegurar que el estado del usuario refleje la verificación en PostgreSQL
+  if (email) {
+    await supabaseAdmin
+      .from('usuario')
+      .update({ id_estado: 1 })
+      .eq('correo', email.trim().toLowerCase());
+  }
+
+  return { message: 'Cuenta verificada correctamente' };
+};
+
 // Export services only after they have been initialized.
 module.exports = {
     registrarUsuario,
+    verificarCorreo,
     requestPasswordRecovery,
     resendEmailConfirmation
 };

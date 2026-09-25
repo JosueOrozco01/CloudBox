@@ -17,7 +17,7 @@
  * pueda mantener la sesión del usuario.
  */
 
-const { registrarUsuario } = require('../services/auth.service');
+const { registrarUsuario, verificarCorreo } = require('../services/auth.service');
 
 const register = async (req, res) => {
     try {
@@ -35,7 +35,26 @@ const register = async (req, res) => {
         });
     }
 };
+const verifyEmail = async (req, res) => {
+    try {
+        // Permit payload from body (POST) or query string (GET)
+        const payload = Object.keys(req.body).length > 0 ? req.body : req.query;
+        const { token, email, type } = payload;
+        
+        await verificarCorreo({ token, email, type });
+        
+        return res.status(200).json({
+            message: "Cuenta verificada correctamente"
+        });
+    } catch (error) {
+        return res.status(error.status || 400).json({
+            success: false,
+            message: error.message || 'El enlace de verificación no es válido o ha vencido'
+        });
+    }
+};
 
 module.exports = {
-    register
+    register,
+    verifyEmail
 };
