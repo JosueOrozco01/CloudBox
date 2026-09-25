@@ -17,7 +17,7 @@
  * pueda mantener la sesión del usuario.
  */
 
-const { registrarUsuario, verificarCorreo } = require('../services/auth.service');
+const { registrarUsuario, verificarCorreo, iniciarSesion } = require('../services/auth.service');
 
 const register = async (req, res) => {
     try {
@@ -53,8 +53,27 @@ const verifyEmail = async (req, res) => {
         });
     }
 };
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const sessionData = await iniciarSesion({ email, password });
+        
+        return res.status(200).json({
+            success: true,
+            token: sessionData.token,
+            user: sessionData.user
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'Error al iniciar sesión'
+        });
+    }
+};
 
 module.exports = {
     register,
-    verifyEmail
+    verifyEmail,
+    login
 };

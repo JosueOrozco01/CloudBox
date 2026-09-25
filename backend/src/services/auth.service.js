@@ -174,10 +174,60 @@ const verificarCorreo = async ({ token, email, type = 'signup' }) => {
   return { message: 'Cuenta verificada correctamente' };
 };
 
+const iniciarSesion = async ({ email, password }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Validate credentials directly with Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password
+  });
+
+  // Handle invalid credentials or unverified email
+  if (authError) {
+    const err = new Error('Credenciales inválidas o cuenta no verificada');
+    err.status = 401; // Unauthorized
+    throw err;
+  }
+
+  // Fetch the user's physical profile using the admin client to bypass RLS constraints if needed
+  const { data: userData, error: dbError } = await supabaseAdmin
+    .from('usuario')
+    .select('id, nombre, apellido, correo, id_rol, id_estado')
+    .eq('auth_user_id', authData.user.id)
+    .single();
+
+  if (dbError || !userData) {
+    const err = new Error('No se pudo recuperar la información del usuario');
+    err.status = 500;
+    throw err;
+  }
+
+  // Ensure the account is not deactivated or suspended
+  if (userData.id_estado !== 1) {
+    const err = new Error('Cuenta inactiva');
+    err.status = 401;
+    throw err;
+  }
+
+  // Format and return the session token along with the user profile
+  return {
+    token: authData.session.access_token,
+    user: {
+      id: userData.id,
+      nombre: userData.nombre,
+      apellido: userData.apellido,
+      correo: userData.correo,
+      rol: userData.id_rol
+    }
+  };
+};
+
 // Export services only after they have been initialized.
 module.exports = {
     registrarUsuario,
     verificarCorreo,
+    iniciarSesion,
     requestPasswordRecovery,
     resendEmailConfirmation
 };
