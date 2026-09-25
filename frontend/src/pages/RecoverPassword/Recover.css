@@ -1,0 +1,244 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap");
+
+.forgot-wrapper {
+  --blue-dark: #1565c0;
+  --blue-cta: #2563ff;
+  --text-dark: #0b1a2e;
+  --text-muted: #6b7a90;
+  --border: #d9dee6;
+  --bg-page: #f4f5f9;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  font-family: "Manrope", system-ui, sans-serif;
+  color: var(--text-dark);
+}
+
+.forgot-wrapper * {
+  box-sizing: border-box;
+}
+
+.forgot-wrapper .forgot-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.forgot-wrapper .forgot-card {
+  width: 100%;
+  max-width: 304px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 32px 28px;
+  box-shadow: 0 10px 30px rgba(20, 40, 90, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.forgot-wrapper .forgot-icon {
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eef1fb;
+  color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.forgot-wrapper .forgot-title {
+  text-align: center;
+  font-family: "Outfit", sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+.forgot-wrapper .forgot-subtitle {
+  text-align: center;
+  margin: 8px 0 22px;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- Campo ---------- */
+.forgot-wrapper .field {
+  margin-bottom: 22px;
+}
+
+.forgot-wrapper .field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.forgot-wrapper .input-wrap {
+  position: relative;
+}
+
+.forgot-wrapper .field input {
+  width: 100%;
+  height: 38px;
+  padding: 0 38px 0 35px !important;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-dark);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.forgot-wrapper .field input::placeholder {
+  color: #a3adbd;
+}
+
+.forgot-wrapper .field input:focus {
+  border-color: var(--blue-dark);
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12);
+}
+
+.forgot-wrapper .field-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7a90;
+  display: flex;
+  pointer-events: none;
+}
+
+.forgot-wrapper .field:focus-within .field-icon {
+  color: var(--blue-dark);
+}
+
+/* ---------- Botón mostrar/ocultar contraseña ---------- */
+.forgot-wrapper .toggle-visibility {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  color: #9ba0ad;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.forgot-wrapper .toggle-visibility:hover {
+  color: #5b6070;
+}
+
+.forgot-wrapper .toggle-visibility:focus-visible {
+  outline: 2px solid var(--blue-cta);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Botón y enlace ---------- */
+.forgot-wrapper .btn-primary {
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: var(--blue-cta);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.forgot-wrapper .btn-primary:hover {
+  background: #1d4fd6;
+}
+
+.forgot-wrapper .back-link {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--blue-cta);
+  text-decoration: none;
+}
+
+.forgot-wrapper .back-link:hover {
+  text-decoration: underline;
+}
+
+.forgot-wrapper .hint {
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.forgot-wrapper .forgot-subtitle strong {
+  color: var(--text-dark);
+}
+
+/* ---------- Accesibilidad ---------- */
+.forgot-wrapper .field input:focus-visible,
+.forgot-wrapper .btn-primary:focus-visible,
+.forgot-wrapper .back-link:focus-visible {
+  outline: 2px solid var(--blue-cta);
+  outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  .forgot-wrapper .forgot-page {
+    padding: 32px 16px;
+  }
+
+  .forgot-wrapper .forgot-card {
+    max-width: 360px;
+    padding: 28px 24px;
+  }
+}
+
+@media (max-width: 400px) {
+  .forgot-wrapper .forgot-page {
+    padding: 20px 12px;
+  }
+
+  .forgot-wrapper .forgot-card {
+    max-width: 100%;
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+
+  .forgot-wrapper .forgot-title {
+    font-size: 1.15rem;
+  }
+
+  .forgot-wrapper .field input {
+    height: 40px;
+    font-size: 0.85rem;
+  }
+
+  .forgot-wrapper .btn-primary {
+    height: 44px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forgot-wrapper * {
+    transition: none !important;
+  }
+}
