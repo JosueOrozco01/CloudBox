@@ -1,23 +1,4 @@
-/*
- * CloudBox - Controlador de Autenticación
- *
- * Este archivo contiene la lógica para:
- *
- * - Registrar nuevos usuarios.
- * - Iniciar sesión.
- * - Verificar credenciales.
- * - Generar tokens de autenticación.
- * - Cerrar sesión cuando corresponda.
- *
- * La contraseña debe verificarse utilizando el mecanismo
- * de hash implementado por el proyecto.
- *
- * Después de un inicio de sesión correcto, el backend debe
- * proporcionar la información necesaria para que el frontend
- * pueda mantener la sesión del usuario.
- */
-
-const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword } = require('../services/auth.service');
+const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword, signOutUser } = require('../services/auth.service');
 
 const register = async (req, res) => {
     try {
@@ -108,10 +89,29 @@ const resetPasswordController = async (req, res) => {
     }
 };
 
+const logout = async (req, res) => {
+    try {
+        const { accessToken, refreshToken } = req.body;
+
+        await signOutUser(accessToken, refreshToken);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Sesión cerrada correctamente'
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'No se pudo cerrar la sesión'
+        });
+    }
+};
+
 module.exports = {
     register,
     verifyEmail,
     login,
     forgotPassword,
-    resetPassword: resetPasswordController
-};
+    resetPassword: resetPasswordController,
+    logout
+};

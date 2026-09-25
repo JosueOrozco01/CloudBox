@@ -254,6 +254,7 @@ const iniciarSesion = async ({ email, password }) => {
 
     return {
         token: authData.session.access_token,
+        refreshToken: authData.session.refresh_token,
         user: {
             id: userData.id,
             nombre: userData.nombre,
