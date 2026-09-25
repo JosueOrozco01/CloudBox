@@ -223,11 +223,54 @@ const iniciarSesion = async ({ email, password }) => {
   };
 };
 
+const resetPassword = async ({ email, token, newPassword }) => {
+  // 1. Password strength validation (min 8 chars, uppercase, number, symbol)
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+  if (!passwordRegex.test(newPassword)) {
+    const err = new Error('La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo');
+    err.status = 400;
+    throw err;
+  }
+
+  let verifyOptions = { type: 'recovery' };
+  
+  if (token && token.length > 10) {
+    verifyOptions.token_hash = token;
+  } else {
+    verifyOptions.token = token;
+    verifyOptions.email = email?.trim().toLowerCase();
+  }
+
+  // 2. Validate recovery token
+  const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp(verifyOptions);
+
+  if (verifyError || !verifyData?.user) {
+    const err = new Error('El código de recuperación es inválido o ha vencido');
+    err.status = 400;
+    throw err;
+  }
+
+  // 3. Update the password using the admin client for guaranteed execution
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+    verifyData.user.id,
+    { password: newPassword }
+  );
+
+  if (updateError) {
+    const err = new Error('No se pudo actualizar la contraseña');
+    err.status = 500;
+    throw err;
+  }
+
+  return { message: 'Contraseña restablecida exitosamente' };
+};
+
 // Export services only after they have been initialized.
 module.exports = {
     registrarUsuario,
     verificarCorreo,
     iniciarSesion,
     requestPasswordRecovery,
-    resendEmailConfirmation
+    resendEmailConfirmation,
+    resetPassword
 };

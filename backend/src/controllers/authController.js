@@ -17,7 +17,7 @@
  * pueda mantener la sesión del usuario.
  */
 
-const { registrarUsuario, verificarCorreo, iniciarSesion } = require('../services/auth.service');
+const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword } = require('../services/auth.service');
 
 const register = async (req, res) => {
     try {
@@ -72,8 +72,46 @@ const login = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        await requestPasswordRecovery(email);
+        
+        return res.status(200).json({
+            success: true,
+            message: "Se ha enviado un código a tu correo electrónico"
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'No se pudo procesar la solicitud'
+        });
+    }
+};
+
+const resetPasswordController = async (req, res) => {
+    try {
+        const { email, token, newPassword } = req.body;
+        
+        const result = await resetPassword({ email, token, newPassword });
+        
+        return res.status(200).json({
+            success: true,
+            message: result.message
+        });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'Error al restablecer la contraseña'
+        });
+    }
+};
+
 module.exports = {
     register,
     verifyEmail,
-    login
+    login,
+    forgotPassword,
+    resetPassword: resetPasswordController
 };
