@@ -1,21 +1,38 @@
-/*
- * CloudBox - Servicio de Autenticación
- *
- * Este archivo contiene las funciones del frontend encargadas
- * de comunicarse con los endpoints de autenticación del backend.
- *
- * Funciones esperadas:
- *
- * - registerUser()
- * - loginUser()
- * - logoutUser()
- * - getCurrentUser()
- *
- * IMPORTANTE:
- * Las páginas no deben realizar directamente las peticiones HTTP.
- * Deben utilizar las funciones definidas en este servicio.
- *
- * Esto permite mantener separada:
- * - La interfaz.
- * - La comunicación con el backend.
- */
+import { supabase } from './supabaseClient';
+
+export const login = async (email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+export const logout = async () => {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    throw error;
+  }
+};
+
+export const getCurrentUser = async () => {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  return user;
+};
+
+export const getSession = async () => {
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  return session;
+};
