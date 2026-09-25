@@ -1,12 +1,10 @@
-import logo from "../images/logo.jpeg";
-
 export function Navbar() {
     return (
         <footer className="landing-footer">
             <div className="landing-footer-content">
                 <div className="landing-footer-brand">
                     <a className="landing-footer-logo">
-                        <img src={logo} alt="CloudBox" />
+                        <img src="/logo-cloudbox.png" alt="CloudBox" />
                     </a>
                     <p>Guarda, comparte y accede a tus archivos de forma segura desde cualquier lugar del mundo.</p>
                 </div>

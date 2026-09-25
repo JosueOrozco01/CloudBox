@@ -2,12 +2,16 @@ function Topbar() {
 	return (
 		<header className="landing-nav">
 			<div className="landing-nav-inner">
-				<a className="landing-logo" href="/">CloudBox</a>
+				<a className="landing-logo" href="/">
+					<img src="/logo-cloudbox.png" alt="CloudBox" />
+				</a>
 				<nav className="landing-nav-links">
 					<a href="características">Características</a>
 					<a href="planes">Planes</a>
 					<a href="seguridad">Seguridad</a>
 					<a href="soporte">Soporte</a>
+					<a href="sobrenosotros">Sobre nosotros</a>
+					<a href="contacto">Contacto</a>
 				</nav>
 				<div className="landing-nav-cta">
 					<a href="paginadeiniciarsesion">Iniciar sesión</a>

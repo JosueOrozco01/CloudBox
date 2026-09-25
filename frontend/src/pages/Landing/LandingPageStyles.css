@@ -17,9 +17,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 18px 30px;
-  max-width: 1180px;
-  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px 16px;
 }
 
 .landing-logo {
@@ -27,6 +27,12 @@
   font-size: 18px;
   color: var(--primaryColor);
   text-decoration: none;
+}
+
+.landing-logo img {
+  display: block;
+  width: 140px;
+  height: auto;
 }
 
 .landing-nav-links {
@@ -48,6 +54,15 @@
   gap: 18px;
   font-size: 14px;
   flex-shrink: 0;
+}
+
+.landing-nav-cta a {
+  color: var(--primaryColor);
+  text-decoration: none;
+}
+
+.landing-nav-cta a:hover {
+  color: var(--primaryHover);
 }
 
 .btn-primary {
@@ -95,10 +110,14 @@
 }
 
 .landing-introduction {
-  background-image: linear-gradient(rgba(4, 35, 115, 0.28), rgba(4, 35, 115, 0.28)), url("../../components/images/BackgroundImage.jpeg");
+  background-image: linear-gradient(rgba(4, 35, 115, 0.28), rgba(4, 35, 115, 0.28)), url("/BackgroundImage.jpeg");
   background-position: center;
   background-size: cover;
   color: var(--surfaceColor);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
   min-height: 520px;
   text-align: center;
   padding: 90px 30px;
@@ -136,6 +155,11 @@
   cursor: pointer;
 }
 
+.btn-ghost:hover {
+  background: var(--secondaryColor);
+  border-color: var(--secondaryColor);
+}
+
 .features {
   max-width: 1180px;
   margin: 0 auto;
@@ -158,6 +182,13 @@
   border-radius: 12px;
   padding: 24px;
   text-align: left;
+}
+.feat-icon {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 18px;
+  color: var(--primaryColor);
+  stroke-width: 2.25;
 }
 .feat-card h3 {
   margin-bottom: 8px;
