@@ -1,38 +1,49 @@
 const express = require('express');
+
 const supabase = require('../config/supabase');
+
 const requireAuth = require('../middlewares/auth.middleware');
 const requireRole = require('../middlewares/role.middleware');
-const validateRegistration = require('../middlewares/registration-validation.middleware');
-const validatePasswordRecovery = require('../middlewares/password-recovery-validation.middleware');
-const {
-  requestPasswordRecovery
-} = require('../services/auth.service');
-
+const validateRegistration =
+  require('../middlewares/registration-validation.middleware');
+const validatePasswordRecovery =
+  require('../middlewares/password-recovery-validation.middleware');
 const validatePasswordUpdate =
   require('../middlewares/password-update-validation.middleware');
-const router = express.Router();
+
 const {
-  resendEmailConfirmation
+  requestPasswordRecovery,
+  resendEmailConfirmation,
+  signOutUser
 } = require('../services/auth.service');
 
+const router = express.Router();
+
+// -----------------------------------------------------------------------------
+// Health checks
+// -----------------------------------------------------------------------------
+
 router.get('/', (req, res) => {
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: 'CloudBox Backend funcionando correctamente',
     timestamp: new Date().toISOString()
   });
 });
 
-router.get('/supabase', async (req, res) => {
+router.get('/supabase', async (req, res, next) => {
   try {
-    const { data, error } = await supabase.auth.getSession();
+    const { error } = await supabase.auth.getSession();
 
     if (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Supabase connection failed',
-        error: error.message
-      });
+      const connectionError =
+        new Error('Supabase connection failed');
+
+      connectionError.code = 'SUPABASE_CONNECTION_FAILED';
+      connectionError.status = 500;
+      connectionError.cause = error;
+
+      throw connectionError;
     }
 
     return res.status(200).json({
@@ -40,31 +51,27 @@ router.get('/supabase', async (req, res) => {
       message: 'Supabase connection is working'
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Supabase connection failed',
-      error: error.message
-    });
+    next(error);
   }
 });
 
-module.exports = router;
-
-
-// temporal solo para verificar que este cumpliendo la conexion de la base de datos, funciona pero el rls 
-//evita su lectura, este comentario y codigo no van a producion solo es de verificación 
-router.get('/database', async (req, res) => {
+// Temporary route used only to verify database connectivity.
+// RLS may prevent anonymous reads even when the connection is working.
+router.get('/database', async (req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('rol')
       .select('*');
 
     if (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Database connection failed',
-        error: error.message
-      });
+      const databaseError =
+        new Error('Database connection failed');
+
+      databaseError.code = 'DATABASE_CONNECTION_FAILED';
+      databaseError.status = 500;
+      databaseError.cause = error;
+
+      throw databaseError;
     }
 
     return res.status(200).json({
@@ -72,28 +79,27 @@ router.get('/database', async (req, res) => {
       message: 'Database connection is working',
       data
     });
-
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Database connection failed',
-      error: error.message
-    });
+    next(error);
   }
 });
 
 
+// Authentication and authorization tests
 
-// Keep this route protected to verify authentication and CloudBox user data.
-router.get('/protected', requireAuth, (req, res) => {
-  return res.status(200).json({
-    success: true,
-    message: 'Protected route accessed successfully',
-    user: req.user
-  });
-});
 
-// Restrict this test route to verify role-based authorization.
+router.get(
+  '/protected',
+  requireAuth,
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Protected route accessed successfully',
+      user: req.user
+    });
+  }
+);
+
 router.get(
   '/admin-only',
   requireAuth,
@@ -106,7 +112,6 @@ router.get(
   }
 );
 
-// Allow this test route only for authenticated client users.
 router.get(
   '/client-only',
   requireAuth,
@@ -120,22 +125,34 @@ router.get(
   }
 );
 
-// Use this route to verify registration validation before integrating the real endpoint.
+
+// Registration validation tests
+
+
 router.post(
   '/registration-validation',
   validateRegistration,
   (req, res) => {
+    const {
+      firstName,
+      lastName,
+      email
+    } = req.body;
+
     return res.status(200).json({
       success: true,
       message: 'Registration data is valid',
       data: {
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        email: req.body.email
+        firstName,
+        lastName,
+        email
       }
     });
   }
 );
+
+
+// Password recovery tests
 
 
 router.post(
@@ -155,7 +172,7 @@ router.post(
 router.post(
   '/password-recovery-test',
   validatePasswordRecovery,
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       await requestPasswordRecovery(req.body.email);
 
@@ -164,16 +181,7 @@ router.post(
         message: 'Password recovery request processed successfully'
       });
     } catch (error) {
-      console.error(
-        'Password recovery error:',
-        error.cause?.message || error.message
-      );
-
-      return res.status(500).json({
-        success: false,
-        code: error.code || 'PASSWORD_RECOVERY_FAILED',
-        message: 'Unable to process password recovery request'
-      });
+      next(error);
     }
   }
 );
@@ -189,47 +197,71 @@ router.post(
   }
 );
 
+
+// Email confirmation tests
+
+
 router.post(
   '/email-confirmation-test',
-  async (req, res) => {
+  validatePasswordRecovery,
+  async (req, res, next) => {
     try {
-      const { email } = req.body;
-
-      if (!email || !email.trim()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email is required'
-        });
-      }
-
-      await resendEmailConfirmation(email);
+      await resendEmailConfirmation(req.body.email);
 
       return res.status(200).json({
         success: true,
         message: 'Email confirmation request processed successfully'
       });
     } catch (error) {
-      console.error('Email confirmation error:', {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        cause: error.cause?.message
-      });
-
-      return res.status(error.status || 500).json({
-        success: false,
-        code: error.code || 'EMAIL_CONFIRMATION_FAILED',
-        message: 'Unable to process email confirmation request'
-      });
+      next(error);
     }
   }
 );
 
-router.get('/error-test', (req, res, next) => {
-  const error = new Error('Test internal error');
 
-  error.code = 'TEST_INTERNAL_ERROR';
-  error.status = 500;
+// Logout tests
 
-  next(error);
-});
+router.post(
+  '/logout-test',
+  async (req, res, next) => {
+    try {
+      const authorizationHeader =
+        req.headers.authorization;
+
+      if (!authorizationHeader) {
+        return res.status(401).json({
+          success: false,
+          code: 'AUTH_TOKEN_REQUIRED',
+          message: 'Authorization token is required'
+        });
+      }
+
+      const [scheme, accessToken] =
+        authorizationHeader.split(' ');
+
+      if (scheme !== 'Bearer' || !accessToken) {
+        return res.status(401).json({
+          success: false,
+          code: 'INVALID_AUTH_FORMAT',
+          message: 'Invalid authorization format'
+        });
+      }
+
+      const { refreshToken } = req.body;
+
+      await signOutUser(
+        accessToken,
+        refreshToken
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'User signed out successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+module.exports = router;

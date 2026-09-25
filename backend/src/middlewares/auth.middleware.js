@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
-const createAuthenticatedSupabaseClient = require('../config/authenticated-supabase');
+const createAuthenticatedSupabaseClient =
+    require('../config/authenticated-supabase');
 
 const requireAuth = async (req, res, next) => {
     try {
@@ -8,6 +9,7 @@ const requireAuth = async (req, res, next) => {
         if (!authorizationHeader) {
             return res.status(401).json({
                 success: false,
+                code: 'AUTH_TOKEN_REQUIRED',
                 message: 'Authorization token is required'
             });
         }
@@ -17,6 +19,7 @@ const requireAuth = async (req, res, next) => {
         if (scheme !== 'Bearer' || !token) {
             return res.status(401).json({
                 success: false,
+                code: 'INVALID_AUTH_FORMAT',
                 message: 'Invalid authorization format'
             });
         }
@@ -27,6 +30,7 @@ const requireAuth = async (req, res, next) => {
         if (authError || !authData.user) {
             return res.status(401).json({
                 success: false,
+                code: 'INVALID_OR_EXPIRED_TOKEN',
                 message: 'Invalid or expired token'
             });
         }
@@ -39,20 +43,21 @@ const requireAuth = async (req, res, next) => {
             await authenticatedSupabase
                 .from('usuario')
                 .select(`
-          id,
-          auth_user_id,
-          nombre,
-          apellido,
-          correo,
-          id_rol,
-          id_estado
-        `)
+                    id,
+                    auth_user_id,
+                    nombre,
+                    apellido,
+                    correo,
+                    id_rol,
+                    id_estado
+                `)
                 .eq('auth_user_id', authData.user.id)
                 .single();
 
         if (profileError || !userProfile) {
             return res.status(403).json({
                 success: false,
+                code: 'USER_PROFILE_NOT_FOUND',
                 message: 'CloudBox user profile was not found'
             });
         }
@@ -67,6 +72,7 @@ const requireAuth = async (req, res, next) => {
         if (roleError || !role) {
             return res.status(403).json({
                 success: false,
+                code: 'USER_ROLE_NOT_FOUND',
                 message: 'User role was not found'
             });
         }
@@ -81,6 +87,7 @@ const requireAuth = async (req, res, next) => {
         if (statusError || !userStatus) {
             return res.status(403).json({
                 success: false,
+                code: 'USER_STATUS_NOT_FOUND',
                 message: 'User status was not found'
             });
         }
@@ -88,6 +95,7 @@ const requireAuth = async (req, res, next) => {
         if (userStatus.nombre.toLowerCase() !== 'activo') {
             return res.status(403).json({
                 success: false,
+                code: 'USER_INACTIVE',
                 message: 'User account is not active'
             });
         }
@@ -108,6 +116,7 @@ const requireAuth = async (req, res, next) => {
     } catch (error) {
         return res.status(500).json({
             success: false,
+            code: 'AUTH_VALIDATION_FAILED',
             message: 'Authentication validation failed'
         });
     }
