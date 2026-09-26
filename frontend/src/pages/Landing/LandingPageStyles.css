@@ -19,7 +19,7 @@
   gap: 24px;
   width: 100%;
   box-sizing: border-box;
-  padding: 18px 16px;
+  padding: 0px 14px;
 }
 
 .landing-logo {
@@ -31,7 +31,7 @@
 
 .landing-logo img {
   display: block;
-  width: 140px;
+  width: 120px;
   height: auto;
 }
 
@@ -46,6 +46,12 @@
 .landing-nav-links a {
   text-decoration: none;
   color: inherit;
+  transition: color 0.2s ease;
+}
+
+.landing-nav-links a:hover,
+.landing-nav-links a:focus-visible {
+  color: var(--primaryColor);
 }
 
 .landing-nav-cta {
@@ -83,7 +89,7 @@
 @media (max-width: 760px) {
   .landing-nav-inner {
     flex-wrap: wrap;
-    padding: 16px 20px;
+    padding: 0px 18px;
   }
 
   .landing-nav-links {
@@ -119,12 +125,12 @@
   justify-content: center;
   box-sizing: border-box;
   min-height: 520px;
-  text-align: center;
+  text-align: left;
   padding: 90px 30px;
 }
 .landing-introduction-content {
   max-width: 640px;
-  margin: 0 auto;
+  margin: 0;
 }
 .landing-introduction h1 {
   font-size: 42px;
@@ -142,7 +148,7 @@
 .landing-introduction-actions {
   margin-top: 30px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
 }
 .btn-ghost {
@@ -184,11 +190,22 @@
   text-align: left;
 }
 .feat-icon {
-  width: 30px;
-  height: 30px;
-  margin-bottom: 18px;
-  color: var(--primaryColor);
-  stroke-width: 2.25;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  background-color: var(--primaryColor);
+  mask-image: url("/seguridad.png");
+  mask-mode: alpha; 
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+}
+.feat-icon-team {
+  mask-image: url("/trabajoequipo.png");
+}
+.feat-icon-anywhere {
+  mask-image: url("/cualquierlugar.png");
 }
 .feat-card h3 {
   margin-bottom: 8px;

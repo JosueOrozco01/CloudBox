@@ -9,9 +9,8 @@ function Topbar() {
 					<a href="características">Características</a>
 					<a href="planes">Planes</a>
 					<a href="seguridad">Seguridad</a>
-					<a href="soporte">Soporte</a>
 					<a href="sobrenosotros">Sobre nosotros</a>
-					<a href="contacto">Contacto</a>
+					<a href="soporte">Soporte</a>
 				</nav>
 				<div className="landing-nav-cta">
 					<a href="paginadeiniciarsesion">Iniciar sesión</a>
