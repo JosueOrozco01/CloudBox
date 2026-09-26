@@ -1,0 +1,30 @@
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: #ffffff;
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+
+.offline-banner.offline {
+  background: #d92d20;
+}
+
+.offline-banner.connecting {
+  background: #b98900;
+}
+
+.offline-banner.online {
+  background: #16a34a;
+}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Register.css";
 import Topbar from "../../components/Topbar/Topbar";
+import Loading from "../../components/Loading/Loading";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -31,19 +32,15 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar que las contraseñas coincidan
     if (form.password !== form.confirmPassword) {
       alert("Las contraseñas no coinciden");
       return;
     }
 
-    // Validar términos
     if (!form.aceptaTerminos) {
       alert("Debes aceptar los términos y condiciones");
       return;
     }
-
-    setLoading(true);
 
     try {
       const response = await fetch(
@@ -71,17 +68,21 @@ export default function Register() {
         return;
       }
 
+      setLoading(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       alert(
         data.message ||
           "Cuenta creada correctamente. Revisa tu correo para verificarla."
       );
 
-      // Ir al login después del registro
       navigate("/login");
 
     } catch (error) {
       console.error("Error al registrar usuario:", error);
       alert("No se pudo conectar con el servidor");
+
     } finally {
       setLoading(false);
     }
@@ -260,6 +261,12 @@ export default function Register() {
           </p>
         </form>
       </div>
+      {loading && (
+        <Loading
+          fullScreen={false}
+          text="Creando cuenta..."
+        />
+      )}
     </div>
   );
 }
