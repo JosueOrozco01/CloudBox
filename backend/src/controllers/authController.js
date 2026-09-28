@@ -43,6 +43,7 @@ const login = async (req, res) => {
         return res.status(200).json({
             success: true,
             token: sessionData.token,
+            refreshToken: sessionData.refreshToken,
             user: sessionData.user
         });
     } catch (error) {
