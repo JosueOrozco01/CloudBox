@@ -6,8 +6,11 @@
   justify-content: space-between;
   background: #ffffff;
   border-top: 2px solid #eceef3;
-  position: relative;
-  z-index: 2;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .brand {
@@ -17,7 +20,7 @@
 }
 
 .brand img {
-  height: 100px;
+  height: 90px;
   width: auto;
   display: block;
 }

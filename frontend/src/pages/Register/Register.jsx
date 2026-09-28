@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Register.css";
-import Topbar from "../../components/Topbar/Topbar";
+import Topbar from "../../components/TopbarLogin/Topbar";
+import Loading from "../../components/Loading/Loading";
+import AlertModal from "../../components/AlertModal/AlertModal";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -19,6 +21,13 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [alert, setAlert] = useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -31,21 +40,34 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar que las contraseñas coincidan
+    // Validar contraseñas
     if (form.password !== form.confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      setAlert({
+        isOpen: true,
+        type: "error",
+        title: "Contraseñas incorrectas",
+        message:
+          "Las contraseñas no coinciden. Verifica que ambas sean iguales.",
+      });
       return;
     }
 
     // Validar términos
     if (!form.aceptaTerminos) {
-      alert("Debes aceptar los términos y condiciones");
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Términos y condiciones",
+        message:
+          "Debes aceptar los términos y condiciones para crear tu cuenta.",
+      });
       return;
     }
 
-    setLoading(true);
-
     try {
+      // Mostrar Loading antes de hacer la petición
+      setLoading(true);
+
       const response = await fetch(
         "http://localhost:3000/api/auth/register",
         {
@@ -66,25 +88,68 @@ export default function Register() {
 
       console.log("Respuesta del registro:", data);
 
+      // Error del backend
       if (!response.ok) {
-        alert(data.message || "No se pudo crear la cuenta");
+        const message = Array.isArray(data.errors)
+            ? data.errors.join("\n")
+            : data.message || "Ocurrió un error al crear tu cuenta.";
+
+        setAlert({
+            isOpen: true,
+            type: "error",
+            title: "Revisa los datos",
+            message,
+        });
+
         return;
-      }
+    }
 
-      alert(
-        data.message ||
-          "Cuenta creada correctamente. Revisa tu correo para verificarla."
-      );
+      // Ocultar Loading antes de mostrar el mensaje
+      setLoading(false);
 
-      // Ir al login después del registro
-      navigate("/login");
+      // Mostrar mensaje de éxito
+      setAlert({
+        isOpen: true,
+        type: "success",
+        title: "¡Cuenta creada!",
+        message:
+          data.message ||
+          "Tu cuenta fue creada correctamente. Revisa tu correo para verificarla.",
+      });
 
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
-      alert("No se pudo conectar con el servidor");
+      console.error(
+        "Error al registrar usuario:",
+        error
+      );
+
+      setAlert({
+        isOpen: true,
+        type: "error",
+        title: "Error de conexión",
+        message:
+          "No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose.",
+      });
+
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAlertClose = () => {
+    setAlert((prev) => ({
+      ...prev,
+      isOpen: false,
+    }));
+  };
+
+  const handleSuccessConfirm = () => {
+    setAlert((prev) => ({
+      ...prev,
+      isOpen: false,
+    }));
+
+    navigate("/login");
   };
 
   return (
@@ -92,7 +157,10 @@ export default function Register() {
       <Topbar />
 
       <div className="signup-page">
-        <form className="signup-card" onSubmit={handleSubmit}>
+        <form
+          className="signup-card"
+          onSubmit={handleSubmit}
+        >
           <div className="signup-icon">
             <svg
               width="20"
@@ -109,14 +177,19 @@ export default function Register() {
             </svg>
           </div>
 
-          <h1 className="signup-title">Crea tu cuenta</h1>
+          <h1 className="signup-title">
+            Crea tu cuenta
+          </h1>
 
           <p className="signup-subtitle">
             Comienza a gestionar tu almacenamiento en CloudBox
           </p>
 
+          {/* Nombre */}
           <div className="field">
-            <label htmlFor="nombre">Nombre</label>
+            <label htmlFor="nombre">
+              Nombre
+            </label>
 
             <input
               id="nombre"
@@ -130,8 +203,11 @@ export default function Register() {
             />
           </div>
 
+          {/* Apellido */}
           <div className="field">
-            <label htmlFor="apellidos">Apellido</label>
+            <label htmlFor="apellidos">
+              Apellido
+            </label>
 
             <input
               id="apellidos"
@@ -145,8 +221,11 @@ export default function Register() {
             />
           </div>
 
+          {/* Correo */}
           <div className="field">
-            <label htmlFor="email">Correo electrónico</label>
+            <label htmlFor="email">
+              Correo electrónico
+            </label>
 
             <input
               id="email"
@@ -160,14 +239,21 @@ export default function Register() {
             />
           </div>
 
+          {/* Contraseña */}
           <div className="field">
-            <label htmlFor="password">Contraseña</label>
+            <label htmlFor="password">
+              Contraseña
+            </label>
 
             <div className="input-wrap">
               <input
                 id="password"
                 name="password"
-                type={showPassword ? "text" : "password"}
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
                 value={form.password}
                 onChange={handleChange}
                 placeholder="••••••••••"
@@ -178,22 +264,28 @@ export default function Register() {
               <button
                 type="button"
                 className="toggle-eye"
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() =>
+                  setShowPassword((v) => !v)
+                }
                 aria-label={
                   showPassword
                     ? "Ocultar contraseña"
                     : "Mostrar contraseña"
                 }
               >
-                <EyeIcon crossed={showPassword} />
+                <EyeIcon
+                  crossed={showPassword}
+                />
               </button>
             </div>
 
             <p className="hint">
-              Mínimo 8 caracteres. Usa letras, números y símbolos.
+              Mínimo 8 caracteres. Usa letras,
+              números y símbolos.
             </p>
           </div>
 
+          {/* Confirmar contraseña */}
           <div className="field">
             <label htmlFor="confirmPassword">
               Confirmar contraseña
@@ -203,7 +295,11 @@ export default function Register() {
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
+                type={
+                  showConfirmPassword
+                    ? "text"
+                    : "password"
+                }
                 value={form.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••••"
@@ -215,7 +311,9 @@ export default function Register() {
                 type="button"
                 className="toggle-eye"
                 onClick={() =>
-                  setShowConfirmPassword((v) => !v)
+                  setShowConfirmPassword(
+                    (v) => !v
+                  )
                 }
                 aria-label={
                   showConfirmPassword
@@ -223,11 +321,14 @@ export default function Register() {
                     : "Mostrar contraseña"
                 }
               >
-                <EyeIcon crossed={showConfirmPassword} />
+                <EyeIcon
+                  crossed={showConfirmPassword}
+                />
               </button>
             </div>
           </div>
 
+          {/* Términos */}
           <label className="checkbox-row">
             <input
               type="checkbox"
@@ -246,20 +347,50 @@ export default function Register() {
             </span>
           </label>
 
+          {/* Botón */}
           <button
             type="submit"
             className="btn-primary"
             disabled={loading}
           >
-            {loading ? "Creando cuenta..." : "Crear cuenta"}
+            {loading
+              ? "Creando cuenta..."
+              : "Crear cuenta"}
           </button>
 
+          {/* Login */}
           <p className="login-link">
             ¿Ya tienes una cuenta?{" "}
-            <Link to="/login">Iniciar sesión</Link>
+            <Link to="/login">
+              Iniciar sesión
+            </Link>
           </p>
         </form>
       </div>
+
+      {/* Loading */}
+      {loading && (
+        <Loading
+          fullScreen={true}
+          text="Creando cuenta..."
+        />
+      )}
+
+      {/* Alertas */}
+      <AlertModal
+        isOpen={alert.isOpen}
+        onClose={handleAlertClose}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        confirmText="Aceptar"
+        variant="modal"
+        onConfirm={
+          alert.type === "success"
+            ? handleSuccessConfirm
+            : undefined
+        }
+      />
     </div>
   );
 }
@@ -278,8 +409,17 @@ function EyeIcon({ crossed }) {
       aria-hidden="true"
     >
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-      <circle cx="12" cy="12" r="3" />
-      {crossed && <path d="m3 3 18 18" />}
+
+      <circle
+        cx="12"
+        cy="12"
+        r="3"
+      />
+
+      {crossed && (
+        <path d="m3 3 18 18" />
+      )}
     </svg>
   );
 }
+

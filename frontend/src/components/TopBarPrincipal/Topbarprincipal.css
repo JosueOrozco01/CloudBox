@@ -1,0 +1,118 @@
+:root {
+  --primaryColor: #1e56fd;
+  --primaryHover: #1e293b;
+  --secondaryColor: #1565c0;
+  --tertiaryColor: #00b0ff;
+
+  --backgroundColor: #f8fafc;
+  --surfaceColor: #ffffff;
+  --borderColor: #e2e8f0;
+
+  --textPrimary: #1e293b;
+  --textSecondary: #64748b;
+
+  --successColor: #22c55e;
+  --dangerColor: #ef4444;
+}
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+  background: var(--surfaceColor);
+  border-bottom: 1px solid var(--borderColor);
+}
+
+.landing-nav-inner {
+  max-width: 1500px;
+  margin: 0 auto;
+  height: 60px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}   
+
+.landing-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.landing-logo img {
+  height: 90px;
+  width: auto;
+  display: block;
+}
+
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.landing-nav-links a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--textSecondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.landing-nav-links a:hover {
+  color: var(--textPrimary);
+}
+
+.landing-nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.landing-login-link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--textPrimary);
+  text-decoration: none;
+}
+
+.landing-login-link:hover {
+  color: var(--primaryColor);
+}
+
+.landing-nav-cta .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primaryColor);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.landing-nav-cta .btn-primary:hover {
+  background: var(--primaryHover);
+  color: #ffffff;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .landing-nav-links {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-login-link {
+    display: none;
+  }
+}

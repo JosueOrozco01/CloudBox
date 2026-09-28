@@ -4,20 +4,20 @@ const validateRegistration = (req, res, next) => {
     const validationErrors = [];
 
     if (!firstName || !firstName.trim()) {
-        validationErrors.push('First name is required');
+        validationErrors.push('Nombre es obligatorio');
     }
 
     if (!lastName || !lastName.trim()) {
-        validationErrors.push('Last name is required');
+        validationErrors.push('Apellido es obligatorio');
     }
 
     if (!email || !email.trim()) {
-        validationErrors.push('Email is required');
+        validationErrors.push('Correo electrónico es obligatorio');
     } else {
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailPattern.test(email.trim())) {
-            validationErrors.push('Email format is invalid');
+            validationErrors.push('Formato del correo electrónico no es válido');
         }
     }
 

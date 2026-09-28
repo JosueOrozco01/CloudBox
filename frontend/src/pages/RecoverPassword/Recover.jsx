@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Recover.css";
-import Topbar from "../../components/Topbar/Topbar";
+import Topbar from "../../components/TopbarLogin/Topbar";
+import Loading from "../../components/Loading/Loading";
+import AlertModal from "../../components/AlertModal/AlertModal";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -17,21 +19,37 @@ export default function ForgotPassword() {
 
   const [loading, setLoading] = useState(false);
 
-  // ==========================================
-  // ENVIAR CÓDIGO DE RECUPERACIÓN
-  // ==========================================
+  const [alert, setAlert] = useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const closeAlert = () => {
+    setAlert((prev) => ({
+      ...prev,
+      isOpen: false,
+    }));
+  };
 
   const handleSendCode = async (e) => {
     e.preventDefault();
 
     if (!email.trim()) {
-      alert("Ingresa tu correo electrónico");
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Correo requerido",
+        message:
+          "Ingresa tu correo electrónico para continuar.",
+      });
       return;
     }
 
-    setLoading(true);
-
     try {
+      setLoading(true);
+
       const response = await fetch(
         "http://localhost:3000/api/auth/forgot-password",
         {
@@ -50,60 +68,100 @@ export default function ForgotPassword() {
       console.log("Respuesta recuperación:", data);
 
       if (!response.ok) {
-        alert(
-          data.message ||
-            "No se pudo enviar el código de recuperación"
-        );
+        setAlert({
+          isOpen: true,
+          type: "error",
+          title: "No se pudo enviar el código",
+          message:
+            data.message ||
+            "No se pudo procesar la solicitud.",
+        });
+
         return;
       }
 
-      alert(
-        data.message ||
-          "Se ha enviado un código a tu correo electrónico"
-      );
-
-      // Pasamos al segundo paso
       setStep("reset");
 
+      setAlert({
+        isOpen: true,
+        type: "success",
+        title: "¡Código enviado!",
+        message:
+          data.message ||
+          "Se ha enviado un código a tu correo electrónico.",
+      });
     } catch (error) {
       console.error(
         "Error enviando código de recuperación:",
         error
       );
 
-      alert("No se pudo conectar con el servidor");
+      setAlert({
+        isOpen: true,
+        type: "error",
+        title: "Error de conexión",
+        message:
+          "No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // ==========================================
-  // RESTABLECER CONTRASEÑA
-  // ==========================================
-
   const handleReset = async (e) => {
     e.preventDefault();
 
-    // Validar contraseñas
-    if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden");
-      return;
-    }
-
-    // Validar longitud
-    if (password.length < 8) {
-      alert("La contraseña debe tener al menos 8 caracteres");
-      return;
-    }
-
     if (!code.trim()) {
-      alert("Ingresa el código de verificación");
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Código requerido",
+        message:
+          "Ingresa el código de verificación que recibiste en tu correo.",
+      });
+
       return;
     }
 
-    setLoading(true);
+    if (!password) {
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Contraseña requerida",
+        message:
+          "Ingresa una nueva contraseña.",
+      });
+
+      return;
+    }
+
+    if (!confirmPassword) {
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Confirmación requerida",
+        message:
+          "Confirma tu nueva contraseña.",
+      });
+
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setAlert({
+        isOpen: true,
+        type: "error",
+        title: "Contraseñas incorrectas",
+        message:
+          "Las contraseñas no coinciden. Verifica que ambas sean iguales.",
+      });
+
+      return;
+    }
 
     try {
+      setLoading(true);
+
       const response = await fetch(
         "http://localhost:3000/api/auth/reset-password",
         {
@@ -121,34 +179,53 @@ export default function ForgotPassword() {
 
       const data = await response.json();
 
-      console.log("Respuesta cambio de contraseña:", data);
+      console.log(
+        "Respuesta cambio de contraseña:",
+        data
+      );
 
       if (!response.ok) {
-        alert(
-          data.message ||
-            "No se pudo restablecer la contraseña"
-        );
+        setAlert({
+          isOpen: true,
+          type: "error",
+          title: "No se pudo restablecer la contraseña",
+          message:
+            data.message ||
+            "No se pudo restablecer la contraseña.",
+        });
+
         return;
       }
 
-      alert(
-        data.message ||
-          "Contraseña restablecida correctamente"
-      );
-
-      // Regresar al login
-      navigate("/login");
-
+      setAlert({
+        isOpen: true,
+        type: "success",
+        title: "¡Contraseña restablecida!",
+        message:
+          data.message ||
+          "Tu contraseña se restableció correctamente.",
+      });
     } catch (error) {
       console.error(
         "Error restableciendo contraseña:",
         error
       );
 
-      alert("No se pudo conectar con el servidor");
+      setAlert({
+        isOpen: true,
+        type: "error",
+        title: "Error de conexión",
+        message:
+          "No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose.",
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuccessReset = () => {
+    closeAlert();
+    navigate("/login");
   };
 
   return (
@@ -156,10 +233,6 @@ export default function ForgotPassword() {
       <Topbar />
 
       <div className="forgot-page">
-
-        {/* ==========================================
-            PASO 1
-        ========================================== */}
 
         {step === "email" ? (
           <form
@@ -262,10 +335,6 @@ export default function ForgotPassword() {
 
         ) : (
 
-          /* ==========================================
-             PASO 2
-          ========================================== */
-
           <form
             className="forgot-card"
             onSubmit={handleReset}
@@ -324,7 +393,11 @@ export default function ForgotPassword() {
                     aria-hidden="true"
                   >
                     <path d="m9 12 2 2 4-4" />
-                    <circle cx="12" cy="12" r="10" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                    />
                   </svg>
                 </span>
 
@@ -417,7 +490,11 @@ export default function ForgotPassword() {
                       aria-hidden="true"
                     >
                       <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
-                      <circle cx="12" cy="12" r="3" />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="3"
+                      />
                     </svg>
                   ) : (
                     <svg
@@ -559,6 +636,32 @@ export default function ForgotPassword() {
           </form>
         )}
       </div>
+
+      {loading && (
+        <Loading
+          fullScreen={true}
+          text={
+            step === "email"
+              ? "Enviando código..."
+              : "Restableciendo contraseña..."
+          }
+        />
+      )}
+
+      <AlertModal
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        confirmText="Aceptar"
+        variant="modal"
+        onConfirm={
+          alert.type === "success" && step === "reset"
+            ? handleSuccessReset
+            : undefined
+        }
+      />
     </div>
   );
 }
