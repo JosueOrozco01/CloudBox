@@ -1,5 +1,16 @@
+import { useState } from "react";
+import { Upload } from "lucide-react";
+import PasswordConfirmationModal from "./PasswordConfirmationModal.jsx";
+
 function ProfileForm() {
+	const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+	const handlePasswordConfirmation = () => {
+		setIsPasswordModalOpen(false);
+	};
+
 	return (
+		<>
 		<section className="profilePanel">
 				<div className="profilePanelHeading">
 					<h2>Información personal</h2>
@@ -9,10 +20,10 @@ function ProfileForm() {
 				<div className="profilePhotoRow">
 					<span className="profileAvatar profileAvatarLarge">CF</span>
 					<div>
-						<span className="secondaryButton profilePhotoButton">
-							<span className="profileUploadIcon" aria-hidden="true"><span /></span>
+						<button className="secondaryButton profilePhotoButton" type="button">
+							<Upload className="profileUploadIcon" size={16} strokeWidth={2.2} aria-hidden="true" />
 							Cambiar foto
-						</span>
+						</button>
 						<small>Recomendado: JPG o PNG de al menos 400x400px</small>
 					</div>
 				</div>
@@ -32,23 +43,47 @@ function ProfileForm() {
 					</label>
 					<label>
 						Rol
-						<input name="role" placeholder="Rol de la cuenta" type="text" />
+						<div className="profileReadonlyInput">
+							<span>No se puede modificar</span>
+							<img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+						</div>
 					</label>
 					<label>
 						Estado
-						<input name="status" placeholder="Estado de la cuenta" type="text" />
+						<div className="profileReadonlyInput">
+							<span>No se puede modificar</span>
+							<img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+						</div>
 					</label>
 					<label>
 						Fecha de creación
-						<div className="profileReadonlyInput">No disponible</div>
+						<div className="profileReadonlyInput">
+							<span>No se puede modificar</span>
+							<img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+						</div>
 					</label>
 				</div>
 
 				<div className="profileFormActions">
 					<button className="secondaryButton" type="button">Cancelar</button>
-					<button className="primaryButton" type="button">Guardar cambios</button>
+					<button
+						className="primaryButton"
+						type="button"
+						onClick={() => setIsPasswordModalOpen(true)}
+					>
+						Guardar cambios
+					</button>
+					<button className="passwordButton" type="button">
+						Cambiar contraseña
+					</button>
 				</div>
 			</section>
+			<PasswordConfirmationModal
+				isOpen={isPasswordModalOpen}
+				onClose={() => setIsPasswordModalOpen(false)}
+				onConfirm={handlePasswordConfirmation}
+			/>
+		</>
 	);
 }
 

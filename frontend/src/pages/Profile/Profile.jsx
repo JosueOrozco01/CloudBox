@@ -23,11 +23,24 @@ function UserProfile() {
 		<div className="profilePage">
 			{/* Topbar */}
 			<main className="profileMain">
+				<header className="profilePageHeader">
+					<h1>Configuración</h1>
+					<p>Administra tu perfil, seguridad y preferencias de CloudBox</p>
+				</header>
 				<div className="profileContent">
 					<aside className="profileTabs" aria-label="Configuración de cuenta">
-						<button className="profileTab profileTabActive" type="button">Perfil</button>
-						<button className="profileTab" type="button">Seguridad</button>
-						<button className="profileTab" type="button">Preferencias</button>
+						<button className="profileTab profileTabActive" type="button">
+							<img className="profileTabIcon" src="/Usuario.png" alt="" />
+							Perfil
+						</button>
+						<button className="profileTab" type="button">
+							<img className="profileTabIcon" src="/seguro.png" alt="" />
+							Seguridad
+						</button>
+						<button className="profileTab" type="button">
+							<img className="profileTabIcon" src="/preferencias.png" alt="" />
+							Preferencias
+						</button>
 					</aside>
 					<section className="profilePanels">
 						<ProfileForm />

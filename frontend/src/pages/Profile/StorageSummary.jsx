@@ -1,17 +1,23 @@
 // Valores de ejemplo locales; no se consultan ni guardan en un servicio.
 const storageCapacityGb = 100;
-const storageUsagePercent = 30;
+const storageUsageGb = 70;
 
 function StorageSummary() {
-	const boundedUsagePercent = Math.min(100, Math.max(0, storageUsagePercent));
-	const availableStorageGb = storageCapacityGb * (1 - boundedUsagePercent / 100);
+	const boundedUsageGb = Math.min(storageCapacityGb, Math.max(0, storageUsageGb));
+	const usagePercent = (boundedUsageGb / storageCapacityGb) * 100;
+	const boundedUsagePercent = Math.round(usagePercent);
+	const storageColorClass = boundedUsagePercent > 80
+		? "storageSummaryFillRed"
+		: boundedUsagePercent > 50
+			? "storageSummaryFillYellow"
+			: "storageSummaryFillBlue";
 
 	return (
 		<section className="storageSummary" aria-labelledby="storageSummaryTitle">
 			<div>
 				<h2 className="storageSummaryTitle" id="storageSummaryTitle">Espacio utilizado</h2>
 				<p className="storageSummaryAvailable">
-					{availableStorageGb} GB disponibles
+					{boundedUsageGb} GB de {storageCapacityGb} GB usado
 				</p>
 				<div
 					className="storageSummaryTrack"
@@ -22,7 +28,7 @@ function StorageSummary() {
 					aria-valuenow={boundedUsagePercent}
 				>
 					<div
-						className="storageSummaryFill"
+						className={`storageSummaryFill ${storageColorClass}`}
 						style={{ width: `${boundedUsagePercent}%` }}
 					/>
 				</div>
