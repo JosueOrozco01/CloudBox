@@ -5,7 +5,8 @@ const crypto = require('crypto');
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const requestPasswordRecovery = async (email) => {
@@ -14,7 +15,8 @@ const requestPasswordRecovery = async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(
         normalizedEmail,
         {
-            redirectTo: process.env.PASSWORD_RESET_REDIRECT_URL
+            redirectTo:
+                process.env.PASSWORD_RESET_REDIRECT_URL
         }
     );
 
@@ -24,9 +26,13 @@ const requestPasswordRecovery = async (email) => {
             error.code === 'over_email_send_rate_limit'
         ) {
             const rateLimitError =
-                new Error('Password recovery email rate limit exceeded');
+                new Error(
+                    'Password recovery email rate limit exceeded'
+                );
 
-            rateLimitError.code = 'PASSWORD_RECOVERY_RATE_LIMIT';
+            rateLimitError.code =
+                'PASSWORD_RECOVERY_RATE_LIMIT';
+
             rateLimitError.status = 429;
             rateLimitError.cause = error;
 
@@ -34,9 +40,13 @@ const requestPasswordRecovery = async (email) => {
         }
 
         const passwordRecoveryError =
-            new Error('Unable to request password recovery');
+            new Error(
+                'Unable to request password recovery'
+            );
 
-        passwordRecoveryError.code = 'PASSWORD_RECOVERY_FAILED';
+        passwordRecoveryError.code =
+            'PASSWORD_RECOVERY_FAILED';
+
         passwordRecoveryError.status = 500;
         passwordRecoveryError.cause = error;
 
@@ -62,9 +72,13 @@ const resendEmailConfirmation = async (email) => {
             error.code === 'over_email_send_rate_limit'
         ) {
             const rateLimitError =
-                new Error('Email confirmation rate limit exceeded');
+                new Error(
+                    'Email confirmation rate limit exceeded'
+                );
 
-            rateLimitError.code = 'EMAIL_CONFIRMATION_RATE_LIMIT';
+            rateLimitError.code =
+                'EMAIL_CONFIRMATION_RATE_LIMIT';
+
             rateLimitError.status = 429;
             rateLimitError.cause = error;
 
@@ -72,9 +86,13 @@ const resendEmailConfirmation = async (email) => {
         }
 
         const confirmationError =
-            new Error('Unable to resend email confirmation');
+            new Error(
+                'Unable to resend email confirmation'
+            );
 
-        confirmationError.code = 'EMAIL_CONFIRMATION_FAILED';
+        confirmationError.code =
+            'EMAIL_CONFIRMATION_FAILED';
+
         confirmationError.status = 500;
         confirmationError.cause = error;
 
@@ -82,18 +100,26 @@ const resendEmailConfirmation = async (email) => {
     }
 };
 
-const signOutUser = async (accessToken, refreshToken) => {
+const signOutUser = async (
+    accessToken,
+    refreshToken
+) => {
     if (!accessToken || !refreshToken) {
         const sessionError =
-            new Error('Access token and refresh token are required');
+            new Error(
+                'Access token and refresh token are required'
+            );
 
-        sessionError.code = 'SESSION_TOKENS_REQUIRED';
+        sessionError.code =
+            'SESSION_TOKENS_REQUIRED';
+
         sessionError.status = 400;
 
         throw sessionError;
     }
 
-    const sessionSupabase = createSessionSupabaseClient();
+    const sessionSupabase =
+        createSessionSupabaseClient();
 
     const { error: sessionError } =
         await sessionSupabase.auth.setSession({
@@ -103,11 +129,16 @@ const signOutUser = async (accessToken, refreshToken) => {
 
     if (sessionError) {
         const invalidSessionError =
-            new Error('Unable to restore user session');
+            new Error(
+                'Unable to restore user session'
+            );
 
-        invalidSessionError.code = 'INVALID_SESSION';
+        invalidSessionError.code =
+            'INVALID_SESSION';
+
         invalidSessionError.status = 401;
-        invalidSessionError.cause = sessionError;
+        invalidSessionError.cause =
+            sessionError;
 
         throw invalidSessionError;
     }
@@ -119,56 +150,86 @@ const signOutUser = async (accessToken, refreshToken) => {
 
     if (signOutError) {
         const logoutError =
-            new Error('Unable to sign out user');
+            new Error(
+                'Unable to sign out user'
+            );
 
-        logoutError.code = 'AUTH_SIGN_OUT_FAILED';
+        logoutError.code =
+            'AUTH_SIGN_OUT_FAILED';
+
         logoutError.status = 500;
-        logoutError.cause = signOutError;
+        logoutError.cause =
+            signOutError;
 
         throw logoutError;
     }
 };
 
 const registrarUsuario = async (dto) => {
-    const { firstName, lastName, email, password } = dto;
-    const normalizedEmail = email.trim().toLowerCase();
+    const {
+        firstName,
+        lastName,
+        email,
+        password
+    } = dto;
 
-    // 1. Validate duplicate email before calling Supabase Auth
-    const { data: usuarioExistente } = await supabaseAdmin
-        .from('usuario')
-        .select('id')
-        .eq('correo', normalizedEmail)
-        .maybeSingle();
+    const normalizedEmail =
+        email.trim().toLowerCase();
+
+    // Validate duplicate email before calling Supabase Auth
+    const { data: usuarioExistente } =
+        await supabaseAdmin
+            .from('usuario')
+            .select('id')
+            .eq('correo', normalizedEmail)
+            .maybeSingle();
 
     if (usuarioExistente) {
-        const err = new Error('El correo electrónico ya se encuentra registrado');
+        const err =
+            new Error(
+                'El correo electrónico ya se encuentra registrado'
+            );
+
         err.status = 409;
+
         throw err;
     }
 
-    // 2. Register user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // Register user in Supabase Auth
+    const {
+        data: authData,
+        error: authError
+    } = await supabase.auth.signUp({
         email: normalizedEmail,
-        password
+        password,
+        options: {
+            emailRedirectTo:
+                process.env.EMAIL_CONFIRMATION_REDIRECT_URL
+        }
     });
 
     if (authError) {
         throw authError;
     }
 
-    // 3. Persist record in physical 'usuario' table
-    const { error: insertError } = await supabaseAdmin
-        .from('usuario')
-        .insert({
-            nombre: firstName,
-            apellido: lastName,
-            correo: normalizedEmail,
-            espacio_usado_by: 0,
-            fecha_registro: new Date().toISOString().split('T')[0],
-            id_rol: 1,
-            id_estado: 1,
-            auth_user_id: authData.user?.id
-        });
+    // Persist record in physical usuario table
+    const { error: insertError } =
+        await supabaseAdmin
+            .from('usuario')
+            .insert({
+                nombre: firstName,
+                apellido: lastName,
+                correo: normalizedEmail,
+                espacio_usado_by: 0,
+                fecha_registro:
+                    new Date()
+                        .toISOString()
+                        .split('T')[0],
+                id_rol: 1,
+                id_estado: 1,
+                auth_user_id:
+                    authData.user?.id
+            });
 
     if (insertError) {
         if (insertError.code === '23505') {
@@ -177,84 +238,157 @@ const registrarUsuario = async (dto) => {
                 .update({
                     nombre: firstName,
                     apellido: lastName,
-                    auth_user_id: authData.user?.id
+                    auth_user_id:
+                        authData.user?.id
                 })
-                .eq('correo', normalizedEmail);
+                .eq(
+                    'correo',
+                    normalizedEmail
+                );
         } else {
             throw insertError;
         }
     }
 
     return {
-        message: "Revisa tu correo para verificar tu cuenta"
+        message:
+            'Revisa tu correo para verificar tu cuenta'
     };
 };
 
-const verificarCorreo = async ({ token, email, type = 'signup' }) => {
-    let verifyOptions = { type };
+const verificarCorreo = async ({
+    token,
+    email,
+    type = 'signup'
+}) => {
+    let verifyOptions = {
+        type
+    };
 
     if (token && token.length > 10) {
-        verifyOptions.token_hash = token;
+        verifyOptions.token_hash =
+            token;
     } else {
-        verifyOptions.token = token;
-        verifyOptions.email = email?.trim().toLowerCase();
+        verifyOptions.token =
+            token;
+
+        verifyOptions.email =
+            email
+                ?.trim()
+                .toLowerCase();
     }
 
-    const { data, error } = await supabase.auth.verifyOtp(verifyOptions);
+    const {
+        data,
+        error
+    } = await supabase.auth.verifyOtp(
+        verifyOptions
+    );
 
     if (error) {
-        const err = new Error('El enlace de verificación no es válido o ha vencido');
+        const err =
+            new Error(
+                'El enlace de verificación no es válido o ha vencido'
+            );
+
         err.status = 400;
+
         throw err;
     }
 
     if (email) {
         await supabaseAdmin
             .from('usuario')
-            .update({ id_estado: 1 })
-            .eq('correo', email.trim().toLowerCase());
+            .update({
+                id_estado: 1
+            })
+            .eq(
+                'correo',
+                email
+                    .trim()
+                    .toLowerCase()
+            );
     }
 
-    return { message: 'Cuenta verificada correctamente' };
+    return {
+        message:
+            'Cuenta verificada correctamente'
+    };
 };
 
-const iniciarSesion = async ({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
+const iniciarSesion = async ({
+    email,
+    password
+}) => {
+    const normalizedEmail =
+        email.trim().toLowerCase();
 
     // Validate credentials against Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password
-    });
+    const {
+        data: authData,
+        error: authError
+    } =
+        await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password
+        });
 
     if (authError) {
-        const err = new Error('Credenciales inválidas o cuenta no verificada');
+        const err =
+            new Error(
+                'Credenciales inválidas o cuenta no verificada'
+            );
+
         err.status = 401;
+
         throw err;
     }
 
     // Fetch user profile from physical database
-    const { data: userData, error: dbError } = await supabaseAdmin
-        .from('usuario')
-        .select('id, nombre, apellido, correo, id_rol, id_estado')
-        .eq('auth_user_id', authData.user.id)
-        .single();
+    const {
+        data: userData,
+        error: dbError
+    } =
+        await supabaseAdmin
+            .from('usuario')
+            .select(
+                'id, nombre, apellido, correo, id_rol, id_estado'
+            )
+            .eq(
+                'auth_user_id',
+                authData.user.id
+            )
+            .single();
 
     if (dbError || !userData) {
-        const err = new Error('No se pudo recuperar la información del usuario');
+        const err =
+            new Error(
+                'No se pudo recuperar la información del usuario'
+            );
+
         err.status = 500;
+
         throw err;
     }
 
     if (userData.id_estado !== 1) {
-        const err = new Error('Cuenta inactiva');
+        const err =
+            new Error(
+                'Cuenta inactiva'
+            );
+
         err.status = 401;
+
         throw err;
     }
 
     return {
-        token: authData.session.access_token,
-        refreshToken: authData.session.refresh_token,
+        token:
+            authData.session.access_token,
+
+        refreshToken:
+            authData.session.refresh_token,
+
         user: {
             id: userData.id,
             nombre: userData.nombre,
@@ -265,44 +399,89 @@ const iniciarSesion = async ({ email, password }) => {
     };
 };
 
-const resetPassword = async ({ email, token, newPassword }) => {
+const resetPassword = async ({
+    email,
+    token,
+    newPassword
+}) => {
     // Validate minimum password requirements
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const passwordRegex =
+        /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+
     if (!passwordRegex.test(newPassword)) {
-        const err = new Error('La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo');
+        const err =
+            new Error(
+                'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo'
+            );
+
         err.status = 400;
+
         throw err;
     }
 
-    let verifyOptions = { type: 'recovery' };
+    let verifyOptions = {
+        type: 'recovery'
+    };
 
     if (token && token.length > 10) {
-        verifyOptions.token_hash = token;
+        verifyOptions.token_hash =
+            token;
     } else {
-        verifyOptions.token = token;
-        verifyOptions.email = email?.trim().toLowerCase();
+        verifyOptions.token =
+            token;
+
+        verifyOptions.email =
+            email
+                ?.trim()
+                .toLowerCase();
     }
 
-    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp(verifyOptions);
+    const {
+        data: verifyData,
+        error: verifyError
+    } =
+        await supabase.auth.verifyOtp(
+            verifyOptions
+        );
 
-    if (verifyError || !verifyData?.user) {
-        const err = new Error('El código de recuperación es inválido o ha vencido');
+    if (
+        verifyError ||
+        !verifyData?.user
+    ) {
+        const err =
+            new Error(
+                'El código de recuperación es inválido o ha vencido'
+            );
+
         err.status = 400;
+
         throw err;
     }
 
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        verifyData.user.id,
-        { password: newPassword }
-    );
+    const { error: updateError } =
+        await supabaseAdmin.auth.admin.updateUserById(
+            verifyData.user.id,
+            {
+                password:
+                    newPassword
+            }
+        );
 
     if (updateError) {
-        const err = new Error('No se pudo actualizar la contraseña');
+        const err =
+            new Error(
+                'No se pudo actualizar la contraseña'
+            );
+
         err.status = 500;
+
         throw err;
     }
 
-    return { message: 'Contraseña restablecida exitosamente' };
+    return {
+        message:
+            'Contraseña restablecida exitosamente'
+    };
 };
 
 module.exports = {
