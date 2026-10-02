@@ -1,28 +1,24 @@
-const requireRole = (...allowedRoles) => {
+const authorizeRole = (allowedRoles = []) => {
     return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication is required'
+        // req.user.role fue resuelto en auth.middleware.js desde la tabla rol
+        const userRole = req.user && req.user.role;
+
+        if (!userRole) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Acceso denegado: permisos insuficientes" 
             });
         }
-
-        const currentRole = req.user.role.toLowerCase();
-
-        const normalizedAllowedRoles = allowedRoles.map((role) =>
-            role.toLowerCase()
-        );
-
-        // Restrict access when the authenticated user does not have an allowed role.
-        if (!normalizedAllowedRoles.includes(currentRole)) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have permission to access this resource'
-            });
+        
+        if (allowedRoles.includes(userRole)) {
+            return next();
         }
 
-        next();
+        return res.status(403).json({ 
+            success: false, 
+            message: "Acceso denegado: permisos insuficientes" 
+        });
     };
 };
 
-module.exports = requireRole;
+module.exports = authorizeRole;
