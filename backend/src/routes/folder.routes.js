@@ -11,5 +11,7 @@ router.get('/:id', folderController.getFolderById);
 router.put('/:id', folderController.updateFolderName);
 router.get('/:id/subfolders', folderController.getSubfolders);
 router.get('/:id/content', folderController.getFolderContent);
+router.patch('/:id/move', folderController.moveFolder);
+router.delete('/:id', folderController.deleteFolder);
 
 module.exports = router;
