@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import "./Recover.css";
+
 import Topbar from "../../components/TopbarLogin/Topbar";
 import Loading from "../../components/Loading/Loading";
 import AlertModal from "../../components/AlertModal/AlertModal";
@@ -9,6 +11,7 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState("email");
+
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +21,8 @@ export default function ForgotPassword() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  const [resetCompleted, setResetCompleted] = useState(false);
 
   const [alert, setAlert] = useState({
     isOpen: false,
@@ -36,7 +41,9 @@ export default function ForgotPassword() {
   const handleSendCode = async (e) => {
     e.preventDefault();
 
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       setAlert({
         isOpen: true,
         type: "warning",
@@ -44,6 +51,7 @@ export default function ForgotPassword() {
         message:
           "Ingresa tu correo electrónico para continuar.",
       });
+
       return;
     }
 
@@ -58,7 +66,7 @@ export default function ForgotPassword() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: email.trim().toLowerCase(),
+            email: normalizedEmail,
           }),
         }
       );
@@ -80,6 +88,7 @@ export default function ForgotPassword() {
         return;
       }
 
+      setResetCompleted(false);
       setStep("reset");
 
       setAlert({
@@ -87,8 +96,7 @@ export default function ForgotPassword() {
         type: "success",
         title: "¡Código enviado!",
         message:
-          data.message ||
-          "Se ha enviado un código a tu correo electrónico.",
+          "Revisa tu correo e ingresa el código recibido para continuar.",
       });
     } catch (error) {
       console.error(
@@ -111,7 +119,10 @@ export default function ForgotPassword() {
   const handleReset = async (e) => {
     e.preventDefault();
 
-    if (!code.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = code.trim();
+
+    if (!normalizedCode) {
       setAlert({
         isOpen: true,
         type: "warning",
@@ -159,6 +170,21 @@ export default function ForgotPassword() {
       return;
     }
 
+    const passwordRegex =
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+
+    if (!passwordRegex.test(password)) {
+      setAlert({
+        isOpen: true,
+        type: "warning",
+        title: "Contraseña no válida",
+        message:
+          "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo.",
+      });
+
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -170,8 +196,8 @@ export default function ForgotPassword() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: email.trim().toLowerCase(),
-            token: code.trim(),
+            email: normalizedEmail,
+            token: normalizedCode,
             newPassword: password,
           }),
         }
@@ -188,7 +214,8 @@ export default function ForgotPassword() {
         setAlert({
           isOpen: true,
           type: "error",
-          title: "No se pudo restablecer la contraseña",
+          title:
+            "No se pudo restablecer la contraseña",
           message:
             data.message ||
             "No se pudo restablecer la contraseña.",
@@ -196,6 +223,8 @@ export default function ForgotPassword() {
 
         return;
       }
+
+      setResetCompleted(true);
 
       setAlert({
         isOpen: true,
@@ -228,12 +257,20 @@ export default function ForgotPassword() {
     navigate("/login");
   };
 
+  const handleAlertClose = () => {
+    if (resetCompleted) {
+      handleSuccessReset();
+      return;
+    }
+
+    closeAlert();
+  };
+
   return (
     <div className="forgot-wrapper">
       <Topbar />
 
       <div className="forgot-page">
-
         {step === "email" ? (
           <form
             className="forgot-card"
@@ -258,6 +295,7 @@ export default function ForgotPassword() {
                   y="11"
                   rx="2"
                 />
+
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
@@ -268,7 +306,7 @@ export default function ForgotPassword() {
 
             <p className="forgot-subtitle">
               Ingresa el correo asociado a tu cuenta y te
-              enviaremos un código para recuperar el acceso
+              enviaremos un código para recuperar el acceso.
             </p>
 
             <div className="field">
@@ -296,6 +334,7 @@ export default function ForgotPassword() {
                       y="4"
                       rx="2"
                     />
+
                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                   </svg>
                 </span>
@@ -332,9 +371,7 @@ export default function ForgotPassword() {
               Volver a iniciar sesión
             </Link>
           </form>
-
         ) : (
-
           <form
             className="forgot-card"
             onSubmit={handleReset}
@@ -358,6 +395,7 @@ export default function ForgotPassword() {
                   y="11"
                   rx="2"
                 />
+
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
@@ -369,10 +407,8 @@ export default function ForgotPassword() {
             <p className="forgot-subtitle">
               Ingresa el código que enviamos a{" "}
               <strong>{email}</strong> y define tu nueva
-              contraseña
+              contraseña.
             </p>
-
-            {/* CÓDIGO */}
 
             <div className="field">
               <label htmlFor="code">
@@ -393,6 +429,7 @@ export default function ForgotPassword() {
                     aria-hidden="true"
                   >
                     <path d="m9 12 2 2 4-4" />
+
                     <circle
                       cx="12"
                       cy="12"
@@ -416,8 +453,6 @@ export default function ForgotPassword() {
                 />
               </div>
             </div>
-
-            {/* NUEVA CONTRASEÑA */}
 
             <div className="field">
               <label htmlFor="password">
@@ -444,6 +479,7 @@ export default function ForgotPassword() {
                       y="11"
                       rx="2"
                     />
+
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </span>
@@ -469,7 +505,9 @@ export default function ForgotPassword() {
                   type="button"
                   className="toggle-visibility"
                   onClick={() =>
-                    setShowPassword((v) => !v)
+                    setShowPassword(
+                      (value) => !value
+                    )
                   }
                   aria-label={
                     showPassword
@@ -490,6 +528,7 @@ export default function ForgotPassword() {
                       aria-hidden="true"
                     >
                       <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+
                       <circle
                         cx="12"
                         cy="12"
@@ -503,6 +542,7 @@ export default function ForgotPassword() {
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
+                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       aria-hidden="true"
@@ -514,12 +554,10 @@ export default function ForgotPassword() {
               </div>
 
               <p className="hint">
-                Mínimo 8 caracteres. Usa letras, números y
-                símbolos.
+                Mínimo 8 caracteres. Usa una mayúscula,
+                números y símbolos.
               </p>
             </div>
-
-            {/* CONFIRMAR CONTRASEÑA */}
 
             <div className="field">
               <label htmlFor="confirmPassword">
@@ -546,6 +584,7 @@ export default function ForgotPassword() {
                       y="11"
                       rx="2"
                     />
+
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </span>
@@ -573,7 +612,9 @@ export default function ForgotPassword() {
                   type="button"
                   className="toggle-visibility"
                   onClick={() =>
-                    setShowConfirm((v) => !v)
+                    setShowConfirm(
+                      (value) => !value
+                    )
                   }
                   aria-label={
                     showConfirm
@@ -588,11 +629,13 @@ export default function ForgotPassword() {
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
+                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       aria-hidden="true"
                     >
                       <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+
                       <circle
                         cx="12"
                         cy="12"
@@ -606,6 +649,7 @@ export default function ForgotPassword() {
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
+                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       aria-hidden="true"
@@ -625,6 +669,20 @@ export default function ForgotPassword() {
               {loading
                 ? "Restableciendo..."
                 : "Restablecer contraseña"}
+            </button>
+
+            <button
+              type="button"
+              className="back-link"
+              onClick={() => {
+                setCode("");
+                setPassword("");
+                setConfirmPassword("");
+                setResetCompleted(false);
+                setStep("email");
+              }}
+            >
+              Solicitar otro código
             </button>
 
             <Link
@@ -650,17 +708,13 @@ export default function ForgotPassword() {
 
       <AlertModal
         isOpen={alert.isOpen}
-        onClose={closeAlert}
+        onClose={handleAlertClose}
         type={alert.type}
         title={alert.title}
         message={alert.message}
         confirmText="Aceptar"
         variant="modal"
-        onConfirm={
-          alert.type === "success" && step === "reset"
-            ? handleSuccessReset
-            : undefined
-        }
+        onConfirm={handleAlertClose}
       />
     </div>
   );
