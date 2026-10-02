@@ -4,7 +4,7 @@ const { mockFiles } = require('../fixtures/mock-cloudbox');
 const folderController = {
   async getUserFolders(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
       const folders = await FolderService.getUserRootFolders(userId);
       res.status(200).json({ success: true, data: folders });
     } catch (error) {
@@ -15,7 +15,7 @@ const folderController = {
   async getFolderById(req, res) {
     try {
       const folderId = parseInt(req.params.id, 10);
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
 
       if (isNaN(folderId)) {
         return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
@@ -34,7 +34,7 @@ const folderController = {
 
   async createFolder(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
       const { nombre, id_padre } = req.body;
 
       const folder = await FolderService.createFolder({ 
@@ -55,7 +55,7 @@ const folderController = {
   async updateFolderName(req, res) {
     try {
       const folderId = parseInt(req.params.id, 10);
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
       const { nombre } = req.body;
 
       if (isNaN(folderId)) {
@@ -78,7 +78,7 @@ const folderController = {
   async getSubfolders(req, res) {
     try {
       const folderId = parseInt(req.params.id, 10);
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
 
       if (isNaN(folderId)) {
         return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
@@ -99,7 +99,7 @@ const folderController = {
   async getFolderContent(req, res) {
     try {
       const folderIdStr = req.params.id;
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id, 10);
 
       const isRoot = folderIdStr === 'root';
       const folderId = isRoot ? null : parseInt(folderIdStr, 10);
@@ -132,6 +132,50 @@ const folderController = {
         }
       });
     } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  async moveFolder(req, res) {
+    try {
+      const folderId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.user.id, 10);
+      const { id_padre } = req.body;
+
+      if (isNaN(folderId)) {
+        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+      }
+
+      const newParentId = id_padre ? parseInt(id_padre, 10) : null;
+
+      const folder = await FolderService.moveFolder(folderId, newParentId, userId);
+      res.status(200).json({ success: true, data: folder });
+    } catch (error) {
+      if (error.message.includes('No puedes mover') || error.message.includes('Ya existe') || error.message.includes('sí misma')) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
+        return res.status(403).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  async deleteFolder(req, res) {
+    try {
+      const folderId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.user.id, 10);
+
+      if (isNaN(folderId)) {
+        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+      }
+
+      const result = await FolderService.deleteFolderCascade(folderId, userId);
+      res.status(200).json(result);
+    } catch (error) {
+      if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
       res.status(500).json({ success: false, message: error.message });
     }
   }
