@@ -22,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // app.use('/api/files', fileRoutes);
 
