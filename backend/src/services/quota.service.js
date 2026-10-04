@@ -90,34 +90,31 @@ const QuotaService = {
     },
 
     async calculateUsedStorage(userId) {
-        const { data: activeFileStatus, error: statusError } =
+        const { data: fileStates, error: statesError } =
             await supabaseAdmin
                 .from('estado_archivo')
                 .select('id')
-                .eq('nombre', 'Activo')
-                .maybeSingle();
+                .in('nombre', ['Activo', 'En papelera']);
 
-        if (statusError) {
+        if (statesError) {
             throw new Error(
-                `Error al obtener el estado del archivo: ${statusError.message}`
+                `Error al obtener los estados de archivo: ${statesError.message}`
             );
         }
 
-        if (!activeFileStatus) {
-            throw new Error(
-                'No se encontró el estado Activo para los archivos'
-            );
-        }
+        const countedStateIds = fileStates.map(
+            state => state.id
+        );
 
         const { data: files, error } = await supabaseAdmin
             .from('archivo')
             .select('tamano_bytes')
             .eq('id_usuario', userId)
-            .eq('id_estado', activeFileStatus.id);
+            .in('id_estado', countedStateIds);
 
         if (error) {
             throw new Error(
-                `Error al calcular el almacenamiento utilizado: ${error.message}`
+                `Error al calcular el espacio utilizado: ${error.message}`
             );
         }
 

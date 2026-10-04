@@ -19,12 +19,16 @@ const FILE_SELECT = `
     id_estado
 `;
 
+const ACTIVE_FILE_STATUS = 1;
+const TRASH_FILE_STATUS = 2;
+
 const FileService = {
     async getUserFiles(userId, folderId = null) {
         let query = supabaseAdmin
             .from('archivo')
             .select(FILE_SELECT)
-            .eq('id_usuario', userId);
+            .eq('id_usuario', userId)
+            .eq('id_estado', ACTIVE_FILE_STATUS);
 
         if (folderId === null) {
             query = query.is('id_carpeta', null);
@@ -50,7 +54,10 @@ const FileService = {
     // This method is kept so FolderService can query
     // the files belonging to a specific folder.
     async getFilesByFolder(folderId, userId) {
-        return this.getUserFiles(userId, folderId);
+        return this.getUserFiles(
+            userId,
+            folderId
+        );
     },
 
     async getFileById(fileId, userId) {
@@ -162,6 +169,36 @@ const FileService = {
         return data;
     },
 
+    async moveToTrash(fileId, userId) {
+        const file = await this.getFileById(
+            fileId,
+            userId
+        );
+
+        if (!file) {
+            return null;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .update({
+                id_estado: TRASH_FILE_STATUS,
+                fecha_modificacion: new Date().toISOString()
+            })
+            .eq('id', fileId)
+            .eq('id_usuario', userId)
+            .select(FILE_SELECT)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al enviar el archivo a papelera: ${error.message}`
+            );
+        }
+
+        return data;
+    },
+
     async createFileRecord({
         name,
         size,
@@ -179,7 +216,7 @@ const FileService = {
                 id_usuario: userId,
                 id_carpeta: folderId,
                 id_extension: extensionId,
-                id_estado: 1
+                id_estado: ACTIVE_FILE_STATUS
             })
             .select(FILE_SELECT)
             .single();

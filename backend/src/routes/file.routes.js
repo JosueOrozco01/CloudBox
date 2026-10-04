@@ -23,6 +23,11 @@ router.patch(
     '/:id/move',
     fileController.moveFile
 );
+router.patch(
+    '/:id/trash',
+    fileController.moveToTrash
+);
+
 
 router.get(
     '/:id',
