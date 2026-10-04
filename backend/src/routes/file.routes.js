@@ -1,5 +1,4 @@
 const express = require('express');
-
 const fileController = require('../controllers/file.controller');
 const uploadMiddleware = require('../middlewares/upload.middleware');
 const requireAuth = require('../middlewares/auth.middleware');
@@ -16,6 +15,14 @@ router.post(
     fileController.uploadFile
 );
 
-router.get('/:id', fileController.getFileById);
+router.get(
+    '/:id/download',
+    fileController.getDownloadUrl
+);
+
+router.get(
+    '/:id',
+    fileController.getFileById
+);
 
 module.exports = router;
