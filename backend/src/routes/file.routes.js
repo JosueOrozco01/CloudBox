@@ -27,7 +27,10 @@ router.patch(
     '/:id/trash',
     fileController.moveToTrash
 );
-
+router.patch(
+    '/:id/restore',
+    fileController.restoreFile
+);
 
 router.get(
     '/:id',

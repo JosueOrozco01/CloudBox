@@ -198,6 +198,46 @@ const FileService = {
 
         return data;
     },
+    async restoreFile(fileId, userId) {
+        const file = await this.getFileById(
+            fileId,
+            userId
+        );
+
+        if (!file) {
+            return null;
+        }
+
+        if (file.id_estado !== TRASH_FILE_STATUS) {
+            const error = new Error(
+                'El archivo no se encuentra en la papelera'
+            );
+
+            error.status = 400;
+            error.code = 'FILE_NOT_IN_TRASH';
+
+            throw error;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .update({
+                id_estado: ACTIVE_FILE_STATUS,
+                fecha_modificacion: new Date().toISOString()
+            })
+            .eq('id', fileId)
+            .eq('id_usuario', userId)
+            .select(FILE_SELECT)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al restaurar el archivo: ${error.message}`
+            );
+        }
+
+        return data;
+    },
 
     async createFileRecord({
         name,

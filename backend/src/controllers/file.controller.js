@@ -216,6 +216,44 @@ const fileController = {
         }
     },
 
+    async restoreFile(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+            const fileId = parseInt(req.params.id, 10);
+
+            if (isNaN(fileId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de archivo inválido'
+                });
+            }
+
+            const file = await FileService.restoreFile(
+                fileId,
+                userId
+            );
+
+            if (!file) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Archivo no encontrado'
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'Archivo restaurado correctamente',
+                data: file
+            });
+        } catch (error) {
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
+                message: error.message
+            });
+        }
+    },
+
     async uploadFile(req, res) {
         let uploadedPath = null;
 
