@@ -20,7 +20,8 @@ const FolderService = {
       .from('carpeta')
       .select('id')
       .eq('id_usuario', id_usuario)
-      .eq('nombre', nombreLimpio);
+      .eq('nombre', nombreLimpio)
+      .eq('id_estado', 1);
 
     if (id_padre === null) {
       query = query.is('id_padre', null);
@@ -54,6 +55,7 @@ const FolderService = {
       .select('*')
       .eq('id', fId)
       .eq('id_usuario', uId)
+      .eq('id_estado', 1)
       .single();
 
     if (error) {
@@ -76,6 +78,7 @@ const FolderService = {
       .select('*')
       .eq('id_usuario', userId)
       .is('id_padre', null)
+      .eq('id_estado', 1)
       .order('nombre', { ascending: true });
 
     if (error) throw new Error(`Error al obtener carpetas raíz: ${error.message}`);
@@ -88,6 +91,7 @@ const FolderService = {
       .select('*')
       .eq('id_usuario', userId)
       .eq('id_padre', parentId)
+      .eq('id_estado', 1)
       .order('nombre', { ascending: true });
 
     if (error) throw new Error(`Error al obtener subcarpetas: ${error.message}`);
@@ -105,7 +109,8 @@ const FolderService = {
       .from('carpeta')
       .select('id')
       .eq('id_usuario', userId)
-      .eq('nombre', nombreLimpio);
+      .eq('nombre', nombreLimpio)
+      .eq('id_estado', 1);
 
     if (currentFolder.id_padre === null) {
       query = query.is('id_padre', null);
@@ -167,7 +172,8 @@ const FolderService = {
       .from('carpeta')
       .select('id')
       .eq('id_usuario', userId)
-      .eq('nombre', currentFolder.nombre);
+      .eq('nombre', currentFolder.nombre)
+      .eq('id_estado', 1);
 
     if (newParentId === null) {
       query = query.is('id_padre', null);
@@ -220,11 +226,11 @@ const FolderService = {
     // Contrato 3 (Jenni): Aquí se delegaría la eliminación de los archivos contenidos
     // en las carpetas a borrar. (Mock/Stub).
 
-    // Eliminamos bottom-up
+    // Eliminamos bottom-up de forma lógica (estado en papelera = 2)
     for (const fId of folderIdsToDelete) {
       const { error } = await supabaseAdmin
         .from('carpeta')
-        .delete()
+        .update({ id_estado: 2 })
         .eq('id', fId)
         .eq('id_usuario', userId);
 
