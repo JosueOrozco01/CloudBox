@@ -1,6 +1,7 @@
 const FileService = require('../services/file.service');
 const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
+const QuotaService = require('../services/quota.service');
 
 const fileController = {
     async getUserFiles(req, res) {
@@ -92,6 +93,11 @@ const fileController = {
                     size: req.file.size
                 });
 
+            await QuotaService.validateUpload(
+                userId,
+                validation.size
+            );
+
             const storageResult =
                 await StorageService.uploadFile({
                     userId,
@@ -102,14 +108,24 @@ const fileController = {
 
             uploadedPath = storageResult.path;
 
-            const file = await FileService.createFileRecord({
-                name: validation.name,
-                size: validation.size,
-                storagePath: storageResult.path,
-                userId,
-                folderId: null,
-                extensionId: validation.extension.id
-            });
+            const file =
+                await FileService.createFileRecord({
+                    name: validation.name,
+                    size: validation.size,
+                    storagePath: storageResult.path,
+                    userId,
+                    folderId: null,
+                    extensionId: validation.extension.id
+                });
+
+            try {
+                await QuotaService.syncUsedStorage(userId);
+            } catch (quotaError) {
+                console.error(
+                    'Error al actualizar el espacio utilizado:',
+                    quotaError.message
+                );
+            }
 
             return res.status(201).json({
                 success: true,
@@ -119,7 +135,9 @@ const fileController = {
         } catch (error) {
             if (uploadedPath) {
                 try {
-                    await StorageService.deleteFile(uploadedPath);
+                    await StorageService.deleteFile(
+                        uploadedPath
+                    );
                 } catch (cleanupError) {
                     console.error(
                         'Error al limpiar archivo de Storage:',
