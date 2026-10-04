@@ -63,6 +63,48 @@ const FileService = {
         }
 
         return data;
+    },
+
+    async createFileRecord({
+        name,
+        size,
+        storagePath,
+        userId,
+        folderId = null,
+        extensionId
+    }) {
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .insert({
+                nombre: name,
+                tamano_bytes: size,
+                ruta_storage: storagePath,
+                id_usuario: userId,
+                id_carpeta: folderId,
+                id_extension: extensionId,
+                id_estado: 1
+            })
+            .select(`
+                id,
+                nombre,
+                tamano_bytes,
+                ruta_storage,
+                fecha_subida,
+                fecha_modificacion,
+                id_usuario,
+                id_carpeta,
+                id_extension,
+                id_estado
+            `)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al registrar el archivo: ${error.message}`
+            );
+        }
+
+        return data;
     }
 };
 

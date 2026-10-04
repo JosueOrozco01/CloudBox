@@ -1,4 +1,6 @@
 const FileService = require('../services/file.service');
+const StorageService = require('../services/storage.service');
+const FileValidationService = require('../services/file-validation.service');
 
 const fileController = {
     async getUserFiles(req, res) {
@@ -66,6 +68,69 @@ const fileController = {
         } catch (error) {
             return res.status(500).json({
                 success: false,
+                message: error.message
+            });
+        }
+    },
+
+    async uploadFile(req, res) {
+        let uploadedPath = null;
+
+        try {
+            const userId = parseInt(req.user.id, 10);
+
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Debe seleccionar un archivo'
+                });
+            }
+
+            const validation =
+                await FileValidationService.validateFile({
+                    originalName: req.file.originalname,
+                    size: req.file.size
+                });
+
+            const storageResult =
+                await StorageService.uploadFile({
+                    userId,
+                    fileName: validation.name,
+                    buffer: req.file.buffer,
+                    mimeType: req.file.mimetype
+                });
+
+            uploadedPath = storageResult.path;
+
+            const file = await FileService.createFileRecord({
+                name: validation.name,
+                size: validation.size,
+                storagePath: storageResult.path,
+                userId,
+                folderId: null,
+                extensionId: validation.extension.id
+            });
+
+            return res.status(201).json({
+                success: true,
+                message: 'Archivo subido correctamente',
+                data: file
+            });
+        } catch (error) {
+            if (uploadedPath) {
+                try {
+                    await StorageService.deleteFile(uploadedPath);
+                } catch (cleanupError) {
+                    console.error(
+                        'Error al limpiar archivo de Storage:',
+                        cleanupError.message
+                    );
+                }
+            }
+
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
                 message: error.message
             });
         }
