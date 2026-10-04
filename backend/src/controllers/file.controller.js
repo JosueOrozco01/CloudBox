@@ -122,6 +122,62 @@ const fileController = {
         }
     },
 
+    async moveFile(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+            const fileId = parseInt(req.params.id, 10);
+
+            if (isNaN(fileId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de archivo inválido'
+                });
+            }
+
+            let folderId = null;
+
+            if (
+                req.body.folderId !== undefined &&
+                req.body.folderId !== null &&
+                req.body.folderId !== ''
+            ) {
+                folderId = parseInt(req.body.folderId, 10);
+
+                if (isNaN(folderId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'ID de carpeta inválido'
+                    });
+                }
+            }
+
+            const file = await FileService.moveFile(
+                fileId,
+                userId,
+                folderId
+            );
+
+            if (!file) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Archivo no encontrado'
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'Archivo movido correctamente',
+                data: file
+            });
+        } catch (error) {
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
+                message: error.message
+            });
+        }
+    },
+
     async uploadFile(req, res) {
         let uploadedPath = null;
 

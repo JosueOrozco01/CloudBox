@@ -19,10 +19,15 @@ router.get(
     '/:id/download',
     fileController.getDownloadUrl
 );
+router.patch(
+    '/:id/move',
+    fileController.moveFile
+);
 
 router.get(
     '/:id',
     fileController.getFileById
 );
+
 
 module.exports = router;

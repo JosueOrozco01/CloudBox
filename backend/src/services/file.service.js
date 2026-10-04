@@ -6,22 +6,24 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const FILE_SELECT = `
+    id,
+    nombre,
+    tamano_bytes,
+    ruta_storage,
+    fecha_subida,
+    fecha_modificacion,
+    id_usuario,
+    id_carpeta,
+    id_extension,
+    id_estado
+`;
+
 const FileService = {
     async getUserFiles(userId, folderId = null) {
         let query = supabaseAdmin
             .from('archivo')
-            .select(`
-                id,
-                nombre,
-                tamano_bytes,
-                ruta_storage,
-                fecha_subida,
-                fecha_modificacion,
-                id_usuario,
-                id_carpeta,
-                id_extension,
-                id_estado
-            `)
+            .select(FILE_SELECT)
             .eq('id_usuario', userId);
 
         if (folderId === null) {
@@ -44,7 +46,7 @@ const FileService = {
         return data;
     },
 
-    // Integration contract with the folder module
+    // Integration contract with the folder module.
     // This method is kept so FolderService can query
     // the files belonging to a specific folder.
     async getFilesByFolder(folderId, userId) {
@@ -54,7 +56,7 @@ const FileService = {
     async getFileById(fileId, userId) {
         const { data, error } = await supabaseAdmin
             .from('archivo')
-            .select('*')
+            .select(FILE_SELECT)
             .eq('id', fileId)
             .eq('id_usuario', userId)
             .single();
@@ -72,13 +74,12 @@ const FileService = {
         return data;
     },
 
-    // TEMPORARY VALIDATION — remove once Benja's branch is merged
-    // into backend/storage-base.
+    // TEMPORARY VALIDATION
+    // Replace this when backend/folder-management is integrated.
     //
-    // When the coordinator integrates backend/folder-management,
-    // replace this with:
+    // Use:
     //
-    //     FolderService.validateFolderOwnership(folderId, userId)
+    // FolderService.validateFolderOwnership(folderId, userId)
     //
     // Do not copy or modify Benja's FolderService from this branch.
     async validateFolderOwnership(folderId, userId) {
@@ -100,7 +101,65 @@ const FileService = {
             );
         }
 
-        return !!data;
+        return Boolean(data);
+    },
+
+    async moveFile(fileId, userId, folderId = null) {
+        const file = await this.getFileById(
+            fileId,
+            userId
+        );
+
+        if (!file) {
+            return null;
+        }
+
+        if (folderId !== null) {
+            // TEMPORARY VALIDATION
+            // Replace this when backend/folder-management is integrated.
+            //
+            // Use:
+            //
+            // FolderService.validateFolderOwnership(
+            //     folderId,
+            //     userId
+            // )
+            const isValidFolder =
+                await this.validateFolderOwnership(
+                    folderId,
+                    userId
+                );
+
+            if (!isValidFolder) {
+                const error = new Error(
+                    'La carpeta destino no existe o no pertenece al usuario'
+                );
+
+                error.status = 403;
+                error.code = 'INVALID_FOLDER';
+
+                throw error;
+            }
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .update({
+                id_carpeta: folderId,
+                fecha_modificacion: new Date().toISOString()
+            })
+            .eq('id', fileId)
+            .eq('id_usuario', userId)
+            .select(FILE_SELECT)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al mover el archivo: ${error.message}`
+            );
+        }
+
+        return data;
     },
 
     async createFileRecord({
@@ -122,18 +181,7 @@ const FileService = {
                 id_extension: extensionId,
                 id_estado: 1
             })
-            .select(`
-                id,
-                nombre,
-                tamano_bytes,
-                ruta_storage,
-                fecha_subida,
-                fecha_modificacion,
-                id_usuario,
-                id_carpeta,
-                id_extension,
-                id_estado
-            `)
+            .select(FILE_SELECT)
             .single();
 
         if (error) {
