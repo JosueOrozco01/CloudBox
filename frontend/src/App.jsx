@@ -5,6 +5,8 @@ import ForgotPassword from './pages/RecoverPassword/Recover';
 import Dashboard from './pages/Dashboard/Dashboard';
 import OfflineBanner from './components/OfflineBanner/Offline';
 import LandingPage from './pages/LandingPage/LandingPage';
+import UserProfile from './pages/Profile/Profile';
+
 
 function App() {
   return (
@@ -16,6 +18,7 @@ function App() {
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/recuperar" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/perfil" element={<UserProfile />} />
       </Routes>
     </BrowserRouter>
   );
