@@ -87,6 +87,49 @@ const fileController = {
                 });
             }
 
+            let folderId = null;
+
+            if (
+                req.body.folderId !== undefined &&
+                req.body.folderId !== '' &&
+                req.body.folderId !== 'null'
+            ) {
+                folderId = parseInt(req.body.folderId, 10);
+
+                if (isNaN(folderId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'ID de carpeta inválido'
+                    });
+                }
+
+                // TEMPORARY VALIDATION
+                // Replace this when backend/folder-management is integrated:
+                //
+                // const isValidFolder =
+                //     await FolderService.validateFolderOwnership(
+                //         folderId,
+                //         userId
+                //     );
+                //
+                // FileService is used temporarily to avoid copying
+                // or modifying Benja's FolderService implementation.
+                const isValidFolder =
+                    await FileService.validateFolderOwnership(
+                        folderId,
+                        userId
+                    );
+
+                if (!isValidFolder) {
+                    return res.status(403).json({
+                        success: false,
+                        code: 'INVALID_FOLDER',
+                        message:
+                            'La carpeta no existe o no pertenece al usuario'
+                    });
+                }
+            }
+
             const validation =
                 await FileValidationService.validateFile({
                     originalName: req.file.originalname,
@@ -114,7 +157,7 @@ const fileController = {
                     size: validation.size,
                     storagePath: storageResult.path,
                     userId,
-                    folderId: null,
+                    folderId,
                     extensionId: validation.extension.id
                 });
 

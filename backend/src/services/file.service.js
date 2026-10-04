@@ -44,6 +44,13 @@ const FileService = {
         return data;
     },
 
+    // Integration contract with the folder module
+    // This method is kept so FolderService can query
+    // the files belonging to a specific folder.
+    async getFilesByFolder(folderId, userId) {
+        return this.getUserFiles(userId, folderId);
+    },
+
     async getFileById(fileId, userId) {
         const { data, error } = await supabaseAdmin
             .from('archivo')
@@ -63,6 +70,37 @@ const FileService = {
         }
 
         return data;
+    },
+
+    // TEMPORARY VALIDATION — remove once Benja's branch is merged
+    // into backend/storage-base.
+    //
+    // When the coordinator integrates backend/folder-management,
+    // replace this with:
+    //
+    //     FolderService.validateFolderOwnership(folderId, userId)
+    //
+    // Do not copy or modify Benja's FolderService from this branch.
+    async validateFolderOwnership(folderId, userId) {
+        if (folderId === null) {
+            return true;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('carpeta')
+            .select('id')
+            .eq('id', folderId)
+            .eq('id_usuario', userId)
+            .eq('id_estado', 1)
+            .maybeSingle();
+
+        if (error) {
+            throw new Error(
+                `Error al validar la carpeta: ${error.message}`
+            );
+        }
+
+        return !!data;
     },
 
     async createFileRecord({
