@@ -21,6 +21,7 @@ const FILE_SELECT = `
 
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
+const DELETED_FILE_STATUS = 3;
 
 const FileService = {
     async getUserFiles(userId, folderId = null) {
@@ -121,6 +122,17 @@ const FileService = {
             return null;
         }
 
+        if (file.id_estado !== ACTIVE_FILE_STATUS) {
+            const error = new Error(
+                'Solo se pueden mover archivos activos'
+            );
+
+            error.status = 409;
+            error.code = 'FILE_NOT_ACTIVE';
+
+            throw error;
+        }
+
         if (folderId !== null) {
             // TEMPORARY VALIDATION
             // Replace this when backend/folder-management is integrated.
@@ -179,6 +191,17 @@ const FileService = {
             return null;
         }
 
+        if (file.id_estado !== ACTIVE_FILE_STATUS) {
+            const error = new Error(
+                'Solo se pueden enviar a papelera archivos activos'
+            );
+
+            error.status = 409;
+            error.code = 'FILE_NOT_ACTIVE';
+
+            throw error;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('archivo')
             .update({
@@ -198,6 +221,7 @@ const FileService = {
 
         return data;
     },
+
     async restoreFile(fileId, userId) {
         const file = await this.getFileById(
             fileId,
@@ -233,6 +257,47 @@ const FileService = {
         if (error) {
             throw new Error(
                 `Error al restaurar el archivo: ${error.message}`
+            );
+        }
+
+        return data;
+    },
+
+    async markAsDeleted(fileId, userId) {
+        const file = await this.getFileById(
+            fileId,
+            userId
+        );
+
+        if (!file) {
+            return null;
+        }
+
+        if (file.id_estado !== TRASH_FILE_STATUS) {
+            const error = new Error(
+                'El archivo debe estar en la papelera antes de eliminarse permanentemente'
+            );
+
+            error.status = 400;
+            error.code = 'FILE_NOT_IN_TRASH';
+
+            throw error;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .update({
+                id_estado: DELETED_FILE_STATUS,
+                fecha_modificacion: new Date().toISOString()
+            })
+            .eq('id', fileId)
+            .eq('id_usuario', userId)
+            .select(FILE_SELECT)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al eliminar el archivo: ${error.message}`
             );
         }
 

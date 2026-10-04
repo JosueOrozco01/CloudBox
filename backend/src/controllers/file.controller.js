@@ -3,6 +3,9 @@ const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
 const QuotaService = require('../services/quota.service');
 
+const ACTIVE_FILE_STATUS = 1;
+const TRASH_FILE_STATUS = 2;
+
 const fileController = {
     async getUserFiles(req, res) {
         try {
@@ -95,6 +98,15 @@ const fileController = {
                 return res.status(404).json({
                     success: false,
                     message: 'Archivo no encontrado'
+                });
+            }
+
+            if (file.id_estado !== ACTIVE_FILE_STATUS) {
+                return res.status(409).json({
+                    success: false,
+                    code: 'FILE_NOT_AVAILABLE',
+                    message:
+                        'El archivo no está disponible para descarga'
                 });
             }
 
@@ -244,6 +256,67 @@ const fileController = {
                 success: true,
                 message: 'Archivo restaurado correctamente',
                 data: file
+            });
+        } catch (error) {
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
+                message: error.message
+            });
+        }
+    },
+
+    async deleteFilePermanently(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+            const fileId = parseInt(req.params.id, 10);
+
+            if (isNaN(fileId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de archivo inválido'
+                });
+            }
+
+            const file = await FileService.getFileById(
+                fileId,
+                userId
+            );
+
+            if (!file) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Archivo no encontrado'
+                });
+            }
+
+            if (file.id_estado !== TRASH_FILE_STATUS) {
+                return res.status(400).json({
+                    success: false,
+                    code: 'FILE_NOT_IN_TRASH',
+                    message:
+                        'El archivo debe estar en la papelera antes de eliminarse permanentemente'
+                });
+            }
+
+            await StorageService.deleteFile(
+                file.ruta_storage
+            );
+
+            const deletedFile =
+                await FileService.markAsDeleted(
+                    fileId,
+                    userId
+                );
+
+            await QuotaService.syncUsedStorage(
+                userId
+            );
+
+            return res.status(200).json({
+                success: true,
+                message: 'Archivo eliminado permanentemente',
+                data: deletedFile
             });
         } catch (error) {
             return res.status(error.status || 500).json({
