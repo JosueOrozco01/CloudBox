@@ -211,10 +211,13 @@
 .feat-card h3 {
   margin-bottom: 8px;
   color: var(--textPrimary);
+  text-align: center;
 }
+
 .feat-card p {
   font-size: 14px;
   color: var(--textSecondary);
+  text-align: center;
 }
 
 .cta-banner {
