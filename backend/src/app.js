@@ -4,6 +4,7 @@ const cors = require('cors');
 const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const emailHookRoutes = require('./routes/emailHook.routes');
+const folderRoutes = require('./routes/folder.routes');
 const fileRoutes = require('./routes/file.routes');
 
 const notFound = require('./middlewares/not-found.middleware');
@@ -24,9 +25,10 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/files', fileRoutes);
 
-// app.use('/api/files', fileRoutes);
+app.use('/api/folders', folderRoutes);
+
+app.use('/api/files', fileRoutes);
 
 // Handle requests that do not match any route
 app.use(notFound);
