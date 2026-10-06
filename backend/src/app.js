@@ -4,6 +4,7 @@ const cors = require('cors');
 const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const emailHookRoutes = require('./routes/emailHook.routes');
+const adminRoutes = require('./routes/admin.routes');
 const folderRoutes = require('./routes/folder.routes');
 const fileRoutes = require('./routes/file.routes');
 
@@ -25,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use('/api/folders', folderRoutes);
 
