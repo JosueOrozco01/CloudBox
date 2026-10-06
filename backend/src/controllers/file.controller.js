@@ -6,6 +6,18 @@ const QuotaService = require('../services/quota.service');
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
 
+function getFileExtension(fileName) {
+    const lastDotIndex = fileName.lastIndexOf('.');
+
+    if (lastDotIndex <= 0) {
+        return '';
+    }
+
+    return fileName
+        .slice(lastDotIndex)
+        .toLowerCase();
+}
+
 const fileController = {
     async getUserFiles(req, res) {
         try {
@@ -153,7 +165,10 @@ const fileController = {
                 req.body.folderId !== null &&
                 req.body.folderId !== ''
             ) {
-                folderId = parseInt(req.body.folderId, 10);
+                folderId = parseInt(
+                    req.body.folderId,
+                    10
+                );
 
                 if (isNaN(folderId)) {
                     return res.status(400).json({
@@ -202,10 +217,11 @@ const fileController = {
                 });
             }
 
-            const file = await FileService.moveToTrash(
-                fileId,
-                userId
-            );
+            const file =
+                await FileService.moveToTrash(
+                    fileId,
+                    userId
+                );
 
             if (!file) {
                 return res.status(404).json({
@@ -254,7 +270,8 @@ const fileController = {
 
             return res.status(200).json({
                 success: true,
-                message: 'Archivo restaurado correctamente',
+                message:
+                    'Archivo restaurado correctamente',
                 data: file
             });
         } catch (error) {
@@ -290,7 +307,10 @@ const fileController = {
                 });
             }
 
-            if (file.id_estado !== TRASH_FILE_STATUS) {
+            if (
+                file.id_estado !==
+                TRASH_FILE_STATUS
+            ) {
                 return res.status(400).json({
                     success: false,
                     code: 'FILE_NOT_IN_TRASH',
@@ -315,7 +335,8 @@ const fileController = {
 
             return res.status(200).json({
                 success: true,
-                message: 'Archivo eliminado permanentemente',
+                message:
+                    'Archivo eliminado permanentemente',
                 data: deletedFile
             });
         } catch (error) {
@@ -336,7 +357,8 @@ const fileController = {
             if (!req.file) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Debe seleccionar un archivo'
+                    message:
+                        'Debe seleccionar un archivo'
                 });
             }
 
@@ -347,17 +369,21 @@ const fileController = {
                 req.body.folderId !== '' &&
                 req.body.folderId !== 'null'
             ) {
-                folderId = parseInt(req.body.folderId, 10);
+                folderId = parseInt(
+                    req.body.folderId,
+                    10
+                );
 
                 if (isNaN(folderId)) {
                     return res.status(400).json({
                         success: false,
-                        message: 'ID de carpeta inválido'
+                        message:
+                            'ID de carpeta inválido'
                     });
                 }
 
                 // TEMPORARY VALIDATION
-                // Replace this when backend/folder-management is integrated:
+                // Replace this when backend/folder-management is integrated.
                 //
                 // const isValidFolder =
                 //     await FolderService.validateFolderOwnership(
@@ -385,9 +411,26 @@ const fileController = {
 
             const validation =
                 await FileValidationService.validateFile({
-                    originalName: req.file.originalname,
+                    originalName:
+                        req.file.originalname,
                     size: req.file.size
                 });
+
+            const duplicateExists =
+                await FileService.fileNameExists(
+                    userId,
+                    folderId,
+                    validation.name
+                );
+
+            if (duplicateExists) {
+                return res.status(409).json({
+                    success: false,
+                    code: 'DUPLICATE_FILE_NAME',
+                    message:
+                        'Ya existe un archivo con ese nombre en la carpeta'
+                });
+            }
 
             await QuotaService.validateUpload(
                 userId,
@@ -408,14 +451,18 @@ const fileController = {
                 await FileService.createFileRecord({
                     name: validation.name,
                     size: validation.size,
-                    storagePath: storageResult.path,
+                    storagePath:
+                        storageResult.path,
                     userId,
                     folderId,
-                    extensionId: validation.extension.id
+                    extensionId:
+                        validation.extension.id
                 });
 
             try {
-                await QuotaService.syncUsedStorage(userId);
+                await QuotaService.syncUsedStorage(
+                    userId
+                );
             } catch (quotaError) {
                 console.error(
                     'Error al actualizar el espacio utilizado:',
@@ -425,7 +472,8 @@ const fileController = {
 
             return res.status(201).json({
                 success: true,
-                message: 'Archivo subido correctamente',
+                message:
+                    'Archivo subido correctamente',
                 data: file
             });
         } catch (error) {
@@ -442,6 +490,122 @@ const fileController = {
                 }
             }
 
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
+                message: error.message
+            });
+        }
+    },
+
+    async getTrashFiles(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+
+            const files =
+                await FileService.getTrashFiles(
+                    userId
+                );
+
+            return res.status(200).json({
+                success: true,
+                data: files
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    },
+
+    async renameFile(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+            const fileId = parseInt(req.params.id, 10);
+
+            if (isNaN(fileId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de archivo inválido'
+                });
+            }
+
+            const newName =
+                typeof req.body.name === 'string'
+                    ? req.body.name.trim()
+                    : '';
+
+            if (!newName) {
+                return res.status(400).json({
+                    success: false,
+                    code: 'INVALID_FILE_NAME',
+                    message:
+                        'El nombre del archivo es obligatorio'
+                });
+            }
+
+            if (
+                newName.length > 255 ||
+                newName.includes('/') ||
+                newName.includes('\\') ||
+                newName.includes('\0')
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    code: 'INVALID_FILE_NAME',
+                    message:
+                        'El nombre del archivo no es válido'
+                });
+            }
+
+            const currentFile =
+                await FileService.getFileById(
+                    fileId,
+                    userId
+                );
+
+            if (!currentFile) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Archivo no encontrado'
+                });
+            }
+
+            const currentExtension =
+                getFileExtension(
+                    currentFile.nombre
+                );
+
+            const newExtension =
+                getFileExtension(newName);
+
+            if (
+                currentExtension !==
+                newExtension
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    code: 'FILE_EXTENSION_CHANGE_NOT_ALLOWED',
+                    message:
+                        'No se permite cambiar la extensión del archivo'
+                });
+            }
+
+            const file =
+                await FileService.renameFile(
+                    fileId,
+                    userId,
+                    newName
+                );
+
+            return res.status(200).json({
+                success: true,
+                message:
+                    'Archivo renombrado correctamente',
+                data: file
+            });
+        } catch (error) {
             return res.status(error.status || 500).json({
                 success: false,
                 code: error.code,

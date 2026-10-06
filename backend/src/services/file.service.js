@@ -333,7 +333,116 @@ const FileService = {
         }
 
         return data;
-    }
+    },
+    async getTrashFiles(userId) {
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .select(FILE_SELECT)
+            .eq('id_usuario', userId)
+            .eq('id_estado', TRASH_FILE_STATUS)
+            .order('fecha_modificacion', { ascending: false });
+
+        if (error) {
+            throw new Error(
+                `Error al obtener los archivos de la papelera: ${error.message}`
+            );
+        }
+
+        return data;
+    },
+    async fileNameExists(
+        userId,
+        folderId,
+        fileName,
+        excludeFileId = null
+    ) {
+        let query = supabaseAdmin
+            .from('archivo')
+            .select('id')
+            .eq('id_usuario', userId)
+            .eq('id_estado', ACTIVE_FILE_STATUS)
+            .ilike('nombre', fileName);
+
+        if (folderId === null) {
+            query = query.is('id_carpeta', null);
+        } else {
+            query = query.eq('id_carpeta', folderId);
+        }
+
+        if (excludeFileId !== null) {
+            query = query.neq('id', excludeFileId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            throw new Error(
+                `Error al validar el nombre del archivo: ${error.message}`
+            );
+        }
+
+        return data.length > 0;
+    },
+    async renameFile(fileId, userId, newName) {
+        const file = await this.getFileById(
+            fileId,
+            userId
+        );
+
+        if (!file) {
+            return null;
+        }
+
+        if (file.id_estado !== ACTIVE_FILE_STATUS) {
+            const error = new Error(
+                'Solo se pueden renombrar archivos activos'
+            );
+
+            error.status = 409;
+            error.code = 'FILE_NOT_ACTIVE';
+
+            throw error;
+        }
+
+        const duplicateExists =
+            await this.fileNameExists(
+                userId,
+                file.id_carpeta,
+                newName,
+                fileId
+            );
+
+        if (duplicateExists) {
+            const error = new Error(
+                'Ya existe un archivo con ese nombre en la carpeta'
+            );
+
+            error.status = 409;
+            error.code = 'DUPLICATE_FILE_NAME';
+
+            throw error;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .update({
+                nombre: newName,
+                fecha_modificacion: new Date().toISOString()
+            })
+            .eq('id', fileId)
+            .eq('id_usuario', userId)
+            .select(FILE_SELECT)
+            .single();
+
+        if (error) {
+            throw new Error(
+                `Error al renombrar el archivo: ${error.message}`
+            );
+        }
+
+        return data;
+    },
+
 };
 
 module.exports = FileService;

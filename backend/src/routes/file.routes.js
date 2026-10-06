@@ -42,6 +42,14 @@ router.delete(
     '/:id/permanent',
     fileController.deleteFilePermanently
 );
+router.get(
+    '/trash',
+    fileController.getTrashFiles
+);
+router.patch(
+    '/:id/rename',
+    fileController.renameFile
+);
 
 router.get(
     '/:id',
