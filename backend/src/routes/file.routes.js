@@ -19,8 +19,13 @@ router.post(
 );
 
 router.get(
-    '/:id/download',
+    '/:id/download-url',
     fileController.getDownloadUrl
+);
+
+router.get(
+    '/:id/download',
+    fileController.downloadFile
 );
 
 router.patch(
@@ -50,6 +55,7 @@ router.patch(
     '/:id/rename',
     fileController.renameFile
 );
+
 
 router.get(
     '/:id',

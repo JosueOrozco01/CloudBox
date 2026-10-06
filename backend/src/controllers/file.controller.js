@@ -612,7 +612,56 @@ const fileController = {
                 message: error.message
             });
         }
+    },
+    async downloadFile(req, res) {
+        try {
+            const userId = parseInt(req.user.id, 10);
+            const fileId = parseInt(req.params.id, 10);
+
+            if (isNaN(fileId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de archivo inválido'
+                });
+            }
+
+            const file = await FileService.getFileById(
+                fileId,
+                userId
+            );
+
+            if (!file) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Archivo no encontrado'
+                });
+            }
+
+            if (file.id_estado !== ACTIVE_FILE_STATUS) {
+                return res.status(409).json({
+                    success: false,
+                    code: 'FILE_NOT_AVAILABLE',
+                    message:
+                        'El archivo no está disponible para descarga'
+                });
+            }
+
+            const signedUrl =
+                await StorageService.createSignedUrl(
+                    file.ruta_storage,
+                    60
+                );
+
+            return res.redirect(signedUrl);
+        } catch (error) {
+            return res.status(error.status || 500).json({
+                success: false,
+                code: error.code,
+                message: error.message
+            });
+        }
     }
+
 };
 
 module.exports = fileController;
