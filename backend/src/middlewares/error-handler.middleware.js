@@ -1,6 +1,20 @@
+const multer = require('multer');
+
 const errorHandler = (error, req, res, next) => {
+    if (
+        error instanceof multer.MulterError &&
+        error.code === 'LIMIT_FILE_SIZE'
+    ) {
+        return res.status(413).json({
+            success: false,
+            code: 'FILE_TOO_LARGE',
+            message: 'El archivo excede el tamaño máximo permitido de 50 MB'
+        });
+    }
+
     const statusCode = error.status || 500;
-    const errorCode = error.code || 'INTERNAL_SERVER_ERROR';
+    const errorCode =
+        error.code || 'INTERNAL_SERVER_ERROR';
 
     // Log internal information only on the backend.
     if (statusCode >= 500) {
@@ -15,7 +29,8 @@ const errorHandler = (error, req, res, next) => {
     const message =
         statusCode >= 500
             ? 'An unexpected error occurred'
-            : error.message || 'Request could not be processed';
+            : error.message ||
+            'Request could not be processed';
 
     return res.status(statusCode).json({
         success: false,
