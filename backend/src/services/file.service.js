@@ -123,6 +123,27 @@ const FileService = {
             }
         }
 
+        if (file.id_carpeta === folderId) {
+            return file;
+        }
+
+        const duplicateExists = await this.fileNameExists(
+            userId,
+            folderId,
+            file.nombre,
+            fileId
+        );
+
+        if (duplicateExists) {
+            const error = new Error(
+                'Ya existe un archivo con ese nombre en la carpeta destino'
+            );
+
+            error.status = 409;
+            error.code = 'DUPLICATE_FILE_NAME';
+            throw error;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('archivo')
             .update({
@@ -131,10 +152,20 @@ const FileService = {
             })
             .eq('id', fileId)
             .eq('id_usuario', userId)
+            .eq('id_estado', ACTIVE_FILE_STATUS)
             .select(FILE_SELECT)
             .single();
 
         if (error) {
+            if (error.code === 'PGRST116') {
+                const conflict = new Error(
+                    'El archivo cambió de estado durante el movimiento'
+                );
+                conflict.status = 409;
+                conflict.code = 'FILE_STATUS_CHANGED';
+                throw conflict;
+            }
+
             throw new Error(
                 `Error al mover el archivo: ${error.message}`
             );
@@ -205,6 +236,39 @@ const FileService = {
             throw error;
         }
 
+        if (file.id_carpeta !== null) {
+            const folderIsActive =
+                await FolderService.validateFolderOwnership(
+                    file.id_carpeta,
+                    userId
+                );
+
+            if (!folderIsActive) {
+                const error = new Error(
+                    'Restaura primero la carpeta que contiene el archivo'
+                );
+                error.status = 409;
+                error.code = 'PARENT_FOLDER_NOT_ACTIVE';
+                throw error;
+            }
+        }
+
+        const duplicateExists = await this.fileNameExists(
+            userId,
+            file.id_carpeta,
+            file.nombre,
+            fileId
+        );
+
+        if (duplicateExists) {
+            const error = new Error(
+                'Ya existe un archivo activo con ese nombre en la carpeta'
+            );
+            error.status = 409;
+            error.code = 'DUPLICATE_FILE_NAME';
+            throw error;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('archivo')
             .update({
@@ -213,10 +277,20 @@ const FileService = {
             })
             .eq('id', fileId)
             .eq('id_usuario', userId)
+            .eq('id_estado', TRASH_FILE_STATUS)
             .select(FILE_SELECT)
             .single();
 
         if (error) {
+            if (error.code === 'PGRST116') {
+                const conflict = new Error(
+                    'El archivo cambió de estado durante la restauración'
+                );
+                conflict.status = 409;
+                conflict.code = 'FILE_STATUS_CHANGED';
+                throw conflict;
+            }
+
             throw new Error(
                 `Error al restaurar el archivo: ${error.message}`
             );
@@ -226,24 +300,19 @@ const FileService = {
     },
 
     async markAsDeleted(fileId, userId) {
-        const file = await this.getFileById(
-            fileId,
-            userId
-        );
+        const file = await this.getFileById(fileId, userId);
 
         if (!file) {
             return null;
         }
 
         if (file.id_estado !== TRASH_FILE_STATUS) {
-            const error = new Error(
+            const conflict = new Error(
                 'El archivo debe estar en la papelera antes de eliminarse permanentemente'
             );
-
-            error.status = 400;
-            error.code = 'FILE_NOT_IN_TRASH';
-
-            throw error;
+            conflict.status = 400;
+            conflict.code = 'FILE_NOT_IN_TRASH';
+            throw conflict;
         }
 
         const { data, error } = await supabaseAdmin
@@ -254,13 +323,21 @@ const FileService = {
             })
             .eq('id', fileId)
             .eq('id_usuario', userId)
+            .eq('id_estado', TRASH_FILE_STATUS)
             .select(FILE_SELECT)
             .single();
 
         if (error) {
-            throw new Error(
-                `Error al eliminar el archivo: ${error.message}`
-            );
+            if (error.code === 'PGRST116') {
+                const conflict = new Error(
+                    'El archivo cambió de estado durante la eliminación'
+                );
+                conflict.status = 409;
+                conflict.code = 'FILE_STATUS_CHANGED';
+                throw conflict;
+            }
+
+            throw new Error(`Error al eliminar el archivo: ${error.message}`);
         }
 
         return data;

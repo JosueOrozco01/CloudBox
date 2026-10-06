@@ -287,19 +287,17 @@ const fileController = {
     async deleteFilePermanently(req, res) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if (!Number.isSafeInteger(fileId) || fileId <= 0) {
                 return res.status(400).json({
                     success: false,
+                    code: 'INVALID_FILE_ID',
                     message: 'ID de archivo inválido'
                 });
             }
 
-            const file = await FileService.getFileById(
-                fileId,
-                userId
-            );
+            const file = await FileService.getFileById(fileId, userId);
 
             if (!file) {
                 return res.status(404).json({
@@ -308,37 +306,55 @@ const fileController = {
                 });
             }
 
-            if (
-                file.id_estado !==
-                TRASH_FILE_STATUS
-            ) {
+            // Status 3 permits retrying a physical deletion after a failure.
+            if (file.id_estado !== TRASH_FILE_STATUS && file.id_estado !== 3) {
                 return res.status(400).json({
                     success: false,
                     code: 'FILE_NOT_IN_TRASH',
-                    message:
-                        'El archivo debe estar en la papelera antes de eliminarse permanentemente'
+                    message: 'El archivo debe estar en la papelera antes de eliminarse permanentemente'
                 });
             }
 
-            await StorageService.deleteFile(
-                file.ruta_storage
-            );
+            // Mark the database record first to preserve a retryable storage path.
+            // A missing Storage object is safe to delete again when retried.
+            const deletedFile = file.id_estado === TRASH_FILE_STATUS
+                ? await FileService.markAsDeleted(fileId, userId)
+                : file;
 
-            const deletedFile =
-                await FileService.markAsDeleted(
+            try {
+                await StorageService.deleteFile(deletedFile.ruta_storage);
+            } catch (storageError) {
+                console.error('Physical file deletion pending:', {
                     fileId,
-                    userId
-                );
+                    userId,
+                    error: storageError.message
+                });
 
-            await QuotaService.syncUsedStorage(
-                userId
-            );
+                return res.status(503).json({
+                    success: false,
+                    code: 'STORAGE_DELETE_PENDING',
+                    message: 'El archivo se marcó como eliminado, pero Storage no confirmó el borrado. Reintenta esta misma operación.',
+                    data: { fileId, id_estado: 3 }
+                });
+            }
+
+            let quotaSyncPending = false;
+            try {
+                await QuotaService.syncUsedStorage(userId);
+            } catch (quotaError) {
+                quotaSyncPending = true;
+                console.error('Quota synchronization pending after deletion:', {
+                    userId,
+                    fileId,
+                    error: quotaError.message
+                });
+            }
 
             return res.status(200).json({
                 success: true,
-                message:
-                    'Archivo eliminado permanentemente',
-                data: deletedFile
+                message: 'Archivo eliminado permanentemente',
+                data: deletedFile,
+                ...(quotaSyncPending ? { quotaSyncPending: true } : {})
             });
         } catch (error) {
             return res.status(error.status || 500).json({
