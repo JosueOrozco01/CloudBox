@@ -1,5 +1,5 @@
 const FolderService = require('../services/folder.service');
-const { mockFiles } = require('../fixtures/mock-cloudbox');
+const FileService = require('../services/file.service');
 
 const folderController = {
   async getUserFolders(req, res) {
@@ -37,10 +37,10 @@ const folderController = {
       const userId = parseInt(req.user.id, 10);
       const { nombre, id_padre } = req.body;
 
-      const folder = await FolderService.createFolder({ 
-        nombre, 
-        id_usuario: userId, 
-        id_padre: id_padre ? parseInt(id_padre, 10) : null 
+      const folder = await FolderService.createFolder({
+        nombre,
+        id_usuario: userId,
+        id_padre: id_padre ? parseInt(id_padre, 10) : null
       });
 
       res.status(201).json({ success: true, data: folder });
@@ -122,7 +122,7 @@ const folderController = {
         subfolders = await FolderService.getSubfolders(folderId, userId);
       }
 
-      const folderFiles = mockFiles.filter(f => f.id_carpeta === folderId && f.id_usuario === userId);
+      const folderFiles = await FileService.getFilesByFolder(folderId, userId);
 
       res.status(200).json({
         success: true,

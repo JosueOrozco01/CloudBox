@@ -1,4 +1,5 @@
 const FileService = require('../services/file.service');
+const FolderService = require('../services/folder.service');
 const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
 const QuotaService = require('../services/quota.service');
@@ -382,19 +383,8 @@ const fileController = {
                     });
                 }
 
-                // TEMPORARY VALIDATION
-                // Replace this when backend/folder-management is integrated.
-                //
-                // const isValidFolder =
-                //     await FolderService.validateFolderOwnership(
-                //         folderId,
-                //         userId
-                //     );
-                //
-                // FileService is used temporarily to avoid copying
-                // or modifying Benja's FolderService implementation.
                 const isValidFolder =
-                    await FileService.validateFolderOwnership(
+                    await FolderService.validateFolderOwnership(
                         folderId,
                         userId
                     );

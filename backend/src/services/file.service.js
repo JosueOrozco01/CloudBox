@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const FolderService = require('./folder.service');
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
@@ -82,36 +83,6 @@ const FileService = {
         return data;
     },
 
-    // TEMPORARY VALIDATION
-    // Replace this when backend/folder-management is integrated.
-    //
-    // Use:
-    //
-    // FolderService.validateFolderOwnership(folderId, userId)
-    //
-    // Do not copy or modify Benja's FolderService from this branch.
-    async validateFolderOwnership(folderId, userId) {
-        if (folderId === null) {
-            return true;
-        }
-
-        const { data, error } = await supabaseAdmin
-            .from('carpeta')
-            .select('id')
-            .eq('id', folderId)
-            .eq('id_usuario', userId)
-            .eq('id_estado', 1)
-            .maybeSingle();
-
-        if (error) {
-            throw new Error(
-                `Error al validar la carpeta: ${error.message}`
-            );
-        }
-
-        return Boolean(data);
-    },
-
     async moveFile(fileId, userId, folderId = null) {
         const file = await this.getFileById(
             fileId,
@@ -134,17 +105,8 @@ const FileService = {
         }
 
         if (folderId !== null) {
-            // TEMPORARY VALIDATION
-            // Replace this when backend/folder-management is integrated.
-            //
-            // Use:
-            //
-            // FolderService.validateFolderOwnership(
-            //     folderId,
-            //     userId
-            // )
             const isValidFolder =
-                await this.validateFolderOwnership(
+                await FolderService.validateFolderOwnership(
                     folderId,
                     userId
                 );
