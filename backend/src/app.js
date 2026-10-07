@@ -27,9 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-
 app.use('/api/folders', folderRoutes);
-
 app.use('/api/files', fileRoutes);
 
 // Handle requests that do not match any route

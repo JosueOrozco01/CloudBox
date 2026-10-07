@@ -9,7 +9,9 @@ const AdminService = {
   async getAllUsers() {
     const { data, error } = await supabaseAdmin
       .from('usuario')
-      .select('id, nombre, apellido, correo, fecha_registro, id_rol, rol:id_rol(nombre), id_estado, estado_usuario:id_estado(nombre)')
+      .select(
+        'id, nombre, apellido, correo, fecha_registro, id_rol, rol:id_rol(nombre), id_estado, estado_usuario:id_estado(nombre)'
+      )
       .order('id', { ascending: true });
 
     if (error) {
@@ -47,6 +49,23 @@ const AdminService = {
     }
 
     return data;
+  },
+
+  async getAuditLogs(limit = 20, offset = 0) {
+    const { data, error, count } = await supabaseAdmin
+      .from('LogAuditoria')
+      .select('*', { count: 'exact' })
+      .order('fecha', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Error al obtener bitácora: ${error.message}`);
+    }
+
+    return {
+      logs: data,
+      total: count
+    };
   }
 };
 
