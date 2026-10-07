@@ -1,3 +1,4 @@
+
 const { createClient } = require('@supabase/supabase-js');
 const FolderService = require('./folder.service');
 
@@ -23,6 +24,17 @@ const FILE_SELECT = `
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
 const DELETED_FILE_STATUS = 3;
+
+function duplicateFileError() {
+    const error = new Error(
+        'Ya existe un archivo con ese nombre en la carpeta'
+    );
+
+    error.status = 409;
+    error.code = 'DUPLICATE_FILE_NAME';
+
+    return error;
+}
 
 const FileService = {
     async getUserFiles(userId, folderId = null) {
@@ -157,6 +169,10 @@ const FileService = {
             .single();
 
         if (error) {
+            if (error.code === '23505') {
+                throw duplicateFileError();
+            }
+
             if (error.code === 'PGRST116') {
                 const conflict = new Error(
                     'El archivo cambió de estado durante el movimiento'
@@ -282,6 +298,10 @@ const FileService = {
             .single();
 
         if (error) {
+            if (error.code === '23505') {
+                throw duplicateFileError();
+            }
+
             if (error.code === 'PGRST116') {
                 const conflict = new Error(
                     'El archivo cambió de estado durante la restauración'
@@ -366,6 +386,10 @@ const FileService = {
             .single();
 
         if (error) {
+            if (error.code === '23505') {
+                throw duplicateFileError();
+            }
+
             throw new Error(
                 `Error al registrar el archivo: ${error.message}`
             );
@@ -373,6 +397,7 @@ const FileService = {
 
         return data;
     },
+
     async getTrashFiles(userId) {
         const { data, error } = await supabaseAdmin
             .from('archivo')
@@ -389,6 +414,7 @@ const FileService = {
 
         return data;
     },
+
     async fileNameExists(
         userId,
         folderId,
@@ -397,10 +423,9 @@ const FileService = {
     ) {
         let query = supabaseAdmin
             .from('archivo')
-            .select('id')
+            .select('id, nombre')
             .eq('id_usuario', userId)
-            .eq('id_estado', ACTIVE_FILE_STATUS)
-            .ilike('nombre', fileName);
+            .eq('id_estado', ACTIVE_FILE_STATUS);
 
         if (folderId === null) {
             query = query.is('id_carpeta', null);
@@ -420,8 +445,11 @@ const FileService = {
             );
         }
 
-        return data.length > 0;
+        return data.some(
+            file => file.nombre.toLowerCase() === fileName.toLowerCase()
+        );
     },
+
     async renameFile(fileId, userId, newName) {
         const file = await this.getFileById(
             fileId,
@@ -470,10 +498,26 @@ const FileService = {
             })
             .eq('id', fileId)
             .eq('id_usuario', userId)
+            .eq('id_estado', ACTIVE_FILE_STATUS)
             .select(FILE_SELECT)
             .single();
 
         if (error) {
+            if (error.code === '23505') {
+                throw duplicateFileError();
+            }
+
+            if (error.code === 'PGRST116') {
+                const conflict = new Error(
+                    'El archivo cambió de estado durante el renombrado'
+                );
+
+                conflict.status = 409;
+                conflict.code = 'FILE_STATUS_CHANGED';
+
+                throw conflict;
+            }
+
             throw new Error(
                 `Error al renombrar el archivo: ${error.message}`
             );
