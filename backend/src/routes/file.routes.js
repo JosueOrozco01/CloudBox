@@ -19,8 +19,13 @@ router.post(
 );
 
 router.get(
-    '/:id/download',
+    '/:id/download-url',
     fileController.getDownloadUrl
+);
+
+router.get(
+    '/:id/download',
+    fileController.downloadFile
 );
 
 router.patch(
@@ -42,6 +47,15 @@ router.delete(
     '/:id/permanent',
     fileController.deleteFilePermanently
 );
+router.get(
+    '/trash',
+    fileController.getTrashFiles
+);
+router.patch(
+    '/:id/rename',
+    fileController.renameFile
+);
+
 
 router.get(
     '/:id',

@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 const FolderService = {
   async createFolder({ nombre, id_usuario, id_padre = null }) {
     const nombreLimpio = nombre ? nombre.trim() : '';
-    
+
     if (!nombreLimpio) throw new Error('El nombre de la carpeta no puede estar vacío.');
 
     if (id_padre !== null) {
@@ -31,7 +31,7 @@ const FolderService = {
 
     const { data: existingFolders, error: checkError } = await query;
     if (checkError) throw new Error(`Error al verificar duplicados: ${checkError.message}`);
-    
+
     if (existingFolders && existingFolders.length > 0) {
       throw new Error('Ya existe una carpeta con ese nombre en esta ubicación.');
     }
@@ -120,7 +120,7 @@ const FolderService = {
 
     const { data: existingFolders, error: checkError } = await query;
     if (checkError) throw new Error(`Error al verificar duplicados: ${checkError.message}`);
-    
+
     if (existingFolders && existingFolders.length > 0 && existingFolders[0].id !== folderId) {
       throw new Error('Ya existe una carpeta con ese nombre en esta ubicación.');
     }
@@ -183,7 +183,7 @@ const FolderService = {
 
     const { data: existingFolders, error: checkError } = await query;
     if (checkError) throw new Error(`Error al verificar duplicados: ${checkError.message}`);
-    
+
     if (existingFolders && existingFolders.length > 0 && existingFolders[0].id !== folderId) {
       throw new Error('Ya existe una carpeta con ese nombre en la nueva ubicación.');
     }
@@ -207,7 +207,7 @@ const FolderService = {
     while (index < queue.length) {
       const current = queue[index];
       ids.push(current);
-      
+
       const sub = await this.getSubfolders(current, userId);
       for (const s of sub) {
         queue.push(s.id);
@@ -218,27 +218,31 @@ const FolderService = {
   },
 
   async deleteFolderCascade(folderId, userId) {
-    const currentFolder = await this.getFolderById(folderId, userId);
-    if (!currentFolder) throw new Error('Carpeta no encontrada o sin permisos.');
+    const { data, error } = await supabaseAdmin.rpc('eliminar_carpeta_cascada', {
+      p_carpeta_id: folderId,
+      p_usuario_id: userId
+    });
 
-    const folderIdsToDelete = await this._getFolderTreeIds(folderId, userId);
-
-    // Contrato 3 (Jenni): Aquí se delegaría la eliminación de los archivos contenidos
-    // en las carpetas a borrar. (Mock/Stub).
-
-    // Eliminamos bottom-up de forma lógica (estado en papelera = 2)
-    for (const fId of folderIdsToDelete) {
-      const { error } = await supabaseAdmin
-        .from('carpeta')
-        .update({ id_estado: 2 })
-        .eq('id', fId)
-        .eq('id_usuario', userId);
-
-      if (error) throw new Error(`Error al eliminar la carpeta ${fId}: ${error.message}`);
+    if (error) {
+      throw new Error(`Error al enviar la carpeta a papelera: ${error.message}`);
     }
 
-    return { success: true, deletedFolderIds: folderIdsToDelete };
+    return data;
+  },
+
+  async restoreFolderCascade(folderId, userId) {
+    const { data, error } = await supabaseAdmin.rpc('restaurar_carpeta_cascada', {
+      p_carpeta_id: folderId,
+      p_usuario_id: userId
+    });
+
+    if (error) {
+      throw new Error(`Error al restaurar la carpeta: ${error.message}`);
+    }
+
+    return data;
   }
+
 };
 
 module.exports = FolderService;

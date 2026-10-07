@@ -1,5 +1,5 @@
 const FolderService = require('../services/folder.service');
-const { mockFiles } = require('../fixtures/mock-cloudbox');
+const FileService = require('../services/file.service');
 
 const folderController = {
   async getUserFolders(req, res) {
@@ -37,10 +37,10 @@ const folderController = {
       const userId = parseInt(req.user.id, 10);
       const { nombre, id_padre } = req.body;
 
-      const folder = await FolderService.createFolder({ 
-        nombre, 
-        id_usuario: userId, 
-        id_padre: id_padre ? parseInt(id_padre, 10) : null 
+      const folder = await FolderService.createFolder({
+        nombre,
+        id_usuario: userId,
+        id_padre: id_padre ? parseInt(id_padre, 10) : null
       });
 
       res.status(201).json({ success: true, data: folder });
@@ -122,7 +122,7 @@ const folderController = {
         subfolders = await FolderService.getSubfolders(folderId, userId);
       }
 
-      const folderFiles = mockFiles.filter(f => f.id_carpeta === folderId && f.id_usuario === userId);
+      const folderFiles = await FileService.getFilesByFolder(folderId, userId);
 
       res.status(200).json({
         success: true,
@@ -163,22 +163,53 @@ const folderController = {
 
   async deleteFolder(req, res) {
     try {
-      const folderId = parseInt(req.params.id, 10);
-      const userId = parseInt(req.user.id, 10);
+      const folderId = Number(req.params.id);
+      const userId = Number(req.user.id);
 
-      if (isNaN(folderId)) {
-        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+      if (!Number.isSafeInteger(folderId) || folderId <= 0) {
+        return res.status(400).json({ success: false, code: 'INVALID_FOLDER_ID', message: 'ID de carpeta inválido' });
       }
 
       const result = await FolderService.deleteFolderCascade(folderId, userId);
-      res.status(200).json(result);
+      return res.status(200).json(result);
     } catch (error) {
+      // The database function validates ownership and states.
       if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
-        return res.status(404).json({ success: false, message: error.message });
+        return res.status(404).json({ success: false, code: 'FOLDER_NOT_FOUND', message: 'Carpeta no encontrada o sin acceso' });
       }
-      res.status(500).json({ success: false, message: error.message });
+
+      console.error('Folder deletion failed:', error);
+      return res.status(500).json({ success: false, code: 'FOLDER_DELETE_FAILED', message: 'No se pudo enviar la carpeta a papelera' });
+    }
+  },
+
+  async restoreFolder(req, res) {
+    try {
+      const folderId = Number(req.params.id);
+      const userId = Number(req.user.id);
+
+      if (!Number.isSafeInteger(folderId) || folderId <= 0) {
+        return res.status(400).json({ success: false, code: 'INVALID_FOLDER_ID', message: 'ID de carpeta inválido' });
+      }
+
+      const result = await FolderService.restoreFolderCascade(folderId, userId);
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error.message.includes('No existe una eliminación pendiente')) {
+        return res.status(404).json({ success: false, code: 'FOLDER_RESTORE_NOT_FOUND', message: 'No hay una eliminación pendiente para esta carpeta' });
+      }
+
+      if (error.message.includes('no están disponibles') ||
+        error.message.includes('no está disponible') ||
+        error.message.includes('mismo nombre')) {
+        return res.status(409).json({ success: false, code: 'FOLDER_RESTORE_CONFLICT', message: 'No se puede restaurar la carpeta por un conflicto de estado o nombre' });
+      }
+
+      console.error('Folder restoration failed:', error);
+      return res.status(500).json({ success: false, code: 'FOLDER_RESTORE_FAILED', message: 'No se pudo restaurar la carpeta' });
     }
   }
+
 };
 
 module.exports = folderController;
