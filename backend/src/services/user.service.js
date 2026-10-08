@@ -12,6 +12,18 @@ const supabaseAdmin = createClient(
   }
 );
 
+const ROLE_PERMISSIONS = {
+  Administrador: [
+    "admin_panel",
+    "manage_users"
+  ],
+  Usuario: []
+};
+
+const getPermissionsByRole = (role) => {
+  return ROLE_PERMISSIONS[role] ?? [];
+};
+
 const UserService = {
   async getProfileById(userId, supabase) {
     const { data, error } = await supabase
@@ -44,12 +56,15 @@ const UserService = {
       throw profileError;
     }
 
+    const rol = data.rol?.nombre ?? null;
+
     return {
       id: data.id,
       nombre: data.nombre,
       apellido: data.apellido,
       correo: data.correo,
-      rol: data.rol?.nombre ?? null,
+      rol,
+      permissions: getPermissionsByRole(rol),
       estado: data.estado?.nombre ?? null,
       fecha_registro: data.fecha_registro
     };
@@ -110,16 +125,19 @@ const UserService = {
       throw profileError;
     }
 
+    const rol = data.rol?.nombre ?? null;
+
     return {
       id: data.id,
       nombre: data.nombre,
       apellido: data.apellido,
       correo: data.correo,
-      rol: data.rol?.nombre ?? null,
+      rol,
+      permissions: getPermissionsByRole(rol),
       estado: data.estado?.nombre ?? null,
       fecha_registro: data.fecha_registro
     };
-    },
+  },
 
   async verifyCurrentPassword(authUser, password) {
     if (!authUser?.id || !authUser?.email) {

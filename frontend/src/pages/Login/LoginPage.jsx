@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./Loginstyle.css";
 import Topbar from "../../components/TopbarLogin/Topbar";
 import Footer from "../../components/FooterSignOut/Footer";
@@ -13,6 +13,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
+  const logoutAlert = location.state?.alert;
 
   const [alert, setAlert] = useState({
     isOpen: false,
@@ -20,6 +22,25 @@ export default function LoginPage() {
     title: "",
     message: "",
   });
+
+  useEffect(() => {
+    if (!logoutAlert) return;
+
+    setAlert({
+      isOpen: true,
+      type: logoutAlert.type || "success",
+      title: logoutAlert.title || "Sesión cerrada",
+      message:
+        logoutAlert.message ||
+        "Has cerrado sesión exitosamente.",
+    });
+
+  // Limpiar el mensaje para que no reaparezca al actualizar
+  navigate(location.pathname, {
+    replace: true,
+    state: null,
+  });
+}, [logoutAlert, navigate, location.pathname]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -347,7 +368,7 @@ export default function LoginPage() {
         type={alert.type}
         title={alert.title}
         message={alert.message}
-        variant="modal"
+        variant={alert.type === "success" ? "toast" : "modal"}
       />
     </div>
   );
