@@ -1,13 +1,14 @@
-const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
-const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const {
+    validateStorageProvider
+} = require('../contracts/storage-provider.contract');
 
-const BUCKET_NAME = 'cloudbox-files';
+const supabaseStorageAdapter =
+    require('../adapters/storage/supabase-storage.adapter');
+
+const storageProvider =
+    validateStorageProvider(supabaseStorageAdapter);
 
 const StorageService = {
     buildFilePath(userId, originalName) {
@@ -32,58 +33,27 @@ const StorageService = {
             fileName
         );
 
-        const { data, error } = await supabaseAdmin.storage
-            .from(BUCKET_NAME)
-            .upload(
-                storagePath,
-                buffer,
-                {
-                    contentType: mimeType,
-                    upsert: false
-                }
-            );
-
-        if (error) {
-            throw new Error(
-                `Error al subir el archivo: ${error.message}`
-            );
-        }
-
-        return {
-            path: data.path,
-            fullPath: data.fullPath
-        };
+        return storageProvider.upload({
+            storagePath,
+            buffer,
+            mimeType
+        });
     },
 
-    async createSignedUrl(storagePath, expiresIn = 60) {
-        const { data, error } = await supabaseAdmin.storage
-            .from(BUCKET_NAME)
-            .createSignedUrl(
-                storagePath,
-                expiresIn
-            );
-
-        if (error) {
-            throw new Error(
-                `Error al generar URL de descarga: ${error.message}`
-            );
-        }
-
-        return data.signedUrl;
+    async createSignedUrl(
+        storagePath,
+        expiresIn = 60
+    ) {
+        return storageProvider.createSignedUrl(
+            storagePath,
+            expiresIn
+        );
     },
 
     async deleteFile(storagePath) {
-        const { error } = await supabaseAdmin.storage
-            .from(BUCKET_NAME)
-            .remove([storagePath]);
-
-        if (error) {
-            throw new Error(
-                `Error al eliminar el archivo de Storage: ${error.message}`
-            );
-        }
-
-        return true;
+        return storageProvider.deleteFile(
+            storagePath
+        );
     }
 };
 
