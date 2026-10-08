@@ -296,20 +296,6 @@ const verificarCorreo = async ({
         throw err;
     }
 
-    if (email) {
-        await supabaseAdmin
-            .from('usuario')
-            .update({
-                id_estado: 1
-            })
-            .eq(
-                'correo',
-                email
-                    .trim()
-                    .toLowerCase()
-            );
-    }
-
     return {
         message:
             'Cuenta verificada correctamente'

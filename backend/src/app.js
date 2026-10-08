@@ -10,7 +10,7 @@ const fileRoutes = require('./routes/file.routes');
 
 const notFound = require('./middlewares/not-found.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
-
+const userRoutes = require('./routes/user.routes');
 
 const app = express();
 
@@ -29,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/users', userRoutes);
 
 // Handle requests that do not match any route
 app.use(notFound);
