@@ -6,7 +6,9 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import OfflineBanner from './components/OfflineBanner/Offline';
 import LandingPage from './pages/LandingPage/LandingPage';
 import UserProfile from './pages/Profile/Profile';
-
+import Terms from './pages/Terms/Terms';
+import Privacy from './pages/Privacy/Privacy';
+import Cookies from './pages/Cookies/Cookies';
 
 function App() {
   return (
@@ -19,6 +21,9 @@ function App() {
         <Route path="/recuperar" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/perfil" element={<UserProfile />} />
+        <Route path="/terminos" element={<Terms />} />
+        <Route path="/privacidad" element={<Privacy />} />
+        <Route path="/cookies" element={<Cookies />} />
       </Routes>
     </BrowserRouter>
   );

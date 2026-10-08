@@ -504,6 +504,205 @@
   text-decoration: none;
 }
 
+.storageSummaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.storagePlanBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.storageSummaryFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* =========================================
+   MODAL ELIMINAR CUENTA
+========================================= */
+
+/* Fondo oscuro detrás del modal */
+.deleteAccountOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+/* Contenedor principal */
+.deleteAccountModal {
+  width: 100%;
+  max-width: 450px;
+  padding: 30px;
+
+  background: var(--surfaceColor);
+  border: 1px solid var(--borderColor);
+  border-radius: 14px;
+
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+}
+
+/* Título */
+.deleteAccountModal h2 {
+  margin: 0 0 14px;
+  color: var(--textPrimary);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+/* Descripción */
+.deleteAccountModal > p {
+  margin: 0 0 20px;
+  color: var(--textSecondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Etiqueta de contraseña */
+.deletePasswordLabel {
+  display: block;
+  margin-bottom: 8px;
+
+  color: var(--textPrimary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Contenedor del input */
+.deletePasswordField {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  background: var(--surfaceColor);
+  border: 1px solid var(--borderColor);
+  border-radius: 8px;
+  overflow: hidden;
+
+  transition: border-color 0.2s ease;
+}
+
+.deletePasswordField:focus-within {
+  border-color: var(--primaryColor);
+}
+
+/* Input de contraseña */
+.deletePasswordField input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+
+  color: var(--textPrimary);
+  background: transparent;
+  border: none;
+  outline: none;
+
+  font-size: 14px;
+}
+
+/* Botón Mostrar / Ocultar */
+.deletePasswordField button {
+  padding: 0 14px;
+  height: 44px;
+
+  color: var(--primaryColor);
+  background: transparent;
+  border: none;
+
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deletePasswordField button:hover {
+  background: var(--backgroundColor);
+}
+
+/* Mensaje de error */
+.deleteAccountError {
+  margin-top: 10px;
+  color: var(--dangerColor);
+  font-size: 13px;
+}
+
+/* Botones inferiores */
+.deleteAccountActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+/* Mantener los estilos originales de los botones */
+.deleteAccountActions .secondaryButton,
+.deleteAccountActions .dangerButton {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Botón deshabilitado */
+.deleteAccountActions .dangerButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Adaptación para celulares */
+@media (max-width: 480px) {
+  .deleteAccountModal {
+    padding: 22px;
+  }
+
+  .deleteAccountModal h2 {
+    font-size: 18px;
+  }
+
+  .deleteAccountActions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .deleteAccountActions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .storageSummaryHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 680px) {
   .profileNavbar {
     padding: 0 20px;

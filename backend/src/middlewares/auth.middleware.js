@@ -112,7 +112,10 @@ const requireAuth = async (req, res, next) => {
             status: userStatus.nombre
         };
 
+        req.supabase = authenticatedSupabase;
+
         next();
+        
     } catch (error) {
         return res.status(500).json({
             success: false,
