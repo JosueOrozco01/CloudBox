@@ -1,3 +1,4 @@
+import UserManagement from "./pages/UserManagement/ConnectedUserManagement";
 import { useEffect, useState } from "react";
 import {
   BrowserRouter,
@@ -12,7 +13,7 @@ import ForgotPassword from "./pages/RecoverPassword/Recover";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Papelera from "./pages/Papelera/Papelera";
 import FilesPage from "./pages/Misarchivos/Misarchivos";
-import AdminDashboard from "./pages/AdminDashboard/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboard/ConnectedAdminDashboard";
 import OfflineBanner from "./components/OfflineBanner/Offline";
 import LandingPage from "./pages/LandingPage/LandingPage";
 import UserProfile from "./pages/Profile/Profile";
@@ -162,6 +163,17 @@ function App() {
           element={
             <AuthenticatedPage requiredPermission="admin_panel">
               <AdminDashboard />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/admin/usuarios"
+          element={
+            <AuthenticatedPage
+              key="admin-users"
+              requiredPermission="manage_users"
+            >
+              {(user) => <UserManagement user={user} />}
             </AuthenticatedPage>
           }
         />

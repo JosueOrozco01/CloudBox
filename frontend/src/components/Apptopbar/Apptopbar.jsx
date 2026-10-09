@@ -1,5 +1,6 @@
+import AdminNotifications from "../AdminNotifications/AdminNotifications";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../services/authService";
 import Loading from "../Loading/Loading";
 import AlertModal from "../AlertModal/AlertModal";
@@ -30,24 +31,43 @@ export default function AppTopbar({ user }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [searchUsers, setSearchUsers] = useState("");
+  const location = useLocation();
+  const searchRef = useRef(null);
+  const searchUsers =
+    location.pathname === "/admin/usuarios"
+      ? new URLSearchParams(location.search).get("search") || ""
+      : "";
+  useEffect(() => {
+    if (location.state?.focusAdminSearch) searchRef.current?.focus();
+  }, [location.key, location.state]);
+  const updateSearch = (value) => {
+    navigate(
+      value
+        ? `/admin/usuarios?search=${encodeURIComponent(value)}`
+        : "/admin/usuarios",
+      {
+        replace: location.pathname === "/admin/usuarios",
+        state: { focusAdminSearch: true },
+      },
+    );
+    setMobileOpen(false);
+  };
 
   const [alert, setAlert] = useState({
     open: false,
     type: "error",
     message: "",
-    });
+  });
 
   const fullName = [user?.nombre, user?.apellido].filter(Boolean).join(" ");
 
   const initials =
-    `${user?.nombre?.charAt(0) || ""}${user?.apellido?.charAt(0) || ""}`.toUpperCase() || "?";
+    `${user?.nombre?.charAt(0) || ""}${user?.apellido?.charAt(0) || ""}`.toUpperCase() ||
+    "?";
 
   // `user.permissions` viene del backend (por ejemplo, al llamar a "obtener usuario autenticado").
   // Mientras no tengas esa conexión lista, user puede llegar como undefined y no se rompe nada.
-  const permissions = Array.isArray(user?.permissions)
-    ? user.permissions
-    : [];
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
 
   const isAdmin = permissions.includes("admin_panel");
 
@@ -80,94 +100,86 @@ export default function AppTopbar({ user }) {
     setMenuOpen(false);
 
     try {
-        await logout();
+      await logout();
 
-        navigate("/login", {
+      navigate("/login", {
         replace: true,
         state: {
-            alert: {
+          alert: {
             type: "success",
             title: "Sesión cerrada",
             message: "Sesión cerrada exitosamente.",
-            },
+          },
         },
-        });
+      });
     } catch (error) {
-        console.error("Error al cerrar sesión:", error);
+      console.error("Error al cerrar sesión:", error);
 
-        setAlert({
+      setAlert({
         open: true,
         type: "error",
         message: "No se pudo cerrar sesión. Inténtalo nuevamente.",
-        });
+      });
     } finally {
-        setIsLoggingOut(false);
+      setIsLoggingOut(false);
     }
   };
 
   const handleSearchUsers = (e) => {
     e.preventDefault();
 
-    const search = searchUsers.trim();
-
-    if (!search) return;
-
-    navigate(
-      `/admin/usuarios?search=${encodeURIComponent(search)}`
-    );
-
-    setMobileOpen(false);
+    updateSearch(searchUsers);
   };
 
   return (
     <>
-        {isLoggingOut && <Loading />}
+      {isLoggingOut && <Loading />}
 
-        <AlertModal
-          isOpen={alert.open}
-          type={alert.type}
-          title="Error al cerrar sesión"
-          message={alert.message}
-          variant="modal"
-          onClose={() =>
-            setAlert((prev) => ({
-              ...prev,
-              open: false,
-            }))
-          }
-        />
+      <AlertModal
+        isOpen={alert.open}
+        type={alert.type}
+        title="Error al cerrar sesión"
+        message={alert.message}
+        variant="modal"
+        onClose={() =>
+          setAlert((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+      />
 
-    <header className={`app-topbar ${isAdmin ? "app-topbar-admin" : ""}`}>
-      <div className="app-topbar-left">
-        <button
-          type="button"
-          className="app-menu-toggle"
-          onClick={() => setMobileOpen((open) => !open)}
-          aria-expanded={mobileOpen}
-          aria-label="Abrir menú"
-        >
-          <span />
-          <span />
-          
-        </button>
-
-        <Link className="app-brand" to={isAdmin ? "/admin" : "/dashboard"}>
-          {/* Coloca tu logo en la carpeta public con este nombre */}
-          <img src="/logo-cloudbox.png" alt="CloudBox" />
-        </Link>
-      </div>
-
-      <nav className="app-topbar-links">
-        {visibleLinks.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => (isActive ? "active" : "")}
+      <header className={`app-topbar ${isAdmin ? "app-topbar-admin" : ""}`}>
+        <div className="app-topbar-left">
+          <button
+            type="button"
+            className="app-menu-toggle"
+            onClick={() => setMobileOpen((open) => !open)}
+            aria-expanded={mobileOpen}
+            aria-label="Abrir menú"
           >
-            {link.label}
-          </NavLink>
-        ))}
-      </nav>
+            <span />
+            <span />
+          </button>
+
+          <Link className="app-brand" to={isAdmin ? "/admin" : "/dashboard"}>
+            {/* Coloca tu logo en la carpeta public con este nombre */}
+            <img src="/logo-cloudbox.png" alt="CloudBox" />
+          </Link>
+        </div>
+
+        <nav className="app-topbar-links">
+          {visibleLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.to === "/admin"}
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
 
         {isAdmin && (
           <form
@@ -179,8 +191,9 @@ export default function AppTopbar({ user }) {
               type="search"
               placeholder="Buscar usuarios..."
               aria-label="Buscar usuarios"
+              ref={searchRef}
               value={searchUsers}
-              onChange={(e) => setSearchUsers(e.target.value)}
+              onChange={(e) => updateSearch(e.target.value)}
             />
 
             <button
@@ -205,104 +218,85 @@ export default function AppTopbar({ user }) {
           </form>
         )}
 
-      {isAdmin && (
-        <button
-          type="button"
-          className="app-notification-button"
-          aria-label="Notificaciones"
-          title="Notificaciones"
-          disabled
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-            <path d="M10 21h4" />
-          </svg>
-        </button>
-      )}
+        {isAdmin && <AdminNotifications userId={user.id} />}
 
-      <div className="app-user-menu" ref={menuRef}>
-        <button
-          type="button"
-          className="app-user-trigger"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-        >
-          <span className="app-user-avatar">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={fullName || "Usuario"} />
-            ) : (
-              initials
-            )}
-          </span>
-          <div className="app-user-info">
-            <span className="app-user-name">
-              {fullName || "Mi cuenta"}
+        <div className="app-user-menu" ref={menuRef}>
+          <button
+            type="button"
+            className="app-user-trigger"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+          >
+            <span className="app-user-avatar">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={fullName || "Usuario"} />
+              ) : (
+                initials
+              )}
             </span>
+            <div className="app-user-info">
+              <span className="app-user-name">{fullName || "Mi cuenta"}</span>
 
-            {isAdmin && (
-              <span className="app-user-role">
-                {user?.rol || "Administrador"}
-              </span>
-            )}
-          </div>
-          <svg
-            className={`app-user-chevron ${menuOpen ? "open" : ""}`}
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-
-        {menuOpen && (
-          <div className="app-user-dropdown">
-            <Link to="/perfil" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>
-              Mi perfil
-            </Link>
-            <button
-              type="button"
-              className="app-user-dropdown-item danger"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
+              {isAdmin && (
+                <span className="app-user-role">
+                  {user?.rol || "Administrador"}
+                </span>
+              )}
+            </div>
+            <svg
+              className={`app-user-chevron ${menuOpen ? "open" : ""}`}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
-            </button>
-          </div>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div className="app-user-dropdown">
+              <Link
+                to="/perfil"
+                className="app-user-dropdown-item"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mi perfil
+              </Link>
+              <button
+                type="button"
+                className="app-user-dropdown-item danger"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Menú desplegable para pantallas angostas */}
+        {mobileOpen && (
+          <nav className="app-mobile-menu">
+            {visibleLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.to === "/admin"}
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={() => setMobileOpen(false)}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
         )}
-      </div>
-
-      {/* Menú desplegable para pantallas angostas */}
-      {mobileOpen && (
-        <nav className="app-mobile-menu">
-          {visibleLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={() => setMobileOpen(false)}
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-      )}
-    </header>
+      </header>
     </>
   );
 }
