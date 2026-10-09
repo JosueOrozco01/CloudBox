@@ -182,6 +182,7 @@ const QuotaService = {
                 : 0;
 
         return {
+            subscription: { fecha_fin: subscription.fecha_fin },
             plan: {
                 id: plan.id,
                 nombre: plan.nombre,

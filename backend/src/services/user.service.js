@@ -17,7 +17,7 @@ const ROLE_PERMISSIONS = {
     "admin_panel",
     "manage_users"
   ],
-  Usuario: []
+  Cliente: []
 };
 
 const getPermissionsByRole = (role) => {

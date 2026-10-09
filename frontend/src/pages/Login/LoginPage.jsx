@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./Loginstyle.css";
 import Topbar from "../../components/TopbarLogin/Topbar";
 import Footer from "../../components/FooterSignOut/Footer";
-import Loading from "../../components/Loading/Loading";
 import AlertModal from "../../components/AlertModal/AlertModal";
 
 export default function LoginPage() {
@@ -90,8 +89,6 @@ export default function LoginPage() {
       );
 
       const data = await response.json();
-
-      console.log("Respuesta del login:", data);
 
       // Asegurar que el Loading se vea al menos 700 ms
       const elapsed = Date.now() - startTime;
@@ -347,14 +344,6 @@ export default function LoginPage() {
 
       {/* Footer */}
       <Footer />
-
-      {/* Loading */}
-      {loading && (
-        <Loading
-          fullScreen={true}
-          text="Iniciando sesión..."
-        />
-      )}
 
       {/* Alertas de error y validación */}
       <AlertModal

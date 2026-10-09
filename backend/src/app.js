@@ -30,6 +30,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/dashboard', require('./routes/dashboard.routes'));
 
 // Handle requests that do not match any route
 app.use(notFound);

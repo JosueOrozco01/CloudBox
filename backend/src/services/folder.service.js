@@ -6,6 +6,12 @@ const supabaseAdmin = createClient(
 );
 
 const FolderService = {
+  async getTrashFolders(userId) {
+    const { data, error } = await supabaseAdmin.from('carpeta').select('*')
+      .eq('id_usuario', userId).eq('id_estado', 2).order('fecha_modificacion', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
   async createFolder({ nombre, id_usuario, id_padre = null }) {
     const nombreLimpio = nombre ? nombre.trim() : '';
 
