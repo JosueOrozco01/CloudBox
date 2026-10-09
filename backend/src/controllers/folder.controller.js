@@ -2,6 +2,10 @@ const FolderService = require('../services/folder.service');
 const FileService = require('../services/file.service');
 
 const folderController = {
+  async getTrashFolders(req, res, next) {
+    try { res.json({ success: true, data: await FolderService.getTrashFolders(req.user.id) }); }
+    catch (error) { next(error); }
+  },
   async getUserFolders(req, res) {
     try {
       const userId = parseInt(req.user.id, 10);

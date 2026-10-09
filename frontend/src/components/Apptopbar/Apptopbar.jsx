@@ -6,7 +6,7 @@ import AlertModal from "../AlertModal/AlertModal";
 import "./Apptopbar.css";
 
 // Links base, visibles para cualquier usuario autenticado
-const baseLinks = [
+const clientLinks = [
   { label: "Inicio", to: "/dashboard" },
   { label: "Mis Archivos", to: "/archivos" },
   { label: "Compartidos", to: "/compartidos" },
@@ -15,10 +15,13 @@ const baseLinks = [
   { label: "Soporte", to: "/soporte" },
 ];
 
-// Links que solo deben verse si el backend le dio el permiso correspondiente al usuario
-const permissionLinks = [
-  { label: "Panel Administrativo", to: "/admin", permission: "admin_panel" },
-  { label: "Gestión de Usuarios", to: "/admin/usuarios", permission: "manage_users" },
+const adminLinks = [
+  { label: "Dashboard", to: "/admin" },
+  { label: "Usuarios", to: "/admin/usuarios" },
+  { label: "Planes", to: "/admin/planes" },
+  { label: "Suscripciones", to: "/admin/suscripciones" },
+  { label: "Almacenamiento", to: "/admin/almacenamiento" },
+  { label: "Métricas", to: "/admin/metricas" },
 ];
 
 export default function AppTopbar({ user }) {
@@ -27,6 +30,7 @@ export default function AppTopbar({ user }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [searchUsers, setSearchUsers] = useState("");
 
   const [alert, setAlert] = useState({
     open: false,
@@ -41,12 +45,13 @@ export default function AppTopbar({ user }) {
 
   // `user.permissions` viene del backend (por ejemplo, al llamar a "obtener usuario autenticado").
   // Mientras no tengas esa conexión lista, user puede llegar como undefined y no se rompe nada.
-  const permissions = user?.permissions ?? [];
+  const permissions = Array.isArray(user?.permissions)
+    ? user.permissions
+    : [];
 
-  const visibleLinks = [
-    ...baseLinks,
-    ...permissionLinks.filter((link) => permissions.includes(link.permission)),
-  ];
+  const isAdmin = permissions.includes("admin_panel");
+
+  const visibleLinks = isAdmin ? adminLinks : clientLinks;
 
   // Cierra el menú de usuario si haces clic fuera de él
   useEffect(() => {
@@ -98,25 +103,41 @@ export default function AppTopbar({ user }) {
     } finally {
         setIsLoggingOut(false);
     }
-    };
+  };
+
+  const handleSearchUsers = (e) => {
+    e.preventDefault();
+
+    const search = searchUsers.trim();
+
+    if (!search) return;
+
+    navigate(
+      `/admin/usuarios?search=${encodeURIComponent(search)}`
+    );
+
+    setMobileOpen(false);
+  };
 
   return (
     <>
         {isLoggingOut && <Loading />}
 
         <AlertModal
-        isOpen={alert.open}
-        type={alert.type}
-        message={alert.message}
-        onClose={() =>
+          isOpen={alert.open}
+          type={alert.type}
+          title="Error al cerrar sesión"
+          message={alert.message}
+          variant="modal"
+          onClose={() =>
             setAlert((prev) => ({
-            ...prev,
-            open: false,
+              ...prev,
+              open: false,
             }))
-        }
+          }
         />
 
-    <header className="app-topbar">
+    <header className={`app-topbar ${isAdmin ? "app-topbar-admin" : ""}`}>
       <div className="app-topbar-left">
         <button
           type="button"
@@ -127,10 +148,10 @@ export default function AppTopbar({ user }) {
         >
           <span />
           <span />
-          <span />
+          
         </button>
 
-        <Link className="app-brand" to="/dashboard">
+        <Link className="app-brand" to={isAdmin ? "/admin" : "/dashboard"}>
           {/* Coloca tu logo en la carpeta public con este nombre */}
           <img src="/logo-cloudbox.png" alt="CloudBox" />
         </Link>
@@ -148,6 +169,66 @@ export default function AppTopbar({ user }) {
         ))}
       </nav>
 
+        {isAdmin && (
+          <form
+            className="app-admin-search"
+            onSubmit={handleSearchUsers}
+            role="search"
+          >
+            <input
+              type="search"
+              placeholder="Buscar usuarios..."
+              aria-label="Buscar usuarios"
+              value={searchUsers}
+              onChange={(e) => setSearchUsers(e.target.value)}
+            />
+
+            <button
+              type="submit"
+              aria-label="Buscar"
+              disabled={!searchUsers.trim()}
+            >
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+          </form>
+        )}
+
+      {isAdmin && (
+        <button
+          type="button"
+          className="app-notification-button"
+          aria-label="Notificaciones"
+          title="Notificaciones"
+          disabled
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+            <path d="M10 21h4" />
+          </svg>
+        </button>
+      )}
+
       <div className="app-user-menu" ref={menuRef}>
         <button
           type="button"
@@ -162,7 +243,17 @@ export default function AppTopbar({ user }) {
               initials
             )}
           </span>
-          <span className="app-user-name">{fullName || "Mi cuenta"}</span>
+          <div className="app-user-info">
+            <span className="app-user-name">
+              {fullName || "Mi cuenta"}
+            </span>
+
+            {isAdmin && (
+              <span className="app-user-role">
+                {user?.rol || "Administrador"}
+              </span>
+            )}
+          </div>
           <svg
             className={`app-user-chevron ${menuOpen ? "open" : ""}`}
             width="14"

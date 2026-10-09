@@ -4,7 +4,9 @@ export const getMyProfile = async () => {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    throw new Error("No hay una sesión activa");
+    const error = new Error("No hay una sesión activa");
+    error.status = 401;
+    throw error;
   }
 
   const response = await fetch(`${API_URL}/me`, {
@@ -17,7 +19,14 @@ export const getMyProfile = async () => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "Error al obtener el perfil");
+    const error = new Error(data.message || "Error al obtener el perfil");
+    error.status = response.status;
+    error.code = data.code;
+    throw error;
+  }
+
+  if (!data.data?.id) {
+    throw new Error("El servidor no devolvió un perfil válido");
   }
 
   return data.data;
