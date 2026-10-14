@@ -1,5 +1,6 @@
 const FolderService = require('../services/folder.service');
 const FileService = require('../services/file.service');
+const ActivityService = require('../services/activity.service');
 
 const folderController = {
   async getTrashFolders(req, res, next) {
@@ -45,6 +46,13 @@ const folderController = {
         nombre,
         id_usuario: userId,
         id_padre: id_padre ? parseInt(id_padre, 10) : null
+      });
+
+      await ActivityService.recordActivity({
+        userId,
+        action: ActivityService.ACTIONS.CREATE_FOLDER,
+        description: `Creó la carpeta "${folder.nombre}"`,
+        folderId: folder.id
       });
 
       res.status(201).json({ success: true, data: folder });
@@ -175,6 +183,14 @@ const folderController = {
       }
 
       const result = await FolderService.deleteFolderCascade(folderId, userId);
+
+      await ActivityService.recordActivity({
+        userId,
+        action: ActivityService.ACTIONS.DELETE_FOLDER,
+        description: 'Envió una carpeta a la papelera',
+        folderId
+      });
+
       return res.status(200).json(result);
     } catch (error) {
       // The database function validates ownership and states.

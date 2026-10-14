@@ -3,6 +3,7 @@ const FolderService = require('../services/folder.service');
 const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
 const QuotaService = require('../services/quota.service');
+const ActivityService = require('../services/activity.service');
 
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
@@ -230,6 +231,13 @@ const fileController = {
                     message: 'Archivo no encontrado'
                 });
             }
+
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DELETE_FILE,
+                description: `Envió el archivo "${file.nombre}" a la papelera`,
+                fileId: file.id
+            });
 
             return res.status(200).json({
                 success: true,
@@ -476,6 +484,13 @@ const fileController = {
                 );
             }
 
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.UPLOAD_FILE,
+                description: `Subió el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
+
             return res.status(201).json({
                 success: true,
                 message:
@@ -657,6 +672,13 @@ const fileController = {
                     file.ruta_storage,
                     60
                 );
+
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DOWNLOAD_FILE,
+                description: `Descargó el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
 
             return res.redirect(signedUrl);
         } catch (error) {
