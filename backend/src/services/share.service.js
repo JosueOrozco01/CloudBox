@@ -318,6 +318,15 @@ const ShareService = {
         fecha_compartido,
         fecha_expiracion,
         archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        carpeta:id_carpeta(
+          id,
+          nombre,
+          id_usuario,
+          id_padre,
+          id_estado,
+          fecha_creacion,
+          fecha_modificacion
+        ),
         receptor:id_usuario_receptor(id, nombre, apellido, correo),
         permiso:id_permiso(id, nombre)
       `)
@@ -394,6 +403,15 @@ const ShareService = {
         fecha_compartido,
         fecha_expiracion,
         archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        carpeta:id_carpeta(
+          id,
+          nombre,
+          id_usuario,
+          id_padre,
+          id_estado,
+          fecha_creacion,
+          fecha_modificacion
+        ),
         emisor:id_usuario_emisor(id, nombre, apellido, correo),
         receptor:id_usuario_receptor(id, nombre, apellido, correo),
         permiso:id_permiso(id, nombre)
@@ -519,11 +537,307 @@ const ShareService = {
   },
 
   async shareFolder({ senderUserId, receiverUserId, folderId, permissionId, expiresAt }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+    const parsedSenderId = parseInt(senderUserId, 10);
+    const parsedReceiverId = parseInt(receiverUserId, 10);
+    const parsedFolderId = parseInt(folderId, 10);
+    const parsedPermissionId = parseInt(permissionId, 10);
+
+    if (!parsedSenderId || isNaN(parsedSenderId)) {
+      throw createServiceError(
+        'El usuario emisor no es válido',
+        404,
+        'SENDER_NOT_FOUND'
+      );
+    }
+
+    if (!parsedReceiverId || isNaN(parsedReceiverId)) {
+      throw createServiceError(
+        'El usuario receptor no es válido',
+        404,
+        'RECEIVER_NOT_FOUND'
+      );
+    }
+
+    if (parsedSenderId === parsedReceiverId) {
+      throw createServiceError(
+        'No puedes compartir una carpeta contigo mismo',
+        400,
+        'CANNOT_SHARE_WITH_SELF'
+      );
+    }
+
+    if (!parsedFolderId || isNaN(parsedFolderId)) {
+      throw createServiceError(
+        'La carpeta especificada no es válida',
+        404,
+        'FOLDER_NOT_FOUND'
+      );
+    }
+
+    if (
+      ![
+        PERMISSIONS.EDITOR,
+        PERMISSIONS.VIEWER
+      ].includes(parsedPermissionId)
+    ) {
+      throw createServiceError(
+        'El permiso especificado no es válido',
+        400,
+        'INVALID_PERMISSION'
+      );
+    }
+
+    let normalizedExpiresAt = null;
+
+    if (expiresAt !== undefined && expiresAt !== null) {
+      const expirationDate = new Date(expiresAt);
+
+      if (isNaN(expirationDate.getTime())) {
+        throw createServiceError(
+          'La fecha de expiración no es válida',
+          400,
+          'INVALID_EXPIRATION_DATE'
+        );
+      }
+
+      if (expirationDate <= new Date()) {
+        throw createServiceError(
+          'La fecha de expiración debe ser una fecha futura',
+          400,
+          'INVALID_EXPIRATION_DATE'
+        );
+      }
+
+      normalizedExpiresAt = expirationDate.toISOString();
+    }
+
+    const { data: sender, error: senderError } =
+      await supabaseAdmin
+        .from('usuario')
+        .select('id, id_estado')
+        .eq('id', parsedSenderId)
+        .single();
+
+    if (
+      senderError ||
+      !sender ||
+      sender.id_estado !== USER_STATUS.ACTIVE
+    ) {
+      throw createServiceError(
+        'El usuario emisor no existe o no se encuentra activo',
+        404,
+        'SENDER_NOT_FOUND'
+      );
+    }
+
+    const { data: receiver, error: receiverError } =
+      await supabaseAdmin
+        .from('usuario')
+        .select('id, id_estado')
+        .eq('id', parsedReceiverId)
+        .single();
+
+    if (
+      receiverError ||
+      !receiver ||
+      receiver.id_estado !== USER_STATUS.ACTIVE
+    ) {
+      throw createServiceError(
+        'El usuario receptor no existe o no se encuentra activo',
+        404,
+        'RECEIVER_NOT_FOUND'
+      );
+    }
+
+    const { data: folder, error: folderError } =
+      await supabaseAdmin
+        .from('carpeta')
+        .select('id, nombre, id_usuario, id_estado')
+        .eq('id', parsedFolderId)
+        .single();
+
+    if (folderError || !folder) {
+      throw createServiceError(
+        'La carpeta no existe',
+        404,
+        'FOLDER_NOT_FOUND'
+      );
+    }
+
+    if (folder.id_estado !== FOLDER_STATUS.ACTIVE) {
+      throw createServiceError(
+        'La carpeta no está disponible para compartir',
+        400,
+        'FOLDER_NOT_FOUND'
+      );
+    }
+
+    if (folder.id_usuario !== parsedSenderId) {
+      throw createServiceError(
+        'No tienes permisos de propietario sobre esta carpeta',
+        403,
+        'NOT_RESOURCE_OWNER'
+      );
+    }
+
+    const { data: existingShares, error: shareQueryError } =
+      await supabaseAdmin
+        .from('compartir')
+        .select('id, id_estado')
+        .eq('id_carpeta', parsedFolderId)
+        .eq('id_usuario_emisor', parsedSenderId)
+        .eq('id_usuario_receptor', parsedReceiverId);
+
+    if (shareQueryError) {
+      throw createServiceError(
+        `Error al verificar compartidos previos: ${shareQueryError.message}`,
+        500,
+        'INTERNAL_SERVER_ERROR'
+      );
+    }
+
+    const activeShare = existingShares?.find(
+      (share) =>
+        share.id_estado === SHARE_STATUS.ACTIVE
+    );
+
+    if (activeShare) {
+      throw createServiceError(
+        'La carpeta ya ha sido compartida con este usuario',
+        409,
+        'SHARE_ALREADY_EXISTS'
+      );
+    }
+
+    const revokedShare = existingShares?.find(
+      (share) =>
+        share.id_estado === SHARE_STATUS.REVOKED
+    );
+
+    if (revokedShare) {
+      const {
+        data: reactivatedShare,
+        error: reactivateError
+      } = await supabaseAdmin
+        .from('compartir')
+        .update({
+          id_permiso: parsedPermissionId,
+          id_estado: SHARE_STATUS.ACTIVE,
+          fecha_compartido: new Date().toISOString(),
+          fecha_expiracion: normalizedExpiresAt
+        })
+        .eq('id', revokedShare.id)
+        .select()
+        .single();
+
+      if (reactivateError) {
+        throw createServiceError(
+          `Error al reactivar el compartido: ${reactivateError.message}`,
+          500,
+          'INTERNAL_SERVER_ERROR'
+        );
+      }
+
+      return reactivatedShare;
+    }
+
+    const { data: createdShare, error: insertError } =
+      await supabaseAdmin
+        .from('compartir')
+        .insert({
+          id_archivo: null,
+          id_carpeta: parsedFolderId,
+          id_usuario_emisor: parsedSenderId,
+          id_usuario_receptor: parsedReceiverId,
+          id_permiso: parsedPermissionId,
+          id_estado: SHARE_STATUS.ACTIVE,
+          fecha_compartido: new Date().toISOString(),
+          fecha_expiracion: normalizedExpiresAt
+        })
+        .select()
+        .single();
+
+    if (insertError) {
+      throw createServiceError(
+        `Error al compartir la carpeta: ${insertError.message}`,
+        500,
+        'INTERNAL_SERVER_ERROR'
+      );
+    }
+
+    return createdShare;
   },
 
   async getSharedFoldersWithUser(userId) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+    const parsedUserId = parseInt(userId, 10);
+
+    if (!parsedUserId || isNaN(parsedUserId)) {
+      throw createServiceError(
+        'El usuario no es válido',
+        400,
+        'INVALID_USER_ID'
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+
+    const { data: shares, error } =
+      await supabaseAdmin
+        .from('compartir')
+        .select(`
+          id,
+          id_archivo,
+          id_carpeta,
+          id_usuario_emisor,
+          id_usuario_receptor,
+          id_permiso,
+          id_estado,
+          fecha_compartido,
+          fecha_expiracion,
+          carpeta:id_carpeta(
+            id,
+            nombre,
+            id_usuario,
+            id_padre,
+            id_estado,
+            fecha_creacion,
+            fecha_modificacion
+          ),
+          emisor:id_usuario_emisor(
+            id,
+            nombre,
+            apellido,
+            correo
+          ),
+          permiso:id_permiso(
+            id,
+            nombre
+          )
+        `)
+        .eq('id_usuario_receptor', parsedUserId)
+        .not('id_carpeta', 'is', null)
+        .eq('id_estado', SHARE_STATUS.ACTIVE)
+        .or(
+          `fecha_expiracion.is.null,fecha_expiracion.gt.${nowIso}`
+        )
+        .order(
+          'fecha_compartido',
+          { ascending: false }
+        );
+
+    if (error) {
+      throw createServiceError(
+        `Error al consultar carpetas compartidas: ${error.message}`,
+        500,
+        'INTERNAL_SERVER_ERROR'
+      );
+    }
+
+    return (shares || []).filter(
+      (share) =>
+        share.carpeta &&
+        share.carpeta.id_estado === FOLDER_STATUS.ACTIVE
+    );
   },
 
   async validateFileAccess({ userId, fileId, requiredPermission = null }) {
