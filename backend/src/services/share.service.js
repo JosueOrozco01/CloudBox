@@ -183,31 +183,231 @@ const ShareService = {
     return createdShare;
   },
 
+  async getSharedByUser(userId) {
+    const parsedUserId = parseInt(userId, 10);
+    if (!parsedUserId || isNaN(parsedUserId)) {
+      throw createServiceError('El usuario no es válido', 400, 'INVALID_USER_ID');
+    }
+
+    // Retrieve active outgoing shares initiated by the authenticated user
+    const { data: shares, error } = await supabaseAdmin
+      .from('compartir')
+      .select(`
+        id,
+        id_archivo,
+        id_carpeta,
+        id_usuario_emisor,
+        id_usuario_receptor,
+        id_permiso,
+        id_estado,
+        fecha_compartido,
+        fecha_expiracion,
+        archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        receptor:id_usuario_receptor(id, nombre, apellido, correo),
+        permiso:id_permiso(id, nombre)
+      `)
+      .eq('id_usuario_emisor', parsedUserId)
+      .eq('id_estado', SHARE_STATUS.ACTIVE)
+      .order('fecha_compartido', { ascending: false });
+
+    if (error) {
+      throw createServiceError(`Error al consultar recursos compartidos: ${error.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    return shares || [];
+  },
+
+  async getSharedFilesWithUser(userId) {
+    const parsedUserId = parseInt(userId, 10);
+    if (!parsedUserId || isNaN(parsedUserId)) {
+      throw createServiceError('El usuario no es válido', 400, 'INVALID_USER_ID');
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // Query active non-expired shares granted to the recipient
+    const { data: shares, error } = await supabaseAdmin
+      .from('compartir')
+      .select(`
+        id,
+        id_archivo,
+        id_carpeta,
+        id_usuario_emisor,
+        id_usuario_receptor,
+        id_permiso,
+        id_estado,
+        fecha_compartido,
+        fecha_expiracion,
+        archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        emisor:id_usuario_emisor(id, nombre, apellido, correo),
+        permiso:id_permiso(id, nombre)
+      `)
+      .eq('id_usuario_receptor', parsedUserId)
+      .not('id_archivo', 'is', null)
+      .eq('id_estado', SHARE_STATUS.ACTIVE)
+      .or(`fecha_expiracion.is.null,fecha_expiracion.gt.${nowIso}`)
+      .order('fecha_compartido', { ascending: false });
+
+    if (error) {
+      throw createServiceError(`Error al consultar archivos compartidos: ${error.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    // Exclude shares where the underlying file is in trash or deleted
+    return (shares || []).filter(
+      (share) => share.archivo && share.archivo.id_estado === FILE_STATUS.ACTIVE
+    );
+  },
+
+  async getShareById({ shareId, userId }) {
+    const parsedShareId = parseInt(shareId, 10);
+    const parsedUserId = parseInt(userId, 10);
+
+    if (!parsedShareId || isNaN(parsedShareId)) {
+      throw createServiceError('El recurso compartido no es válido', 404, 'SHARE_NOT_FOUND');
+    }
+
+    const { data: share, error } = await supabaseAdmin
+      .from('compartir')
+      .select(`
+        id,
+        id_archivo,
+        id_carpeta,
+        id_usuario_emisor,
+        id_usuario_receptor,
+        id_permiso,
+        id_estado,
+        fecha_compartido,
+        fecha_expiracion,
+        archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        emisor:id_usuario_emisor(id, nombre, apellido, correo),
+        receptor:id_usuario_receptor(id, nombre, apellido, correo),
+        permiso:id_permiso(id, nombre)
+      `)
+      .eq('id', parsedShareId)
+      .single();
+
+    if (error || !share) {
+      throw createServiceError('El recurso compartido no existe', 404, 'SHARE_NOT_FOUND');
+    }
+
+    // Restrict access exclusively to the sender or recipient involved
+    if (share.id_usuario_emisor !== parsedUserId && share.id_usuario_receptor !== parsedUserId) {
+      throw createServiceError('No tienes acceso para consultar este recurso compartido', 403, 'ACCESS_DENIED');
+    }
+
+    return share;
+  },
+
+  async changePermission({ shareId, actorUserId, permissionId }) {
+    const parsedShareId = parseInt(shareId, 10);
+    const parsedActorId = parseInt(actorUserId, 10);
+    const parsedPermissionId = parseInt(permissionId, 10);
+
+    if (!parsedShareId || isNaN(parsedShareId)) {
+      throw createServiceError('El recurso compartido no es válido', 404, 'SHARE_NOT_FOUND');
+    }
+
+    if (![PERMISSIONS.EDITOR, PERMISSIONS.VIEWER].includes(parsedPermissionId)) {
+      throw createServiceError('El permiso especificado no es válido', 400, 'INVALID_PERMISSION');
+    }
+
+    const { data: share, error } = await supabaseAdmin
+      .from('compartir')
+      .select('id, id_usuario_emisor, id_permiso, id_estado')
+      .eq('id', parsedShareId)
+      .single();
+
+    if (error || !share) {
+      throw createServiceError('El recurso compartido no existe', 404, 'SHARE_NOT_FOUND');
+    }
+
+    // Only the resource owner who created the share may alter granted permissions
+    if (share.id_usuario_emisor !== parsedActorId) {
+      throw createServiceError('Solo el propietario puede modificar los permisos del compartido', 403, 'NOT_RESOURCE_OWNER');
+    }
+
+    // Prevent modifying permissions on shares that have already been revoked
+    if (share.id_estado === SHARE_STATUS.REVOKED) {
+      throw createServiceError('No se pueden modificar permisos de un compartido revocado', 400, 'SHARE_REVOKED');
+    }
+
+    const { data: updatedShare, error: updateError } = await supabaseAdmin
+      .from('compartir')
+      .update({ id_permiso: parsedPermissionId })
+      .eq('id', parsedShareId)
+      .select(`
+        id,
+        id_archivo,
+        id_carpeta,
+        id_usuario_emisor,
+        id_usuario_receptor,
+        id_permiso,
+        id_estado,
+        fecha_compartido,
+        fecha_expiracion
+      `)
+      .single();
+
+    if (updateError) {
+      throw createServiceError(`Error al actualizar el permiso: ${updateError.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    return updatedShare;
+  },
+
+  async revokeShare({ shareId, actorUserId }) {
+    const parsedShareId = parseInt(shareId, 10);
+    const parsedActorId = parseInt(actorUserId, 10);
+
+    if (!parsedShareId || isNaN(parsedShareId)) {
+      throw createServiceError('El recurso compartido no es válido', 404, 'SHARE_NOT_FOUND');
+    }
+
+    const { data: share, error } = await supabaseAdmin
+      .from('compartir')
+      .select('id, id_usuario_emisor, id_estado')
+      .eq('id', parsedShareId)
+      .single();
+
+    if (error || !share) {
+      throw createServiceError('El recurso compartido no existe', 404, 'SHARE_NOT_FOUND');
+    }
+
+    // Enforce ownership so only the sharer can revoke access
+    if (share.id_usuario_emisor !== parsedActorId) {
+      throw createServiceError('Solo el propietario puede revocar el compartido', 403, 'NOT_RESOURCE_OWNER');
+    }
+
+    // Mark share status as revoked instead of deleting the database record
+    const { data: revokedShare, error: updateError } = await supabaseAdmin
+      .from('compartir')
+      .update({ id_estado: SHARE_STATUS.REVOKED })
+      .eq('id', parsedShareId)
+      .select(`
+        id,
+        id_archivo,
+        id_carpeta,
+        id_usuario_emisor,
+        id_usuario_receptor,
+        id_permiso,
+        id_estado,
+        fecha_compartido,
+        fecha_expiracion
+      `)
+      .single();
+
+    if (updateError) {
+      throw createServiceError(`Error al revocar el compartido: ${updateError.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    return revokedShare;
+  },
+
   async shareFolder({ senderUserId, receiverUserId, folderId, permissionId, expiresAt }) {
     throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
   },
 
-  async getSharedFilesWithUser(userId) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
-  },
-
   async getSharedFoldersWithUser(userId) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
-  },
-
-  async getSharedByUser(userId) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
-  },
-
-  async getShareById({ shareId, userId }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
-  },
-
-  async changePermission({ shareId, actorUserId, permissionId }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
-  },
-
-  async revokeShare({ shareId, actorUserId }) {
     throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
   },
 

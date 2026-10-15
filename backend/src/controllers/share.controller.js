@@ -20,7 +20,86 @@ const shareController = {
         data: createdShare
       });
     } catch (error) {
-      // Delegate handled and unhandled failures to the global error middleware
+      next(error);
+    }
+  },
+
+  async getSharedByUser(req, res, next) {
+    try {
+      // Fetch shares dispatched by the authenticated session owner
+      const shares = await ShareService.getSharedByUser(req.user.id);
+
+      return res.status(200).json({
+        success: true,
+        data: shares
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getSharedFilesWithUser(req, res, next) {
+    try {
+      // Fetch active files granted to the authenticated recipient
+      const shares = await ShareService.getSharedFilesWithUser(req.user.id);
+
+      return res.status(200).json({
+        success: true,
+        data: shares
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getShareById(req, res, next) {
+    try {
+      // Validate participation of the caller before exposing share detail
+      const share = await ShareService.getShareById({
+        shareId: req.params.id,
+        userId: req.user.id
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: share
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async changePermission(req, res, next) {
+    try {
+      // Enforce the authenticated caller as the actor attempting the permission modification
+      const updatedShare = await ShareService.changePermission({
+        shareId: req.params.id,
+        actorUserId: req.user.id,
+        permissionId: req.body.permissionId
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: updatedShare
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async revokeShare(req, res, next) {
+    try {
+      // Pass token identity to ensure only the owner can revoke active access
+      const revokedShare = await ShareService.revokeShare({
+        shareId: req.params.id,
+        actorUserId: req.user.id
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: revokedShare
+      });
+    } catch (error) {
       next(error);
     }
   }
