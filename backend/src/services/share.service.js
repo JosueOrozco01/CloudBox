@@ -27,6 +27,12 @@ const FILE_STATUS = {
   DELETED: 3
 };
 
+const FOLDER_STATUS = {
+  ACTIVE: 1,
+  TRASH: 2,
+  DELETED: 3
+};
+
 const USER_STATUS = {
   ACTIVE: 1,
   INACTIVE: 2,
@@ -38,6 +44,115 @@ function createServiceError(message, status, code) {
   error.status = status;
   error.code = code;
   return error;
+}
+
+function satisfiesPermission(grantedPermissionId, requiredPermission) {
+  if (!requiredPermission) {
+    return true;
+  }
+  const parsedRequired = parseInt(requiredPermission, 10);
+  const parsedGranted = parseInt(grantedPermissionId, 10);
+
+  // Editor satisfies both Editor and Viewer requirements
+  if (parsedGranted === PERMISSIONS.EDITOR) {
+    return true;
+  }
+
+  // Viewer only satisfies Viewer requirement
+  if (parsedGranted === PERMISSIONS.VIEWER && parsedRequired === PERMISSIONS.VIEWER) {
+    return true;
+  }
+
+  return false;
+}
+
+function getPermissionName(permissionId) {
+  if (permissionId === PERMISSIONS.EDITOR) return 'Editor';
+  if (permissionId === PERMISSIONS.VIEWER) return 'Visualizador';
+  return null;
+}
+
+async function resolveFolderInheritedAccess(userId, startFolderId, requiredPermission) {
+  if (!startFolderId) {
+    return null;
+  }
+
+  const visited = new Set();
+  const ancestorIds = [];
+  let currentFolderId = parseInt(startFolderId, 10);
+  const MAX_DEPTH = 25;
+  let depth = 0;
+
+  // Traverse upward to gather valid parent folder IDs while guarding against circular graphs
+  while (currentFolderId && depth < MAX_DEPTH) {
+    if (visited.has(currentFolderId)) {
+      break;
+    }
+    visited.add(currentFolderId);
+    ancestorIds.push(currentFolderId);
+    depth++;
+
+    const { data: folder, error } = await supabaseAdmin
+      .from('carpeta')
+      .select('id, id_padre, id_usuario, id_estado')
+      .eq('id', currentFolderId)
+      .single();
+
+    if (error || !folder || folder.id_estado !== FOLDER_STATUS.ACTIVE) {
+      // Abort upward inheritance if any containing ancestor folder is missing or trashed
+      return null;
+    }
+
+    // If user owns an ancestor folder, grant owner privileges through folder ownership
+    if (folder.id_usuario === userId) {
+      return {
+        hasAccess: true,
+        isOwner: true,
+        permissionId: null,
+        permissionName: 'Propietario',
+        source: 'owner',
+        shareId: null
+      };
+    }
+
+    currentFolderId = folder.id_padre ? parseInt(folder.id_padre, 10) : null;
+  }
+
+  if (ancestorIds.length === 0) {
+    return null;
+  }
+
+  const nowIso = new Date().toISOString();
+
+  // Query active unexpired shares across all gathered ancestor folders in a single batch
+  const { data: shares, error: shareError } = await supabaseAdmin
+    .from('compartir')
+    .select('id, id_carpeta, id_permiso, fecha_expiracion')
+    .eq('id_usuario_receptor', userId)
+    .in('id_carpeta', ancestorIds)
+    .eq('id_estado', SHARE_STATUS.ACTIVE)
+    .or(`fecha_expiracion.is.null,fecha_expiracion.gt.${nowIso}`);
+
+  if (shareError || !shares || shares.length === 0) {
+    return null;
+  }
+
+  // Prioritize the highest privilege when multiple ancestor folders are shared
+  const bestShare = shares.reduce((prev, current) => {
+    return current.id_permiso < prev.id_permiso ? current : prev;
+  });
+
+  const hasRequiredAccess = satisfiesPermission(bestShare.id_permiso, requiredPermission);
+
+  return {
+    hasAccess: hasRequiredAccess,
+    isOwner: false,
+    permissionId: bestShare.id_permiso,
+    permissionName: getPermissionName(bestShare.id_permiso),
+    source: 'inherited',
+    shareId: bestShare.id,
+    ...(hasRequiredAccess ? {} : { reason: 'INSUFFICIENT_PERMISSION' })
+  };
 }
 
 const ShareService = {
@@ -411,12 +526,222 @@ const ShareService = {
     throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
   },
 
-  async validateFileAccess({ userId, fileId, requiredPermission }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+  async validateFileAccess({ userId, fileId, requiredPermission = null }) {
+    const parsedUserId = parseInt(userId, 10);
+    const parsedFileId = parseInt(fileId, 10);
+
+    if (!parsedUserId || isNaN(parsedUserId) || !parsedFileId || isNaN(parsedFileId)) {
+      return {
+        hasAccess: false,
+        isOwner: false,
+        permissionId: null,
+        permissionName: null,
+        source: null,
+        shareId: null,
+        reason: 'FILE_NOT_FOUND'
+      };
+    }
+
+    // Step 1: Check file existence, active state, and owner identity
+    const { data: file, error: fileError } = await supabaseAdmin
+      .from('archivo')
+      .select('id, id_usuario, id_carpeta, id_estado')
+      .eq('id', parsedFileId)
+      .single();
+
+    if (fileError || !file || file.id_estado !== FILE_STATUS.ACTIVE) {
+      return {
+        hasAccess: false,
+        isOwner: false,
+        permissionId: null,
+        permissionName: null,
+        source: null,
+        shareId: null,
+        reason: 'FILE_NOT_FOUND'
+      };
+    }
+
+    if (file.id_usuario === parsedUserId) {
+      return {
+        hasAccess: true,
+        isOwner: true,
+        permissionId: null,
+        permissionName: 'Propietario',
+        source: 'owner',
+        shareId: null
+      };
+    }
+
+    // Step 2: Check direct active share for this file
+    const nowIso = new Date().toISOString();
+    const { data: directShare, error: shareError } = await supabaseAdmin
+      .from('compartir')
+      .select('id, id_permiso, fecha_expiracion')
+      .eq('id_archivo', parsedFileId)
+      .eq('id_usuario_receptor', parsedUserId)
+      .eq('id_estado', SHARE_STATUS.ACTIVE)
+      .or(`fecha_expiracion.is.null,fecha_expiracion.gt.${nowIso}`)
+      .maybeSingle();
+
+    let directShareResult = null;
+    if (!shareError && directShare) {
+      const hasAccess = satisfiesPermission(directShare.id_permiso, requiredPermission);
+      directShareResult = {
+        hasAccess,
+        isOwner: false,
+        permissionId: directShare.id_permiso,
+        permissionName: getPermissionName(directShare.id_permiso),
+        source: 'direct',
+        shareId: directShare.id,
+        ...(hasAccess ? {} : { reason: 'INSUFFICIENT_PERMISSION' })
+      };
+
+      if (directShare.id_permiso === PERMISSIONS.EDITOR || (hasAccess && !file.id_carpeta)) {
+        return directShareResult;
+      }
+    }
+
+    // Step 3: Check folder hierarchy inheritance if contained in a folder
+    if (file.id_carpeta) {
+      const inheritedResult = await resolveFolderInheritedAccess(
+        parsedUserId,
+        file.id_carpeta,
+        requiredPermission
+      );
+
+      if (inheritedResult) {
+        if (inheritedResult.isOwner || inheritedResult.permissionId === PERMISSIONS.EDITOR) {
+          return inheritedResult;
+        }
+        if (!directShareResult) {
+          return inheritedResult;
+        }
+      }
+    }
+
+    if (directShareResult) {
+      return directShareResult;
+    }
+
+    // Step 4: Access denied
+    return {
+      hasAccess: false,
+      isOwner: false,
+      permissionId: null,
+      permissionName: null,
+      source: null,
+      shareId: null,
+      reason: 'ACCESS_DENIED'
+    };
   },
 
-  async validateFolderAccess({ userId, folderId, requiredPermission }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+  async validateFolderAccess({ userId, folderId, requiredPermission = null }) {
+    const parsedUserId = parseInt(userId, 10);
+    const parsedFolderId = parseInt(folderId, 10);
+
+    if (!parsedUserId || isNaN(parsedUserId) || !parsedFolderId || isNaN(parsedFolderId)) {
+      return {
+        hasAccess: false,
+        isOwner: false,
+        permissionId: null,
+        permissionName: null,
+        source: null,
+        shareId: null,
+        reason: 'FOLDER_NOT_FOUND'
+      };
+    }
+
+    // Step 1: Check target folder existence, active state, and owner identity
+    const { data: folder, error: folderError } = await supabaseAdmin
+      .from('carpeta')
+      .select('id, id_padre, id_usuario, id_estado')
+      .eq('id', parsedFolderId)
+      .single();
+
+    if (folderError || !folder || folder.id_estado !== FOLDER_STATUS.ACTIVE) {
+      return {
+        hasAccess: false,
+        isOwner: false,
+        permissionId: null,
+        permissionName: null,
+        source: null,
+        shareId: null,
+        reason: 'FOLDER_NOT_FOUND'
+      };
+    }
+
+    if (folder.id_usuario === parsedUserId) {
+      return {
+        hasAccess: true,
+        isOwner: true,
+        permissionId: null,
+        permissionName: 'Propietario',
+        source: 'owner',
+        shareId: null
+      };
+    }
+
+    // Step 2: Check direct active share for this folder
+    const nowIso = new Date().toISOString();
+    const { data: directShare, error: shareError } = await supabaseAdmin
+      .from('compartir')
+      .select('id, id_permiso, fecha_expiracion')
+      .eq('id_carpeta', parsedFolderId)
+      .eq('id_usuario_receptor', parsedUserId)
+      .eq('id_estado', SHARE_STATUS.ACTIVE)
+      .or(`fecha_expiracion.is.null,fecha_expiracion.gt.${nowIso}`)
+      .maybeSingle();
+
+    let directShareResult = null;
+    if (!shareError && directShare) {
+      const hasAccess = satisfiesPermission(directShare.id_permiso, requiredPermission);
+      directShareResult = {
+        hasAccess,
+        isOwner: false,
+        permissionId: directShare.id_permiso,
+        permissionName: getPermissionName(directShare.id_permiso),
+        source: 'direct',
+        shareId: directShare.id,
+        ...(hasAccess ? {} : { reason: 'INSUFFICIENT_PERMISSION' })
+      };
+
+      if (directShare.id_permiso === PERMISSIONS.EDITOR || (hasAccess && !folder.id_padre)) {
+        return directShareResult;
+      }
+    }
+
+    // Step 3: Check hierarchical ancestor inheritance if folder has a parent
+    if (folder.id_padre) {
+      const inheritedResult = await resolveFolderInheritedAccess(
+        parsedUserId,
+        folder.id_padre,
+        requiredPermission
+      );
+
+      if (inheritedResult) {
+        if (inheritedResult.isOwner || inheritedResult.permissionId === PERMISSIONS.EDITOR) {
+          return inheritedResult;
+        }
+        if (!directShareResult) {
+          return inheritedResult;
+        }
+      }
+    }
+
+    if (directShareResult) {
+      return directShareResult;
+    }
+
+    // Step 4: Access denied
+    return {
+      hasAccess: false,
+      isOwner: false,
+      permissionId: null,
+      permissionName: null,
+      source: null,
+      shareId: null,
+      reason: 'ACCESS_DENIED'
+    };
   }
 };
 
