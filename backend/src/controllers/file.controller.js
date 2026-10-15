@@ -130,6 +130,13 @@ const fileController = {
                     60
                 );
 
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DOWNLOAD_FILE,
+                description: `Descargó el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
+
             return res.status(200).json({
                 success: true,
                 data: {
