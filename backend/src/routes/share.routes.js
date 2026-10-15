@@ -9,4 +9,12 @@ router.use(requireAuth);
 
 router.post('/files', shareController.shareFile);
 
+// Register literal paths before wildcard parameters to prevent route resolution shadowing
+router.get('/sent', shareController.getSharedByUser);
+router.get('/received/files', shareController.getSharedFilesWithUser);
+
+router.get('/:id', shareController.getShareById);
+router.patch('/:id/permission', shareController.changePermission);
+router.patch('/:id/revoke', shareController.revokeShare);
+
 module.exports = router;
