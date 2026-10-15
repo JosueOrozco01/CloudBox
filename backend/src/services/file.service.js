@@ -525,6 +525,39 @@ const FileService = {
 
         return data;
     },
+    async getActiveFileById(fileId) {
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .select(FILE_SELECT)
+            .eq('id', fileId)
+            .eq('id_estado', ACTIVE_FILE_STATUS)
+            .maybeSingle();
+
+        if (error) {
+            throw new Error(
+                `Error al obtener el archivo compartido: ${error.message}`
+            );
+        }
+
+        return data;
+    },
+
+    async getActiveFilesByFolder(folderId) {
+        const { data, error } = await supabaseAdmin
+            .from('archivo')
+            .select(FILE_SELECT)
+            .eq('id_carpeta', folderId)
+            .eq('id_estado', ACTIVE_FILE_STATUS)
+            .order('fecha_subida', { ascending: false });
+
+        if (error) {
+            throw new Error(
+                `Error al obtener archivos compartidos: ${error.message}`
+            );
+        }
+
+        return data || [];
+    },
 
 };
 

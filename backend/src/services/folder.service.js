@@ -247,7 +247,40 @@ const FolderService = {
     }
 
     return data;
-  }
+  },
+  async getActiveFolderById(folderId) {
+    const { data, error } = await supabaseAdmin
+      .from('carpeta')
+      .select('*')
+      .eq('id', folderId)
+      .eq('id_estado', 1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        `Error al obtener la carpeta compartida: ${error.message}`
+      );
+    }
+
+    return data;
+  },
+
+  async getActiveSubfolders(parentId) {
+    const { data, error } = await supabaseAdmin
+      .from('carpeta')
+      .select('*')
+      .eq('id_padre', parentId)
+      .eq('id_estado', 1)
+      .order('nombre', { ascending: true });
+
+    if (error) {
+      throw new Error(
+        `Error al obtener subcarpetas compartidas: ${error.message}`
+      );
+    }
+
+    return data || [];
+  },
 
 };
 

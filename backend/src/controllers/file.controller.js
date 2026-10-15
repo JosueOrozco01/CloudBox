@@ -4,6 +4,7 @@ const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
 const QuotaService = require('../services/quota.service');
 const ActivityService = require('../services/activity.service');
+const ShareService = require('../services/share.service');
 
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
@@ -67,10 +68,31 @@ const fileController = {
                 });
             }
 
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
+
+            if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
 
             if (!file) {
                 return res.status(404).json({
@@ -84,8 +106,9 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(500).json({
+            return res.status(error.status || 500).json({
                 success: false,
+                code: error.code,
                 message: error.message
             });
         }
@@ -102,11 +125,31 @@ const fileController = {
                     message: 'ID de archivo inválido'
                 });
             }
-
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
+
+            if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
 
             if (!file) {
                 return res.status(404).json({
@@ -653,10 +696,31 @@ const fileController = {
                 });
             }
 
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
+
+            if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
 
             if (!file) {
                 return res.status(404).json({
