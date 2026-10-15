@@ -13,6 +13,7 @@ const errorHandler = require('./middlewares/error-handler.middleware');
 const userRoutes = require('./routes/user.routes');
 const favoriteRoutes = require('./routes/favorite.routes');
 const activityRoutes = require('./routes/activity.routes');
+const shareRoutes = require('./routes/share.routes');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/shares', shareRoutes);
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 
 
