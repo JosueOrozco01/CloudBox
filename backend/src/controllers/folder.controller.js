@@ -81,72 +81,251 @@ const folderController = {
       const userId = parseInt(req.user.id, 10);
       const { nombre, id_padre } = req.body;
 
-      const folder = await FolderService.createFolder({
-        nombre,
-        id_usuario: userId,
-        id_padre: id_padre ? parseInt(id_padre, 10) : null
-      });
+      const parentId = id_padre
+        ? parseInt(id_padre, 10)
+        : null;
+
+      if (
+        id_padre &&
+        (isNaN(parentId) || parentId <= 0)
+      ) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_FOLDER_ID',
+          message: 'ID de carpeta padre inválido'
+        });
+      }
+
+      let resourceOwnerId = userId;
+
+      if (parentId !== null) {
+        const isOwned =
+          await FolderService.validateFolderOwnership(
+            parentId,
+            userId
+          );
+
+        if (!isOwned) {
+          const access =
+            await ShareService.validateFolderAccess({
+              userId,
+              folderId: parentId,
+              requiredPermission: 1
+            });
+
+          if (!access.hasAccess) {
+            return res.status(403).json({
+              success: false,
+              code: 'EDITOR_PERMISSION_REQUIRED',
+              message:
+                'Necesitas permiso de Editor para crear contenido en esta carpeta'
+            });
+          }
+
+          const parentFolder =
+            await FolderService.getActiveFolderById(
+              parentId
+            );
+
+          if (!parentFolder) {
+            return res.status(404).json({
+              success: false,
+              code: 'FOLDER_NOT_FOUND',
+              message: 'Carpeta no encontrada'
+            });
+          }
+
+          resourceOwnerId =
+            parentFolder.id_usuario;
+        }
+      }
+
+      const folder =
+        await FolderService.createFolder({
+          nombre,
+          id_usuario: resourceOwnerId,
+          id_padre: parentId
+        });
 
       await ActivityService.recordActivity({
         userId,
-        action: ActivityService.ACTIONS.CREATE_FOLDER,
-        description: `Creó la carpeta "${folder.nombre}"`,
+        action:
+          ActivityService.ACTIONS.CREATE_FOLDER,
+        description:
+          `Creó la carpeta "${folder.nombre}"`,
         folderId: folder.id
       });
 
-      res.status(201).json({ success: true, data: folder });
+      return res.status(201).json({
+        success: true,
+        data: folder
+      });
     } catch (error) {
-      if (error.message.includes('vacío') || error.message.includes('Ya existe')) {
-        return res.status(400).json({ success: false, message: error.message });
+      if (
+        error.message.includes('vacío') ||
+        error.message.includes('Ya existe')
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
       }
-      res.status(500).json({ success: false, message: error.message });
+
+      return res.status(error.status || 500).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
     }
   },
-
   async updateFolderName(req, res) {
     try {
-      const folderId = parseInt(req.params.id, 10);
-      const userId = parseInt(req.user.id, 10);
+      const folderId =
+        parseInt(req.params.id, 10);
+      const userId =
+        parseInt(req.user.id, 10);
+
       const { nombre } = req.body;
 
       if (isNaN(folderId)) {
-        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+        return res.status(400).json({
+          success: false,
+          message: 'ID de carpeta inválido'
+        });
       }
 
-      const folder = await FolderService.updateFolderName(folderId, userId, nombre);
-      res.status(200).json({ success: true, data: folder });
+      let folder =
+        await FolderService.getFolderById(
+          folderId,
+          userId
+        );
+
+      let resourceOwnerId = userId;
+
+      if (!folder) {
+        const access =
+          await ShareService.validateFolderAccess({
+            userId,
+            folderId,
+            requiredPermission: 1
+          });
+
+        if (!access.hasAccess) {
+          return res.status(403).json({
+            success: false,
+            code: 'EDITOR_PERMISSION_REQUIRED',
+            message:
+              'Necesitas permiso de Editor para renombrar esta carpeta'
+          });
+        }
+
+        folder =
+          await FolderService.getActiveFolderById(
+            folderId
+          );
+
+        if (!folder) {
+          return res.status(404).json({
+            success: false,
+            message: 'Carpeta no encontrada'
+          });
+        }
+
+        resourceOwnerId = folder.id_usuario;
+      }
+
+      const updatedFolder =
+        await FolderService.updateFolderName(
+          folderId,
+          resourceOwnerId,
+          nombre
+        );
+
+      return res.status(200).json({
+        success: true,
+        data: updatedFolder
+      });
     } catch (error) {
-      if (error.message.includes('vacío') || error.message.includes('Ya existe')) {
-        return res.status(400).json({ success: false, message: error.message });
+      if (
+        error.message.includes('vacío') ||
+        error.message.includes('Ya existe')
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
       }
-      if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
-        return res.status(404).json({ success: false, message: error.message });
-      }
-      res.status(500).json({ success: false, message: error.message });
+
+      return res.status(error.status || 500).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
     }
   },
 
   async getSubfolders(req, res) {
     try {
-      const folderId = parseInt(req.params.id, 10);
-      const userId = parseInt(req.user.id, 10);
+      const folderId =
+        parseInt(req.params.id, 10);
+      const userId =
+        parseInt(req.user.id, 10);
 
       if (isNaN(folderId)) {
-        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+        return res.status(400).json({
+          success: false,
+          message: 'ID de carpeta inválido'
+        });
       }
 
-      const isValid = await FolderService.validateFolderOwnership(folderId, userId);
-      if (!isValid) {
-        return res.status(404).json({ success: false, message: 'Carpeta no encontrada o sin acceso' });
+      const isOwned =
+        await FolderService.validateFolderOwnership(
+          folderId,
+          userId
+        );
+
+      let subfolders;
+
+      if (isOwned) {
+        subfolders =
+          await FolderService.getSubfolders(
+            folderId,
+            userId
+          );
+      } else {
+        const access =
+          await ShareService.validateFolderAccess({
+            userId,
+            folderId,
+            requiredPermission: 2
+          });
+
+        if (!access.hasAccess) {
+          return res.status(404).json({
+            success: false,
+            message:
+              'Carpeta no encontrada o sin acceso'
+          });
+        }
+
+        subfolders =
+          await FolderService.getActiveSubfolders(
+            folderId
+          );
       }
 
-      const subfolders = await FolderService.getSubfolders(folderId, userId);
-      res.status(200).json({ success: true, data: subfolders });
+      return res.status(200).json({
+        success: true,
+        data: subfolders
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      return res.status(error.status || 500).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
     }
   },
-
   async getFolderContent(req, res) {
     try {
       const folderIdStr = req.params.id;

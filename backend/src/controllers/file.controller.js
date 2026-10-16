@@ -428,6 +428,7 @@ const fileController = {
 
         try {
             const userId = parseInt(req.user.id, 10);
+            let resourceOwnerId = userId;
 
             if (!req.file) {
                 return res.status(400).json({
@@ -457,19 +458,44 @@ const fileController = {
                     });
                 }
 
-                const isValidFolder =
+                const isOwnedFolder =
                     await FolderService.validateFolderOwnership(
                         folderId,
                         userId
                     );
 
-                if (!isValidFolder) {
-                    return res.status(403).json({
-                        success: false,
-                        code: 'INVALID_FOLDER',
-                        message:
-                            'La carpeta no existe o no pertenece al usuario'
-                    });
+                if (!isOwnedFolder) {
+                    const access =
+                        await ShareService.validateFolderAccess({
+                            userId,
+                            folderId,
+                            requiredPermission: 1
+                        });
+
+                    if (!access.hasAccess) {
+                        return res.status(403).json({
+                            success: false,
+                            code: 'EDITOR_PERMISSION_REQUIRED',
+                            message:
+                                'Necesitas permiso de Editor para subir archivos a esta carpeta'
+                        });
+                    }
+
+                    const targetFolder =
+                        await FolderService.getActiveFolderById(
+                            folderId
+                        );
+
+                    if (!targetFolder) {
+                        return res.status(404).json({
+                            success: false,
+                            code: 'FOLDER_NOT_FOUND',
+                            message: 'Carpeta no encontrada'
+                        });
+                    }
+
+                    resourceOwnerId =
+                        targetFolder.id_usuario;
                 }
             }
 
@@ -482,11 +508,10 @@ const fileController = {
 
             const duplicateExists =
                 await FileService.fileNameExists(
-                    userId,
+                    resourceOwnerId,
                     folderId,
                     validation.name
                 );
-
             if (duplicateExists) {
                 return res.status(409).json({
                     success: false,
@@ -497,13 +522,13 @@ const fileController = {
             }
 
             await QuotaService.validateUpload(
-                userId,
+                resourceOwnerId,
                 validation.size
             );
 
             const storageResult =
                 await StorageService.uploadFile({
-                    userId,
+                    userId: resourceOwnerId,
                     fileName: validation.name,
                     buffer: req.file.buffer,
                     mimeType: req.file.mimetype
@@ -517,7 +542,7 @@ const fileController = {
                     size: validation.size,
                     storagePath:
                         storageResult.path,
-                    userId,
+                    userId: resourceOwnerId,
                     folderId,
                     extensionId:
                         validation.extension.id
@@ -525,7 +550,7 @@ const fileController = {
 
             try {
                 await QuotaService.syncUsedStorage(
-                    userId
+                    resourceOwnerId
                 );
             } catch (quotaError) {
                 console.error(
@@ -592,8 +617,10 @@ const fileController = {
 
     async renameFile(req, res) {
         try {
-            const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const userId =
+                parseInt(req.user.id, 10);
+            const fileId =
+                parseInt(req.params.id, 10);
 
             if (isNaN(fileId)) {
                 return res.status(400).json({
@@ -630,17 +657,45 @@ const fileController = {
                 });
             }
 
-            const currentFile =
+            let currentFile =
                 await FileService.getFileById(
                     fileId,
                     userId
                 );
 
+            let resourceOwnerId = userId;
+
             if (!currentFile) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Archivo no encontrado'
-                });
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 1
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code: 'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor para renombrar este archivo'
+                    });
+                }
+
+                currentFile =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+
+                if (!currentFile) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                resourceOwnerId =
+                    currentFile.id_usuario;
             }
 
             const currentExtension =
@@ -657,7 +712,8 @@ const fileController = {
             ) {
                 return res.status(400).json({
                     success: false,
-                    code: 'FILE_EXTENSION_CHANGE_NOT_ALLOWED',
+                    code:
+                        'FILE_EXTENSION_CHANGE_NOT_ALLOWED',
                     message:
                         'No se permite cambiar la extensión del archivo'
                 });
@@ -666,7 +722,7 @@ const fileController = {
             const file =
                 await FileService.renameFile(
                     fileId,
-                    userId,
+                    resourceOwnerId,
                     newName
                 );
 
