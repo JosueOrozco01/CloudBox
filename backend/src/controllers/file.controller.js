@@ -200,8 +200,11 @@ const fileController = {
 
     async moveFile(req, res) {
         try {
-            const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const userId =
+                parseInt(req.user.id, 10);
+
+            const fileId =
+                parseInt(req.params.id, 10);
 
             if (isNaN(fileId)) {
                 return res.status(400).json({
@@ -217,24 +220,124 @@ const fileController = {
                 req.body.folderId !== null &&
                 req.body.folderId !== ''
             ) {
-                folderId = parseInt(
-                    req.body.folderId,
-                    10
-                );
+                folderId =
+                    parseInt(req.body.folderId, 10);
 
                 if (isNaN(folderId)) {
                     return res.status(400).json({
                         success: false,
-                        message: 'ID de carpeta inválido'
+                        message:
+                            'ID de carpeta inválido'
                     });
                 }
             }
 
-            const file = await FileService.moveFile(
-                fileId,
-                userId,
-                folderId
-            );
+            let currentFile =
+                await FileService.getFileById(
+                    fileId,
+                    userId
+                );
+
+            let resourceOwnerId = userId;
+            let isOwner = Boolean(currentFile);
+
+            if (!currentFile) {
+                const sourceAccess =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 1
+                    });
+
+                if (!sourceAccess.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor para mover este archivo'
+                    });
+                }
+
+                currentFile =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+
+                if (!currentFile) {
+                    return res.status(404).json({
+                        success: false,
+                        message:
+                            'Archivo no encontrado'
+                    });
+                }
+
+                resourceOwnerId =
+                    currentFile.id_usuario;
+            }
+
+            if (!isOwner) {
+                if (folderId === null) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'SHARED_ROOT_MOVE_NOT_ALLOWED',
+                        message:
+                            'No puedes mover un archivo compartido fuera del espacio del propietario'
+                    });
+                }
+
+                const destinationAccess =
+                    await ShareService.validateFolderAccess({
+                        userId,
+                        folderId,
+                        requiredPermission: 1
+                    });
+
+                if (!destinationAccess.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor en la carpeta destino'
+                    });
+                }
+
+                const destinationFolder =
+                    await FolderService.getActiveFolderById(
+                        folderId
+                    );
+
+                if (!destinationFolder) {
+                    return res.status(404).json({
+                        success: false,
+                        code: 'FOLDER_NOT_FOUND',
+                        message:
+                            'Carpeta destino no encontrada'
+                    });
+                }
+
+                if (
+                    destinationFolder.id_usuario !==
+                    resourceOwnerId
+                ) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'CROSS_OWNER_MOVE_NOT_ALLOWED',
+                        message:
+                            'No se pueden mover recursos entre espacios de distintos propietarios'
+                    });
+                }
+            }
+
+            const file =
+                await FileService.moveFile(
+                    fileId,
+                    resourceOwnerId,
+                    folderId
+                );
 
             if (!file) {
                 return res.status(404).json({
@@ -245,7 +348,8 @@ const fileController = {
 
             return res.status(200).json({
                 success: true,
-                message: 'Archivo movido correctamente',
+                message:
+                    'Archivo movido correctamente',
                 data: file
             });
         } catch (error) {

@@ -428,26 +428,176 @@ const folderController = {
 
   async moveFolder(req, res) {
     try {
-      const folderId = parseInt(req.params.id, 10);
-      const userId = parseInt(req.user.id, 10);
+      const folderId =
+        parseInt(req.params.id, 10);
+
+      const userId =
+        parseInt(req.user.id, 10);
+
       const { id_padre } = req.body;
 
-      if (isNaN(folderId)) {
-        return res.status(400).json({ success: false, message: 'ID de carpeta inválido' });
+      if (
+        isNaN(folderId) ||
+        folderId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            'ID de carpeta inválido'
+        });
       }
 
-      const newParentId = id_padre ? parseInt(id_padre, 10) : null;
+      let newParentId = null;
 
-      const folder = await FolderService.moveFolder(folderId, newParentId, userId);
-      res.status(200).json({ success: true, data: folder });
+      if (
+        id_padre !== undefined &&
+        id_padre !== null &&
+        id_padre !== ''
+      ) {
+        newParentId =
+          parseInt(id_padre, 10);
+
+        if (
+          isNaN(newParentId) ||
+          newParentId <= 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              'ID de carpeta destino inválido'
+          });
+        }
+      }
+
+      let currentFolder =
+        await FolderService.getFolderById(
+          folderId,
+          userId
+        );
+
+      let resourceOwnerId = userId;
+      const isOwner = Boolean(currentFolder);
+
+      if (!currentFolder) {
+        const sourceAccess =
+          await ShareService.validateFolderAccess({
+            userId,
+            folderId,
+            requiredPermission: 1
+          });
+
+        if (!sourceAccess.hasAccess) {
+          return res.status(403).json({
+            success: false,
+            code:
+              'EDITOR_PERMISSION_REQUIRED',
+            message:
+              'Necesitas permiso de Editor para mover esta carpeta'
+          });
+        }
+
+        currentFolder =
+          await FolderService.getActiveFolderById(
+            folderId
+          );
+
+        if (!currentFolder) {
+          return res.status(404).json({
+            success: false,
+            code: 'FOLDER_NOT_FOUND',
+            message:
+              'Carpeta no encontrada'
+          });
+        }
+
+        resourceOwnerId =
+          currentFolder.id_usuario;
+      }
+
+      if (!isOwner) {
+        if (newParentId === null) {
+          return res.status(403).json({
+            success: false,
+            code:
+              'SHARED_ROOT_MOVE_NOT_ALLOWED',
+            message:
+              'No puedes mover una carpeta compartida fuera del espacio del propietario'
+          });
+        }
+
+        const destinationAccess =
+          await ShareService.validateFolderAccess({
+            userId,
+            folderId: newParentId,
+            requiredPermission: 1
+          });
+
+        if (!destinationAccess.hasAccess) {
+          return res.status(403).json({
+            success: false,
+            code:
+              'EDITOR_PERMISSION_REQUIRED',
+            message:
+              'Necesitas permiso de Editor en la carpeta destino'
+          });
+        }
+
+        const destinationFolder =
+          await FolderService.getActiveFolderById(
+            newParentId
+          );
+
+        if (!destinationFolder) {
+          return res.status(404).json({
+            success: false,
+            code: 'FOLDER_NOT_FOUND',
+            message:
+              'Carpeta destino no encontrada'
+          });
+        }
+
+        if (
+          destinationFolder.id_usuario !==
+          resourceOwnerId
+        ) {
+          return res.status(403).json({
+            success: false,
+            code:
+              'CROSS_OWNER_MOVE_NOT_ALLOWED',
+            message:
+              'No se pueden mover recursos entre espacios de distintos propietarios'
+          });
+        }
+      }
+
+      const folder =
+        await FolderService.moveFolder(
+          folderId,
+          newParentId,
+          resourceOwnerId
+        );
+
+      return res.status(200).json({
+        success: true,
+        data: folder
+      });
     } catch (error) {
-      if (error.message.includes('No puedes mover') || error.message.includes('Ya existe') || error.message.includes('sí misma')) {
-        return res.status(400).json({ success: false, message: error.message });
+      if (
+        error.message.includes('No puedes mover') ||
+        error.message.includes('Ya existe') ||
+        error.message.includes('sí misma')
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
       }
-      if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
-        return res.status(403).json({ success: false, message: error.message });
-      }
-      res.status(500).json({ success: false, message: error.message });
+
+      return res.status(error.status || 500).json({
+        success: false,
+        code: error.code,
+        message: error.message
+      });
     }
   },
 
