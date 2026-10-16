@@ -94,7 +94,7 @@ const fileController = {
                     );
             }
 
-            if (!file) {
+            if (!file || file.id_estado !== ACTIVE_FILE_STATUS) {
                 return res.status(404).json({
                     success: false,
                     message: 'Archivo no encontrado'
