@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const ShareService = require('./share.service');
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
@@ -17,7 +18,18 @@ function createServiceError(message, status, code) {
 }
 
 const FavoriteService = {
-    async validateOwnedFile(userId, fileId) {
+    async validateAccessibleFile(userId, fileId) {
+        const access =
+            await ShareService.validateFileAccess({
+                userId,
+                fileId,
+                requiredPermission: 2
+            });
+
+        if (!access.hasAccess) {
+            return null;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('archivo')
             .select(`
@@ -27,7 +39,6 @@ const FavoriteService = {
                 id_estado
             `)
             .eq('id', fileId)
-            .eq('id_usuario', userId)
             .eq('id_estado', ACTIVE_FILE_STATUS)
             .maybeSingle();
 
@@ -41,10 +52,11 @@ const FavoriteService = {
     },
 
     async addFavorite(userId, fileId) {
-        const file = await this.validateOwnedFile(
-            userId,
-            fileId
-        );
+        const file =
+            await this.validateAccessibleFile(
+                userId,
+                fileId
+            );
 
         if (!file) {
             throw createServiceError(
@@ -147,11 +159,35 @@ const FavoriteService = {
             );
         }
 
-        return data.filter(
-            (favorite) =>
-                favorite.archivo &&
-                favorite.archivo.id_estado === ACTIVE_FILE_STATUS
-        );
+        const visibleFavorites = [];
+
+        for (const favorite of data) {
+            if (
+                !favorite.archivo ||
+                favorite.archivo.id_estado !==
+                ACTIVE_FILE_STATUS
+            ) {
+                continue;
+            }
+
+            try {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId: favorite.id_archivo,
+                        requiredPermission: 2
+                    });
+
+                if (access.hasAccess) {
+                    visibleFavorites.push(favorite);
+                }
+            } catch (error) {
+                // If access is revoked, expired or unavailable,
+                // the favorite remains stored but is not displayed.
+            }
+        }
+
+        return visibleFavorites;
     },
 
     async isFavorite(userId, fileId) {
