@@ -1,5 +1,8 @@
+import ViewToggle from "../ViewToggle/ViewToggle";
 import { useState } from "react";
 import {
+  Star,
+  FolderHeart,
   Upload,
   FolderPlus,
   Trash2,
@@ -15,6 +18,13 @@ import { matchesFileFilters } from "./fileFilters";
 import "./FileBrowser.css";
 
 export default function MisArchivos({
+  favoritesMode = false,
+  showFavoritesFolder = false,
+  onFavorites,
+  favoriteKeys = [],
+  favoritePending = [],
+  favoriteAvailability = {},
+  onToggleFavorite,
   items = [],
   totalCount = 0,
   folderCount = 0,
@@ -74,12 +84,12 @@ export default function MisArchivos({
     <main className="mf-page">
       <header className="mf-header">
         <div>
-          <h1>{trash ? "Papelera" : "Mis Archivos"}</h1>
-          <p>Organiza, busca y administra todos tus archivos</p>
+          <h1>{trash ? "Papelera" : favoritesMode ? "Mis favoritos" : "Mis Archivos"}</h1>
+          <p>{favoritesMode ? "Tus archivos destacados, siempre a mano" : "Organiza, busca y administra todos tus archivos"}</p>
         </div>
         {onBack && (
           <button className="mf-folder-btn mf-back-btn" type="button" onClick={onBack}>
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
             Mis Archivos
           </button>
         )}
@@ -119,7 +129,7 @@ export default function MisArchivos({
             </button>
           ))}
         </div>
-        {!trash && (
+        {!trash && !favoritesMode && (
           <>
             <button
               className="mf-folder-btn"
@@ -137,11 +147,12 @@ export default function MisArchivos({
         )}
         {!trash && (
           <button className="mf-folder-btn" type="button" onClick={onTrash}>
-            <Trash2 size={18} />
+            <Trash2 size={16} />
             Papelera
           </button>
         )}
       </div>
+      {showFavoritesFolder && <button className="mf-favorites-folder" type="button" onClick={onFavorites}><span className="mf-favorites-folder-icon"><FolderHeart size={25} /></span><span><strong>Mis favoritos</strong><small>Archivos que marcaste con una estrella</small></span><Star size={18} fill="currentColor" /></button>}
       <section className="mf-stats">
         {[
           [
@@ -216,15 +227,7 @@ export default function MisArchivos({
               <option value="size">Tamaño</option>
             </select>
           </label>
-          <button
-            type="button"
-            className="mf-folder-btn"
-            onClick={() =>
-              setView((value) => (value === "list" ? "grid" : "list"))
-            }
-          >
-            {view === "list" ? "Cuadrícula" : "Lista"}
-          </button>
+          <ViewToggle value={view} onChange={setView} />
         </div>
       </div>
       {dragged && (
@@ -265,7 +268,7 @@ export default function MisArchivos({
                       : ""
                 }
                 onDragOver={(event) => {
-                  if (!dragged || trash || dragged === item.id) return;
+                  if (!dragged || trash || item.isShared || dragged === item.id) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
                   if (dropTarget?.id !== item.id) {
@@ -302,7 +305,7 @@ export default function MisArchivos({
                         className="mf-restore-btn"
                         onClick={() => onRestore(item)}
                       >
-                        <RotateCcw size={15} />
+                        <RotateCcw size={16} />
                         Restaurar
                       </button>
                     ) : (
@@ -314,9 +317,11 @@ export default function MisArchivos({
                         >
                           Abrir
                         </button>
+                        {item.type !== "carpeta" ? <button type="button" className={`mf-icon-btn ${favoriteKeys.includes(item.id) ? "favorite" : ""}`} aria-pressed={favoriteKeys.includes(item.id)} aria-label={`${favoriteKeys.includes(item.id) ? "Quitar de" : "Agregar a"} favoritos: ${item.name}`} title={favoriteKeys.includes(item.id) ? "Quitar de favoritos" : "Agregar a favoritos"} disabled={favoritePending.includes(item.id) || !(item.type === "carpeta" ? favoriteAvailability.folders : favoriteAvailability.files)} onClick={() => onToggleFavorite(item)}><Star size={16} fill={favoriteKeys.includes(item.id) ? "currentColor" : "none"} /></button> : <span className="mf-action-placeholder" aria-hidden="true" />}
                         <button
                           type="button"
                           className="mf-icon-btn"
+                          disabled={item.isShared}
                           title="Cambiar nombre"
                           aria-label={`Cambiar nombre de ${item.name}`}
                           onClick={() => onRename(item)}
@@ -326,6 +331,7 @@ export default function MisArchivos({
                         <button
                           type="button"
                           className="mf-icon-btn"
+                          disabled={item.isShared}
                           title="Enviar a papelera"
                           aria-label={`Eliminar ${item.name}`}
                           onClick={() => onDelete(item)}
@@ -345,9 +351,10 @@ export default function MisArchivos({
                         <button
                           type="button"
                           className="mf-icon-btn"
+                          disabled={item.isShared}
                           title="Mover o cambiar orden"
                           aria-label={`Mover ${item.name}`}
-                          draggable
+                          draggable={!item.isShared}
                           onDragStart={(event) => {
                             event.dataTransfer.setData("text/plain", item.id);
                             event.dataTransfer.effectAllowed = "move";

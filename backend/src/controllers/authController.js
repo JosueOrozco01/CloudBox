@@ -1,3 +1,4 @@
+const SessionHistory = require('../services/session-history.service');
 const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword, signOutUser } = require('../services/auth.service');
 
 const register = async (req, res) => {
@@ -39,6 +40,7 @@ const login = async (req, res) => {
         const { email, password } = req.body;
         
         const sessionData = await iniciarSesion({ email, password });
+        await SessionHistory.recordLogin(req, sessionData.user.id, sessionData.token);
         
         return res.status(200).json({
             success: true,
@@ -95,6 +97,7 @@ const logout = async (req, res) => {
         const { accessToken, refreshToken } = req.body;
 
         await signOutUser(accessToken, refreshToken);
+        await SessionHistory.recordLogout(req, accessToken);
 
         return res.status(200).json({
             success: true,

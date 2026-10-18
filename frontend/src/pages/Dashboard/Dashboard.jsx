@@ -465,7 +465,9 @@ export default function Dashboard({ user, initialData = null }) {
               ? openUpload()
               : id === "folder"
                 ? setFolderOpen(true)
-                : unavailable()
+                : id === "shared"
+                  ? navigate("/compartidos")
+                  : unavailable()
           }
           onViewAllFiles={() => navigate("/archivos")}
           onViewPlans={unavailable}

@@ -1,3 +1,5 @@
+import { formatFileSize } from "../../utils/preferences";
+import { getFileFavorites, setItemFavorite, favoriteKey } from "../../services/favoriteService";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MisArchivos from "./FileBrowserView";
@@ -5,6 +7,7 @@ import RenameItemModal from "../RenameItemModal/RenameItemModal";
 import FileActionModal from "../FileActionModal/FileActionModal";
 import { reorderItems } from "./fileFilters";
 import {
+  request,
   getUserFiles,
   getUserFolders,
   getDashboard,
@@ -31,6 +34,12 @@ export default function FileBrowser({ user, trash = false }) {
   const dropCommitted = useRef(false);
   const [params, setParams] = useSearchParams();
   const folderId = params.get("folder");
+  const favoritesMode = !trash && params.get("favorites") === "1";
+  const [favoriteKeys, setFavoriteKeys] = useState([]);
+  const [favoriteWarning, setFavoriteWarning] = useState("");
+  const [favoriteAvailability, setFavoriteAvailability] = useState({ files: false, folders: false });
+  const [favoritePending, setFavoritePending] = useState([]);
+  const pendingFavorites = useRef(new Set());
   const search = params.get("search") || "";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,24 +57,37 @@ export default function FileBrowser({ user, trash = false }) {
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
   const [actionError, setActionError] = useState("");
-  const orderKey = `cloudbox:order:${user?.id}:${folderId || "root"}:${trash}`;
+  const orderKey = `cloudbox:order:${user?.id}:${folderId || "root"}:${trash}:${favoritesMode}`;
 
   useEffect(() => {
     let active = true;
     Promise.all([
-      trash ? getTrashFiles() : getUserFiles(folderId),
-      trash ? getTrashFolders() : getUserFolders(folderId),
+      trash ? getTrashFiles() : favoritesMode ? Promise.resolve([]) : getUserFiles(folderId),
+      trash ? getTrashFolders() : favoritesMode ? Promise.resolve([]) : getUserFolders(folderId),
       getDashboard(),
       trash ? Promise.resolve([]) : getFolderLocations(),
+      trash ? Promise.resolve([]) : Promise.allSettled([getFileFavorites()]),
     ])
-      .then(([files, folders, summary, folderLocations]) => {
+      .then(([files, folders, summary, folderLocations, favoriteResults]) => {
         if (!active) return;
+        const fileResult = favoriteResults[0];
+        const fileFavorites = fileResult?.status === "fulfilled" ? fileResult.value : [];
+        const favoriteError = favoriteResults.find(result => result.status === "rejected" && result.reason.status === 401);
+        if (favoriteError) throw favoriteError.reason;
+        setFavoriteKeys(fileFavorites.map(f => `file-${f.id_archivo}`));
+        setFavoriteAvailability({ files: fileResult?.status === "fulfilled", folders: false });
+        setFavoriteWarning(favoriteResults.filter(result => result.status === "rejected").map(result => result.reason.message).join(" "));
+        if (favoritesMode) {
+          files = fileFavorites.map(f => f.archivo).filter(Boolean);
+          folders = [];
+        }
         const date = (value) =>
           value ? new Date(value).toLocaleDateString("es-GT") : "—";
         let items = [
           ...folders.map((folder) => ({
             id: `folder-${folder.id}`,
             rawId: folder.id,
+            isShared: Number(folder.id_usuario) !== Number(user?.id),
             name: folder.nombre,
             type: "carpeta",
             typeLabel: "Carpeta",
@@ -77,11 +99,12 @@ export default function FileBrowser({ user, trash = false }) {
           ...files.map((file) => ({
             id: `file-${file.id}`,
             rawId: file.id,
+            isShared: Number(file.id_usuario) !== Number(user?.id),
             name: file.nombre,
             type: file.nombre.split(".").pop().toLowerCase(),
             typeLabel: file.nombre.split(".").pop().toUpperCase(),
             bytes: Number(file.tamano_bytes),
-            size: `${(Number(file.tamano_bytes) / 1024 ** 2).toFixed(2)} MB`,
+            size: formatFileSize(file.tamano_bytes),
             modified: date(file.fecha_modificacion || file.fecha_subida),
             timestamp: file.fecha_modificacion || file.fecha_subida,
           })),
@@ -134,7 +157,7 @@ export default function FileBrowser({ user, trash = false }) {
     return () => {
       active = false;
     };
-  }, [folderId, trash, revision, orderKey, navigate]);
+  }, [folderId, trash, favoritesMode, revision, orderKey, navigate, user?.id]);
 
   const refresh = () => {
     setRevision((value) => value + 1);
@@ -144,13 +167,32 @@ export default function FileBrowser({ user, trash = false }) {
     setPage(1);
     setParams(id ? { folder: String(id) } : {});
   };
+  const toggleFavorite = async item => {
+    const key = favoriteKey(item);
+    if (pendingFavorites.current.has(key)) return;
+    pendingFavorites.current.add(key); setFavoritePending([...pendingFavorites.current]);
+    const next = !favoriteKeys.includes(key);
+    try {
+      await setItemFavorite(item, next);
+      setFavoriteKeys(keys => next ? [...new Set([...keys, key])] : keys.filter(value => value !== key));
+      if (favoritesMode && !next) setData(previous => ({ ...previous, items: previous.items.filter(row => row.id !== item.id) }));
+      setNotice({ type: "success", message: next ? `«${item.name}» agregado a Mis favoritos.` : `«${item.name}» eliminado de Mis favoritos.` });
+    } catch (error) {
+      setNotice({ type: "error", message: error.message });
+    } finally {
+      pendingFavorites.current.delete(key); setFavoritePending([...pendingFavorites.current]);
+    }
+  };
   const openFile = async (item) => {
     if (item.type === "carpeta") {
-      changeFolder(item.rawId);
+      if (item.isShared) navigate(`/compartidos?folder=${item.rawId}`);
+      else changeFolder(item.rawId);
       return;
     }
     try {
-      const result = await getFileDownloadUrl(item.rawId);
+      const result = item.isShared
+        ? await request(`/shares/files/${item.rawId}/download-url`)
+        : await getFileDownloadUrl(item.rawId);
       window.location.assign(result.url);
     } catch {
       setNotice({
@@ -229,29 +271,37 @@ export default function FileBrowser({ user, trash = false }) {
           </button>
         </div>
       )}
+      {favoriteWarning && !trash && <div className="mf-feedback mf-favorite-warning" role="alert">{favoriteWarning}<button className="mf-folder-btn" type="button" onClick={refresh}>Reintentar favoritos</button></div>}
       {data && (
         <>
           <MisArchivos
             onBack={
               trash
                 ? () => navigate("/archivos")
-                : folderId
+                : folderId || favoritesMode
                   ? () => changeFolder(null)
                   : null
             }
+            favoritesMode={favoritesMode}
+            onFavorites={() => { setPage(1); setLoading(true); setParams({ favorites: "1" }); }}
+            showFavoritesFolder={!trash && !folderId && !favoritesMode}
+            favoriteKeys={favoriteKeys}
+            favoritePending={favoritePending}
+            favoriteAvailability={favoriteAvailability}
+            onToggleFavorite={toggleFavorite}
             items={data.items}
             query={search}
             trash={trash}
             totalCount={
-              trash ? data.items.length : data.fileCount + data.folderCount
+              trash || favoritesMode ? data.items.length : data.fileCount + data.folderCount
             }
             folderCount={
-              trash
+              trash || favoritesMode
                 ? data.items.filter((item) => item.type === "carpeta").length
                 : data.folderCount
             }
             fileCount={
-              trash
+              trash || favoritesMode
                 ? data.items.filter((item) => item.type !== "carpeta").length
                 : data.fileCount
             }

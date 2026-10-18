@@ -55,10 +55,10 @@ const sections = [
   },
 ];
 
-export default function Privacy() {
+export default function Privacy({ embedded = false }) {
   return (
     <div className="privacy-page">
-      <Topbar />
+      {!embedded && <Topbar />}
 
       <main className="privacy-main">
         <div className="privacy-container">
@@ -82,7 +82,7 @@ export default function Privacy() {
         </div>
       </main>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

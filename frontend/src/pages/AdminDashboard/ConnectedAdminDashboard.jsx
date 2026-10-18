@@ -1,3 +1,4 @@
+import { activityLabel } from "../../utils/activityLabels";
 import Footer from "../../components/FooterSignOut/Footer";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,14 +17,15 @@ export default function ConnectedAdminDashboard() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
   const [revision, setRevision] = useState(0);
+  const [activityLimit, setActivityLimit] = useState(5);
+  const [activityError, setActivityError] = useState("");
   const [logs, setLogs] = useState([]);
   useEffect(() => {
     let active = true;
-    Promise.all([getAdminOverview(), getAdminActivity(5)])
-      .then(([overview, activity]) => {
+    getAdminOverview()
+      .then((overview) => {
         if (!active) return;
         setData(overview);
-        setLogs(activity.logs);
         setError("");
       })
       .catch((error) => {
@@ -33,6 +35,30 @@ export default function ConnectedAdminDashboard() {
       active = false;
     };
   }, [revision]);
+  useEffect(() => {
+    let active = true;
+    let pending = false;
+    const refreshActivity = async () => {
+      if (pending || document.hidden) return;
+      pending = true;
+      try {
+        const result = await getAdminActivity(activityLimit);
+        if (active) { setLogs(result.logs); setActivityError(""); }
+      } catch (error) { if (active) setActivityError(error.message); }
+      finally { pending = false; }
+    };
+    refreshActivity();
+    const interval = setInterval(refreshActivity, 5000);
+    window.addEventListener("focus", refreshActivity);
+    window.addEventListener("admin-activity-changed", refreshActivity);
+    document.addEventListener("visibilitychange", refreshActivity);
+    return () => {
+      active = false; clearInterval(interval);
+      window.removeEventListener("focus", refreshActivity);
+      window.removeEventListener("admin-activity-changed", refreshActivity);
+      document.removeEventListener("visibilitychange", refreshActivity);
+    };
+  }, [activityLimit, revision]);
   if (!data && !error) return <Loading />;
   if (!data)
     return (
@@ -58,9 +84,9 @@ export default function ConnectedAdminDashboard() {
   const activity = logs.map((log) => ({
     id: log.id,
     user:
-      users.find((user) => user.id === log.id_usuario)?.name ||
+      log.actorName || users.find((user) => user.id === log.id_usuario)?.name ||
       "Usuario no disponible",
-    action: log.accion.replaceAll("_", " ").toLowerCase(),
+    action: [activityLabel(log), log.targetName, log.resultDescription].filter(Boolean).join(" · "),
     date: new Date(log.fecha).toLocaleString("es-GT"),
     status: "Completado",
   }));
@@ -112,6 +138,7 @@ export default function ConnectedAdminDashboard() {
   };
   return (
     <>
+      {activityError && <div className="admin-page" role="alert">No se pudo actualizar la actividad: {activityError}<button type="button" onClick={() => setRevision(value => value + 1)}>Reintentar</button></div>}
       <AdminDashboard
         stats={stats}
         activity={activity}
@@ -154,16 +181,13 @@ export default function ConnectedAdminDashboard() {
         }
         onViewAllActivity={async () => {
           try {
-            const result = await getAdminActivity(100, logs.length);
-            const combined = [
-              ...new Map(
-                [...logs, ...result.logs].map((log) => [log.id, log]),
-              ).values(),
-            ];
-            setLogs(combined);
+            const nextLimit = Math.min(activityLimit + 20, 100);
+            const result = await getAdminActivity(nextLimit);
+            setLogs(result.logs);
+            setActivityLimit(nextLimit);
             setNotice({
               type: "info",
-              message: `Se muestran los últimos ${combined.length} registros de ${result.total} eventos de auditoría.`,
+              message: `Se muestran los últimos ${result.logs.length} registros de ${result.total} eventos de auditoría.`,
             });
           } catch (error) {
             setNotice({ type: "error", message: error.message });

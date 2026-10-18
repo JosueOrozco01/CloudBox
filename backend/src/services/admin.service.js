@@ -301,12 +301,14 @@ const AdminService = {
         return {
           ...log,
           actorName: names.get(log.id_usuario) || "Usuario no disponible",
-          targetName: names.get(log.id_entidad_afectada) || null,
+          targetName: log.entidad_afectada === "usuario"
+            ? names.get(log.id_entidad_afectada) || null
+            : detail?.resourceName || null,
           resultDescription: assignedStatus
             ? `Estado asignado: ${assignedStatus}`
             : assignedRole
               ? `Rol asignado: ${assignedRole}`
-              : null,
+              : detail?.description || null,
         };
       }),
       total: count,

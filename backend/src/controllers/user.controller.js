@@ -105,7 +105,7 @@ const userController = {
 
       // 3. Revocar sesiones de Supabase Auth
       try {
-        await UserService.revokeUserSessions(req.authUser.id);
+        await UserService.revokeUserSessions(req.headers.authorization.slice(7));
       } catch (revokeError) {
         console.error(
           'La cuenta fue desactivada, pero no se pudieron revocar las sesiones:',

@@ -1,0 +1,291 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap");
+
+.sec-tab {
+  --text-dark: #0b1a2e;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --blue-dark: #1565c0;
+  --blue-cta: #2563ff;
+
+  font-family: "Manrope", system-ui, sans-serif;
+  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sec-tab * {
+  box-sizing: border-box;
+}
+
+.sec-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px;
+}
+
+.sec-card h2 {
+  font-family: "Outfit", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.sec-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  margin-bottom: 22px;
+}
+
+/* ---------- Formulario ---------- */
+.sec-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sec-field span {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sec-input-wrap {
+  position: relative;
+}
+
+.sec-input-wrap input {
+  width: 100%;
+  height: 42px;
+  padding: 0 40px 0 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sec-input-wrap input:focus {
+  border-color: var(--blue-dark);
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+}
+
+.sec-input-wrap input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.sec-toggle-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+}
+
+.sec-field-error {
+  font-size: 0.72rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* ---------- Requisitos ---------- */
+.sec-requirements {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.sec-requirements p {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sec-requirements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sec-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sec-requirements li svg {
+  flex-shrink: 0;
+  color: #cbd5e1;
+}
+
+.sec-requirements li.met {
+  color: #16a34a;
+}
+
+.sec-requirements li.met svg {
+  color: #16a34a;
+}
+
+.sec-error-banner {
+  font-size: 0.78rem;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sec-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sec-primary-btn {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 9px;
+  border: none;
+  background: var(--blue-cta);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sec-primary-btn:hover:not(:disabled) {
+  background: #1d4fd6;
+}
+
+.sec-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Sesiones activas ---------- */
+.sec-session-list {
+  list-style: none;
+  margin: 18px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sec-session-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.sec-session-icon {
+  color: var(--blue-dark);
+  flex-shrink: 0;
+}
+
+.sec-session-device {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sec-session-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.sec-session-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sec-secondary-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text-dark);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sec-secondary-btn:hover {
+  background: #f8fafc;
+}
+
+/* ---------- Cuenta ---------- */
+.sec-account-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 10px 0 18px;
+}
+
+.sec-account-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sec-danger-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #dc2626;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sec-danger-btn:hover {
+  background: #fecaca;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 560px) {
+  .sec-card {
+    padding: 18px;
+  }
+
+  .sec-form-actions {
+    justify-content: stretch;
+  }
+
+  .sec-primary-btn {
+    width: 100%;
+  }
+}

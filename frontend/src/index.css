@@ -13,3 +13,4 @@ body,
 body {
   font-family: Arial, sans-serif;
 }
+:root { --textPrimary: #0b1a2e; --textSecondary: #64748b; --backgroundColor: #f4f5f9; --surfaceColor: #fff; --borderColor: #e2e8f0; }

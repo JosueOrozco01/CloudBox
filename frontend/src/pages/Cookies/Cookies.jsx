@@ -45,10 +45,10 @@ const sections = [
   },
 ];
 
-export default function Cookies() {
+export default function Cookies({ embedded = false }) {
   return (
     <div className="cookies-page">
-      <Topbar />
+      {!embedded && <Topbar />}
 
       <main className="cookies-main">
         <div className="cookies-container">
@@ -71,7 +71,7 @@ export default function Cookies() {
         </div>
       </main>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

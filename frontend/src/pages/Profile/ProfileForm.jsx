@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { updateMyProfile } from "../../services/profileService";
@@ -33,15 +33,10 @@ function ProfileForm({ user, onProfileUpdated }) {
     }));
   };
 
-  useEffect(() => {
-    setFirstName(user.nombre || "");
-    setLastName(user.apellido || "");
-  }, [user.nombre, user.apellido]);
-
   const navigate = useNavigate();
 
   const handleChangePassword = () => {
-    navigate("/recuperar");
+    navigate("/perfil?tab=seguridad");
   };
 
   const formattedDate = user.fecha_registro
@@ -85,7 +80,7 @@ function ProfileForm({ user, onProfileUpdated }) {
     }
 
     // Preparar mensaje personalizado
-    let mensaje = "";
+    let mensaje;
 
     if (nombreCambio && apellidoCambio) {
       mensaje = "Nombre y apellido actualizados correctamente.";

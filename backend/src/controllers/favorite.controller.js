@@ -1,9 +1,11 @@
+
 const FavoriteService = require('../services/favorite.service');
 
+// Validar el ID del archivo
 function parseFileId(value) {
-    const fileId = parseInt(value, 10);
+    const fileId = Number(value);
 
-    if (Number.isNaN(fileId) || fileId <= 0) {
+    if (!Number.isSafeInteger(fileId) || fileId <= 0) {
         return null;
     }
 
@@ -11,17 +13,19 @@ function parseFileId(value) {
 }
 
 const favoriteController = {
+
+    // Obtener los archivos favoritos del usuario
     async getFavorites(req, res) {
         try {
             const userId = parseInt(req.user.id, 10);
 
-            const favorites =
-                await FavoriteService.getFavorites(userId);
+            const favorites = await FavoriteService.getFavorites(userId);
 
             return res.status(200).json({
                 success: true,
                 data: favorites
             });
+
         } catch (error) {
             return res.status(error.status || 500).json({
                 success: false,
@@ -31,6 +35,7 @@ const favoriteController = {
         }
     },
 
+    // Agregar un archivo a favoritos
     async addFavorite(req, res) {
         try {
             const userId = parseInt(req.user.id, 10);
@@ -44,17 +49,17 @@ const favoriteController = {
                 });
             }
 
-            const favorite =
-                await FavoriteService.addFavorite(
-                    userId,
-                    fileId
-                );
+            const favorite = await FavoriteService.addFavorite(
+                userId,
+                fileId
+            );
 
             return res.status(201).json({
                 success: true,
                 message: 'Archivo agregado a favoritos',
                 data: favorite
             });
+
         } catch (error) {
             return res.status(error.status || 500).json({
                 success: false,
@@ -64,6 +69,7 @@ const favoriteController = {
         }
     },
 
+    // Eliminar un archivo de favoritos
     async removeFavorite(req, res) {
         try {
             const userId = parseInt(req.user.id, 10);
@@ -77,17 +83,17 @@ const favoriteController = {
                 });
             }
 
-            const favorite =
-                await FavoriteService.removeFavorite(
-                    userId,
-                    fileId
-                );
+            const favorite = await FavoriteService.removeFavorite(
+                userId,
+                fileId
+            );
 
             return res.status(200).json({
                 success: true,
                 message: 'Archivo eliminado de favoritos',
                 data: favorite
             });
+
         } catch (error) {
             return res.status(error.status || 500).json({
                 success: false,

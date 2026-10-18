@@ -180,12 +180,15 @@ const UserService = {
     }
 
     // Confirmar que la contraseña pertenece al usuario autenticado.
-    return data.user?.id === authUser.id;
+    const matches = data.user?.id === authUser.id;
+    // Close only the temporary session used for password verification.
+    await authClient.auth.signOut({ scope: 'local' });
+    return matches;
   }, 
 
-  async revokeUserSessions(authUserId) {
+  async revokeUserSessions(accessToken) {
     const { error } = await supabaseAdmin.auth.admin.signOut(
-      authUserId,
+      accessToken,
       'global'
     );
 

@@ -1,3 +1,4 @@
+import { formatFileSize } from "../utils/preferences";
 export function normalizeApiUrl(url) {
   const base = (url || "http://localhost:3000").replace(/\/+$/, "");
   return base.endsWith("/api") ? base : `${base}/api`;
@@ -5,7 +6,7 @@ export function normalizeApiUrl(url) {
 
 const API_URL = normalizeApiUrl(import.meta.env?.VITE_API_URL);
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const token = localStorage.getItem("token");
   if (!token) {
     const error = new Error("No hay una sesión activa");
@@ -169,10 +170,7 @@ export function toDashboardProps(data) {
         ? "image"
         : extension;
       const bytes = Number(file.tamano_bytes);
-      const size =
-        bytes >= 1024 ** 2
-          ? `${(bytes / 1024 ** 2).toFixed(2)} MB`
-          : `${(bytes / 1024).toFixed(2)} KB`;
+      const size = formatFileSize(bytes);
       return {
         id: file.id,
         name: file.nombre,

@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 /**
  * Registra un evento de auditoría en la tabla LogAuditoria
  * @param {Object} params
- * @param {number|string} params.id_usuario - ID del usuario administrador
+ * @param {number|string} params.id_usuario - ID del usuario autenticado que realizó la acción
  * @param {string} params.accion - Acción realizada (ej. 'CAMBIO_ESTADO_USUARIO')
  * @param {Object|string} params.detalles - Detalles de la acción
  * @param {string} [params.ip_origen] - IP de la solicitud
