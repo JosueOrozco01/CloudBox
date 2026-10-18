@@ -7,6 +7,7 @@ const emailHookRoutes = require('./routes/emailHook.routes');
 const adminRoutes = require('./routes/admin.routes');
 const folderRoutes = require('./routes/folder.routes');
 const fileRoutes = require('./routes/file.routes');
+const shareRoutes = require('./routes/share.routes');
 
 const notFound = require('./middlewares/not-found.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/shares', shareRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 
