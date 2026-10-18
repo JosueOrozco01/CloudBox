@@ -3,6 +3,8 @@ const FolderService = require('../services/folder.service');
 const StorageService = require('../services/storage.service');
 const FileValidationService = require('../services/file-validation.service');
 const QuotaService = require('../services/quota.service');
+const ActivityService = require('../services/activity.service');
+const ShareService = require('../services/share.service');
 
 const ACTIVE_FILE_STATUS = 1;
 const TRASH_FILE_STATUS = 2;
@@ -66,12 +68,33 @@ const fileController = {
                 });
             }
 
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
 
             if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
+
+            if (!file || file.id_estado !== ACTIVE_FILE_STATUS) {
                 return res.status(404).json({
                     success: false,
                     message: 'Archivo no encontrado'
@@ -83,8 +106,9 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(500).json({
+            return res.status(error.status || 500).json({
                 success: false,
+                code: error.code,
                 message: error.message
             });
         }
@@ -101,11 +125,31 @@ const fileController = {
                     message: 'ID de archivo inválido'
                 });
             }
-
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
+
+            if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
 
             if (!file) {
                 return res.status(404).json({
@@ -129,6 +173,13 @@ const fileController = {
                     60
                 );
 
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DOWNLOAD_FILE,
+                description: `Descargó el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
+
             return res.status(200).json({
                 success: true,
                 data: {
@@ -149,8 +200,11 @@ const fileController = {
 
     async moveFile(req, res) {
         try {
-            const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const userId =
+                parseInt(req.user.id, 10);
+
+            const fileId =
+                parseInt(req.params.id, 10);
 
             if (isNaN(fileId)) {
                 return res.status(400).json({
@@ -166,24 +220,124 @@ const fileController = {
                 req.body.folderId !== null &&
                 req.body.folderId !== ''
             ) {
-                folderId = parseInt(
-                    req.body.folderId,
-                    10
-                );
+                folderId =
+                    parseInt(req.body.folderId, 10);
 
                 if (isNaN(folderId)) {
                     return res.status(400).json({
                         success: false,
-                        message: 'ID de carpeta inválido'
+                        message:
+                            'ID de carpeta inválido'
                     });
                 }
             }
 
-            const file = await FileService.moveFile(
-                fileId,
-                userId,
-                folderId
-            );
+            let currentFile =
+                await FileService.getFileById(
+                    fileId,
+                    userId
+                );
+
+            let resourceOwnerId = userId;
+            let isOwner = Boolean(currentFile);
+
+            if (!currentFile) {
+                const sourceAccess =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 1
+                    });
+
+                if (!sourceAccess.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor para mover este archivo'
+                    });
+                }
+
+                currentFile =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+
+                if (!currentFile) {
+                    return res.status(404).json({
+                        success: false,
+                        message:
+                            'Archivo no encontrado'
+                    });
+                }
+
+                resourceOwnerId =
+                    currentFile.id_usuario;
+            }
+
+            if (!isOwner) {
+                if (folderId === null) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'SHARED_ROOT_MOVE_NOT_ALLOWED',
+                        message:
+                            'No puedes mover un archivo compartido fuera del espacio del propietario'
+                    });
+                }
+
+                const destinationAccess =
+                    await ShareService.validateFolderAccess({
+                        userId,
+                        folderId,
+                        requiredPermission: 1
+                    });
+
+                if (!destinationAccess.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor en la carpeta destino'
+                    });
+                }
+
+                const destinationFolder =
+                    await FolderService.getActiveFolderById(
+                        folderId
+                    );
+
+                if (!destinationFolder) {
+                    return res.status(404).json({
+                        success: false,
+                        code: 'FOLDER_NOT_FOUND',
+                        message:
+                            'Carpeta destino no encontrada'
+                    });
+                }
+
+                if (
+                    destinationFolder.id_usuario !==
+                    resourceOwnerId
+                ) {
+                    return res.status(403).json({
+                        success: false,
+                        code:
+                            'CROSS_OWNER_MOVE_NOT_ALLOWED',
+                        message:
+                            'No se pueden mover recursos entre espacios de distintos propietarios'
+                    });
+                }
+            }
+
+            const file =
+                await FileService.moveFile(
+                    fileId,
+                    resourceOwnerId,
+                    folderId
+                );
 
             if (!file) {
                 return res.status(404).json({
@@ -194,7 +348,8 @@ const fileController = {
 
             return res.status(200).json({
                 success: true,
-                message: 'Archivo movido correctamente',
+                message:
+                    'Archivo movido correctamente',
                 data: file
             });
         } catch (error) {
@@ -230,6 +385,13 @@ const fileController = {
                     message: 'Archivo no encontrado'
                 });
             }
+
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DELETE_FILE,
+                description: `Envió el archivo "${file.nombre}" a la papelera`,
+                fileId: file.id
+            });
 
             return res.status(200).json({
                 success: true,
@@ -370,6 +532,7 @@ const fileController = {
 
         try {
             const userId = parseInt(req.user.id, 10);
+            let resourceOwnerId = userId;
 
             if (!req.file) {
                 return res.status(400).json({
@@ -399,19 +562,44 @@ const fileController = {
                     });
                 }
 
-                const isValidFolder =
+                const isOwnedFolder =
                     await FolderService.validateFolderOwnership(
                         folderId,
                         userId
                     );
 
-                if (!isValidFolder) {
-                    return res.status(403).json({
-                        success: false,
-                        code: 'INVALID_FOLDER',
-                        message:
-                            'La carpeta no existe o no pertenece al usuario'
-                    });
+                if (!isOwnedFolder) {
+                    const access =
+                        await ShareService.validateFolderAccess({
+                            userId,
+                            folderId,
+                            requiredPermission: 1
+                        });
+
+                    if (!access.hasAccess) {
+                        return res.status(403).json({
+                            success: false,
+                            code: 'EDITOR_PERMISSION_REQUIRED',
+                            message:
+                                'Necesitas permiso de Editor para subir archivos a esta carpeta'
+                        });
+                    }
+
+                    const targetFolder =
+                        await FolderService.getActiveFolderById(
+                            folderId
+                        );
+
+                    if (!targetFolder) {
+                        return res.status(404).json({
+                            success: false,
+                            code: 'FOLDER_NOT_FOUND',
+                            message: 'Carpeta no encontrada'
+                        });
+                    }
+
+                    resourceOwnerId =
+                        targetFolder.id_usuario;
                 }
             }
 
@@ -424,11 +612,10 @@ const fileController = {
 
             const duplicateExists =
                 await FileService.fileNameExists(
-                    userId,
+                    resourceOwnerId,
                     folderId,
                     validation.name
                 );
-
             if (duplicateExists) {
                 return res.status(409).json({
                     success: false,
@@ -439,13 +626,13 @@ const fileController = {
             }
 
             await QuotaService.validateUpload(
-                userId,
+                resourceOwnerId,
                 validation.size
             );
 
             const storageResult =
                 await StorageService.uploadFile({
-                    userId,
+                    userId: resourceOwnerId,
                     fileName: validation.name,
                     buffer: req.file.buffer,
                     mimeType: req.file.mimetype
@@ -459,7 +646,7 @@ const fileController = {
                     size: validation.size,
                     storagePath:
                         storageResult.path,
-                    userId,
+                    userId: resourceOwnerId,
                     folderId,
                     extensionId:
                         validation.extension.id
@@ -467,7 +654,7 @@ const fileController = {
 
             try {
                 await QuotaService.syncUsedStorage(
-                    userId
+                    resourceOwnerId
                 );
             } catch (quotaError) {
                 console.error(
@@ -475,6 +662,13 @@ const fileController = {
                     quotaError.message
                 );
             }
+
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.UPLOAD_FILE,
+                description: `Subió el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
 
             return res.status(201).json({
                 success: true,
@@ -527,8 +721,10 @@ const fileController = {
 
     async renameFile(req, res) {
         try {
-            const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const userId =
+                parseInt(req.user.id, 10);
+            const fileId =
+                parseInt(req.params.id, 10);
 
             if (isNaN(fileId)) {
                 return res.status(400).json({
@@ -565,17 +761,45 @@ const fileController = {
                 });
             }
 
-            const currentFile =
+            let currentFile =
                 await FileService.getFileById(
                     fileId,
                     userId
                 );
 
+            let resourceOwnerId = userId;
+
             if (!currentFile) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Archivo no encontrado'
-                });
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 1
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(403).json({
+                        success: false,
+                        code: 'EDITOR_PERMISSION_REQUIRED',
+                        message:
+                            'Necesitas permiso de Editor para renombrar este archivo'
+                    });
+                }
+
+                currentFile =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+
+                if (!currentFile) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                resourceOwnerId =
+                    currentFile.id_usuario;
             }
 
             const currentExtension =
@@ -592,7 +816,8 @@ const fileController = {
             ) {
                 return res.status(400).json({
                     success: false,
-                    code: 'FILE_EXTENSION_CHANGE_NOT_ALLOWED',
+                    code:
+                        'FILE_EXTENSION_CHANGE_NOT_ALLOWED',
                     message:
                         'No se permite cambiar la extensión del archivo'
                 });
@@ -601,7 +826,7 @@ const fileController = {
             const file =
                 await FileService.renameFile(
                     fileId,
-                    userId,
+                    resourceOwnerId,
                     newName
                 );
 
@@ -631,10 +856,31 @@ const fileController = {
                 });
             }
 
-            const file = await FileService.getFileById(
+            let file = await FileService.getFileById(
                 fileId,
                 userId
             );
+
+            if (!file) {
+                const access =
+                    await ShareService.validateFileAccess({
+                        userId,
+                        fileId,
+                        requiredPermission: 2
+                    });
+
+                if (!access.hasAccess) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Archivo no encontrado'
+                    });
+                }
+
+                file =
+                    await FileService.getActiveFileById(
+                        fileId
+                    );
+            }
 
             if (!file) {
                 return res.status(404).json({
@@ -657,6 +903,13 @@ const fileController = {
                     file.ruta_storage,
                     60
                 );
+
+            await ActivityService.recordActivity({
+                userId,
+                action: ActivityService.ACTIONS.DOWNLOAD_FILE,
+                description: `Descargó el archivo "${file.nombre}"`,
+                fileId: file.id
+            });
 
             return res.redirect(signedUrl);
         } catch (error) {

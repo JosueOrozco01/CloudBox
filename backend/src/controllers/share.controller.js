@@ -1,4 +1,5 @@
 const ShareService = require('../services/share.service');
+const ActivityService = require('../services/activity.service');
 
 const shareController = {
   async shareFile(req, res, next) {
@@ -13,6 +14,13 @@ const shareController = {
         fileId,
         permissionId,
         expiresAt
+      });
+
+      await ActivityService.recordActivity({
+        userId: senderUserId,
+        action: ActivityService.ACTIONS.SHARE_FILE,
+        description: 'Compartió un archivo',
+        fileId: createdShare.id_archivo
       });
 
       return res.status(201).json({
@@ -98,6 +106,48 @@ const shareController = {
       return res.status(200).json({
         success: true,
         data: revokedShare
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async shareFolder(req, res, next) {
+    try {
+      const senderUserId = req.user.id;
+      const { receiverUserId, folderId, permissionId, expiresAt } = req.body;
+
+      const createdShare = await ShareService.shareFolder({
+        senderUserId,
+        receiverUserId,
+        folderId,
+        permissionId,
+        expiresAt
+      });
+
+      await ActivityService.recordActivity({
+        userId: senderUserId,
+        action: ActivityService.ACTIONS.SHARE_FOLDER,
+        description: 'Compartió una carpeta',
+        folderId: createdShare.id_carpeta
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: createdShare
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getSharedFoldersWithUser(req, res, next) {
+    try {
+      const shares = await ShareService.getSharedFoldersWithUser(req.user.id);
+
+      return res.status(200).json({
+        success: true,
+        data: shares
       });
     } catch (error) {
       next(error);
