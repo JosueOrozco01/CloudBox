@@ -31,6 +31,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/shares', shareRoutes);
+app.use('/api/favorites', require('./routes/favorite.routes'));
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 

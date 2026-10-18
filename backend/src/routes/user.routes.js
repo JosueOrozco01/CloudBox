@@ -8,6 +8,13 @@ const router = express.Router();
 // Todas las rutas de usuario requieren autenticación
 router.use(requireAuth);
 
+const settings = require('../controllers/settings.controller');
+router.get('/me/preferences', settings.getPreferences);
+router.patch('/me/preferences', settings.savePreferences);
+router.get('/me/security', settings.security);
+router.patch('/me/password', settings.changePassword);
+router.post('/me/logout-others', settings.logoutOthers);
+
 // Obtener perfil del usuario autenticado
 router.get('/me', userController.getMyProfile);
 

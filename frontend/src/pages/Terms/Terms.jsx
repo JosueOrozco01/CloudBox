@@ -55,10 +55,10 @@ const sections = [
   },
 ];
 
-export default function Terms() {
+export default function Terms({ embedded = false }) {
   return (
     <div className="terms-page">
-      <Topbar />
+      {!embedded && <Topbar />}
 
       <main className="terms-main">
         <div className="terms-container">
@@ -81,7 +81,7 @@ export default function Terms() {
         </div>
       </main>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

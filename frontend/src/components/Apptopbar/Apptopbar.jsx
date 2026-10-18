@@ -164,7 +164,8 @@ export default function AppTopbar({ user }) {
 
           <Link className="app-brand" to={isAdmin ? "/admin" : "/dashboard"}>
             {/* Coloca tu logo en la carpeta public con este nombre */}
-            <img src="/logo-cloudbox.png" alt="CloudBox" />
+            <img className="app-logo-light" src="/logo-cloudbox.png" alt="CloudBox" />
+            <img className="app-logo-dark" src="/logo-cloudbox1.png" alt="CloudBox" />
           </Link>
         </div>
 

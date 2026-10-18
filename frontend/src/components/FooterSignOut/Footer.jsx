@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import "./Footer.css";
 
 const columns = [
@@ -62,7 +63,7 @@ export default function Footer() {
                 <ul>
                   {col.links.map((link) => (
                     <li key={link.label}>
-                      <a href={link.href}>{link.label}</a>
+                      <Link to={link.href}>{link.label}</Link>
                     </li>
                   ))}
                 </ul>

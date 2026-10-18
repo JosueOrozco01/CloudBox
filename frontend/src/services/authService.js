@@ -26,6 +26,9 @@ export const login = async (email, password) => {
 };
 
 export const logout = async () => {
+  document.documentElement.removeAttribute('data-theme');
+  document.documentElement.removeAttribute('data-theme-mode');
+  document.documentElement.removeAttribute('data-size-unit');
   const accessToken = localStorage.getItem("token");
   const refreshToken = localStorage.getItem("refreshToken");
 

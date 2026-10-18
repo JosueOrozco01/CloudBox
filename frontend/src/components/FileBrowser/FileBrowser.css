@@ -745,3 +745,29 @@
   flex: 0 0 100%;
   margin: 0;
 }
+
+/* Una medida común para iconos y áreas de acción. */
+.mf-page button svg { width: 16px; height: 16px; flex: 0 0 16px; stroke-width: 2; }
+.mf-page .mf-actions { gap: 6px; align-items: center; }
+.mf-page .mf-icon-btn { width: 34px; height: 34px; border-radius: 8px; transition: color .15s, background .15s; }
+.mf-page .mf-icon-btn:hover:not(:disabled) { background: #eef4fc; color: #1565c0; }
+.mf-page .mf-icon-btn:focus-visible { outline: 2px solid #2563ff; outline-offset: 2px; }
+.mf-page .mf-toolbar-right { align-items: flex-end; }
+.mf-page .mf-toolbar-right .file-view-toggle { box-sizing: border-box; height: 38px; }
+.mf-page .mf-toolbar-right .file-view-toggle button { height: 100%; }
+.mf-page .mf-icon-btn.favorite { color: #b77905; background: #fffbeb; }
+.mf-page .mf-icon-btn.favorite:hover:not(:disabled) { color: #a16207; background: #fef3c7; }
+
+.mf-page .mf-favorites-folder { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 430px; padding: 18px 20px; text-align: left; border: 1px solid #f2dfad; border-radius: 14px; background: linear-gradient(120deg, #fffbeb, #fff); color: #a16207; font-family: inherit; cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+.mf-page .mf-favorites-folder:hover { border-color: #eab308; box-shadow: 0 4px 16px #a1620710; }
+.mf-favorites-folder-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #fef3c7; }
+.mf-page .mf-favorites-folder-icon svg { width: 24px; height: 24px; flex-basis: 24px; }
+.mf-favorites-folder > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.mf-favorites-folder strong { color: #713f12; font-size: 14px; }
+.mf-favorites-folder small { color: #8b7650; font-size: 11px; line-height: 1.6; }
+.mf-favorite-warning { margin: 20px 32px 0; padding: 14px 18px; border: 1px solid #fde68a; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: 12px; flex-wrap: wrap; }
+
+/* Conserva la posición de cada acción en archivos y carpetas. */
+.mf-page .mf-action-placeholder { display: inline-block; width: 34px; height: 34px; flex: 0 0 34px; }
+.mf-page .mf-actions .mf-open-btn { height: 34px; min-height: 34px; margin-right: 0; }
+.mf-page .mf-table th:last-child { text-align: right; }

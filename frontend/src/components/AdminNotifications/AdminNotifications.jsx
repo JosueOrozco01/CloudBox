@@ -1,3 +1,4 @@
+import { activityLabel as label } from "../../utils/activityLabels";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
@@ -13,19 +14,6 @@ import "../CreateFolderModal/Createfoldermodal.css";
 import "../AdminUserModal/AdminUserModal.css";
 import "./AdminNotifications.css";
 
-const actionLabels = {
-  CAMBIO_ESTADO_USUARIO: "Estado de usuario actualizado",
-  CAMBIO_ROL_USUARIO: "Permisos de usuario actualizados",
-  SUBIR_ARCHIVO: "Archivo cargado",
-  CREAR_CARPETA: "Carpeta creada",
-  REGISTRO_USUARIO_ADMIN: "Usuario registrado",
-};
-const label = (log) =>
-  actionLabels[log.accion] ||
-  (log.accion || "Actividad registrada")
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/^./, (letter) => letter.toUpperCase());
 const date = (log) =>
   log.fecha
     ? new Date(log.fecha).toLocaleString("es-GT")

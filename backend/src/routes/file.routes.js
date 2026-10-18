@@ -1,3 +1,4 @@
+const activity = require('../middlewares/client-activity.middleware');
 const express = require('express');
 const fileController = require('../controllers/file.controller');
 const uploadMiddleware = require('../middlewares/upload.middleware');
@@ -15,16 +16,19 @@ router.get(
 router.post(
     '/upload',
     uploadMiddleware.single('file'),
+    activity({ action: 'SUBIR_ARCHIVO', entity: 'archivo', description: 'Archivo subido correctamente.' }),
     fileController.uploadFile
 );
 
 router.get(
     '/:id/download-url',
+    activity({ action: 'DESCARGAR_ARCHIVO', entity: 'archivo', description: 'Acceso de descarga autorizado mediante URL temporal.' }),
     fileController.getDownloadUrl
 );
 
 router.get(
     '/:id/download',
+    activity({ action: 'DESCARGAR_ARCHIVO', entity: 'archivo', description: 'Acceso de descarga autorizado mediante redirección.' }),
     fileController.downloadFile
 );
 
@@ -35,6 +39,7 @@ router.patch(
 
 router.patch(
     '/:id/trash',
+    activity({ action: 'ELIMINAR_ARCHIVO', entity: 'archivo', description: 'Archivo enviado a papelera.' }),
     fileController.moveToTrash
 );
 
@@ -45,6 +50,7 @@ router.patch(
 
 router.delete(
     '/:id/permanent',
+    activity({ action: 'ELIMINAR_ARCHIVO', entity: 'archivo', description: 'Archivo eliminado permanentemente de Storage.' }),
     fileController.deleteFilePermanently
 );
 router.get(

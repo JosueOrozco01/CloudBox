@@ -1,14 +1,24 @@
+import SecurityTab from "../SecurityTab/Securitytab";
+import PreferencesTab from "../Preferencestab/Preferencetab";
+import { getPreferences, getSecurity, savePreferences, changePassword, logoutOtherSessions } from "../../services/settingsService";
+import { applyPreferences } from "../../utils/preferences";
 import { useEffect, useState } from "react";
 import ProfileForm from "./ProfileForm.jsx";
 import StorageSummary from "./StorageSummary.jsx";
 import { getMyProfile, deactivateMyAccount } from "../../services/profileService.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { logout } from "../../services/authService";
 import Loading from "../../components/Loading/Loading";
 import AlertModal from "../../components/AlertModal/AlertModal";
 import "./Profile.css";
 
 function UserProfile() {
+  const [params, setParams] = useSearchParams();
+  const tab = ['seguridad', 'preferencias'].includes(params.get('tab')) ? params.get('tab') : 'perfil';
+  const [preferences, setPreferences] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -83,6 +93,8 @@ function UserProfile() {
       // Limpiar la sesión local aunque el endpoint de logout
       // rechace el token por el nuevo estado del usuario.
       localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
 
       setDeletePassword("");
       setShowDeleteConfirm(false);
@@ -103,8 +115,9 @@ function UserProfile() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const profile = await getMyProfile();
-        setUser(profile);
+        const [profile, saved, security] = await Promise.all([getMyProfile(), getPreferences(), getSecurity()]);
+        setUser(profile); setPreferences(saved); setSessions(security.sessions);
+        applyPreferences(profile.id, saved);
       } catch (error) {
         setError(error.message);
       } finally {
@@ -149,7 +162,9 @@ function UserProfile() {
             aria-label="Configuración de cuenta"
           >
             <button
-              className="profileTab profileTabActive"
+              className={`profileTab ${tab === "perfil" ? "profileTabActive" : ""}`}
+              onClick={() => setParams({})}
+              aria-pressed={tab === "perfil"}
               type="button"
             >
               <img
@@ -160,7 +175,7 @@ function UserProfile() {
               Perfil
             </button>
 
-            <button className="profileTab" type="button">
+            <button className={`profileTab ${tab === "seguridad" ? "profileTabActive" : ""}`} aria-pressed={tab === "seguridad"} onClick={() => setParams({ tab: "seguridad" })} type="button">
               <img
                 className="profileTabIcon"
                 src="/seguro.png"
@@ -169,7 +184,7 @@ function UserProfile() {
               Seguridad
             </button>
 
-            <button className="profileTab" type="button">
+            <button className={`profileTab ${tab === "preferencias" ? "profileTabActive" : ""}`} aria-pressed={tab === "preferencias"} onClick={() => setParams({ tab: "preferencias" })} type="button">
               <img
                 className="profileTabIcon"
                 src="/preferencias.png"
@@ -180,6 +195,26 @@ function UserProfile() {
           </aside>
 
           <section className="profilePanels">
+            {tab === 'seguridad' && <SecurityTab sessions={sessions} isUpdatingPassword={settingsBusy} passwordError={passwordError} onUpdatePassword={async values => {
+              setSettingsBusy(true); setPasswordError('');
+              try { await changePassword(values); showAlert('success', 'Seguridad', 'Contraseña actualizada correctamente.'); return true; }
+              catch (error) { setPasswordError(error.message); return false; }
+              finally { setSettingsBusy(false); }
+            }} onLogoutOtherSessions={async () => {
+              if (settingsBusy) return;
+              setSettingsBusy(true);
+              try { const result = await logoutOtherSessions(); setSessions((await getSecurity()).sessions); showAlert('success', 'Sesiones', result.message); }
+              catch (error) { showAlert('error', 'Sesiones', error.message); }
+              finally { setSettingsBusy(false); }
+            }} onLogout={handleLogout} onDeleteAccount={() => setShowDeleteConfirm(true)} />}
+            {tab === 'preferencias' && preferences && <PreferencesTab initialNotifications={preferences.notifications} initialTheme={preferences.theme} initialLanguage={preferences.language} initialShowKB={preferences.showKB} isSaving={settingsBusy} onSavePreferences={async values => {
+              if (settingsBusy) return;
+              setSettingsBusy(true);
+              try { const saved = await savePreferences(values); setPreferences(saved); applyPreferences(user.id, saved); showAlert('success', 'Preferencias', 'Preferencias guardadas correctamente.'); }
+              catch (error) { showAlert('error', 'Preferencias', error.message); }
+              finally { setSettingsBusy(false); }
+            }} onLogout={handleLogout} onDeleteAccount={() => setShowDeleteConfirm(true)} />}
+            {tab === 'perfil' && <>
 
             <ProfileForm 
               user={user}
@@ -221,6 +256,7 @@ function UserProfile() {
               </div>
             </section>
 
+            </>}
           </section>
         </div>
       </main>

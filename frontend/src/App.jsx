@@ -1,3 +1,6 @@
+import { getPreferences } from "./services/settingsService";
+import { applyPreferences } from "./utils/preferences";
+import SharedPage from "./pages/Compratidoconmigo/ConnectedCompartidos";
 import UserManagement from "./pages/UserManagement/ConnectedUserManagement";
 import { useEffect, useState } from "react";
 import {
@@ -47,6 +50,8 @@ function AuthenticatedPage({
 
       try {
         const profile = await getMyProfile();
+        const preferences = await getPreferences().catch(() => null);
+        if (active && preferences) applyPreferences(profile.id, preferences);
         const summary =
           preloadDashboard && !profile.permissions?.includes("admin_panel")
             ? await getDashboard().catch(() => null)
@@ -123,7 +128,24 @@ function AuthenticatedPage({
   );
 }
 
+function InformationalPage({ component: Page }) {
+  return localStorage.getItem('token')
+    ? <AuthenticatedPage><Page embedded /></AuthenticatedPage>
+    : <Page />;
+}
+function RecoveryPage() {
+  return localStorage.getItem('token') ? <Navigate to="/perfil?tab=seguridad" replace /> : <ForgotPassword />;
+}
+
 function App() {
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => {
+      if (document.documentElement.dataset.themeMode === 'sistema') document.documentElement.dataset.theme = media.matches ? 'dark' : 'light';
+    };
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   return (
     <BrowserRouter>
       <OfflineBanner />
@@ -131,7 +153,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
-        <Route path="/recuperar" element={<ForgotPassword />} />
+        <Route path="/recuperar" element={<RecoveryPage />} />
         <Route
           path="/dashboard"
           element={
@@ -150,6 +172,7 @@ function App() {
             </AuthenticatedPage>
           }
         />
+        <Route path="/compartidos" element={<AuthenticatedPage key="shared" clientOnly>{(user) => <SharedPage user={user} />}</AuthenticatedPage>} />
         <Route
           path="/papelera"
           element={
@@ -185,9 +208,9 @@ function App() {
             </AuthenticatedPage>
           }
         />
-        <Route path="/terminos" element={<Terms />} />
-        <Route path="/privacidad" element={<Privacy />} />
-        <Route path="/cookies" element={<Cookies />} />
+        <Route path="/terminos" element={<InformationalPage component={Terms} />} />
+        <Route path="/privacidad" element={<InformationalPage component={Privacy} />} />
+        <Route path="/cookies" element={<InformationalPage component={Cookies} />} />
       </Routes>
     </BrowserRouter>
   );

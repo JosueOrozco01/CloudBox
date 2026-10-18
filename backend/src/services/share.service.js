@@ -156,6 +156,26 @@ async function resolveFolderInheritedAccess(userId, startFolderId, requiredPermi
 }
 
 const ShareService = {
+  async searchRecipients({ userId, query }) {
+    const term = typeof query === 'string' ? query.trim().toLowerCase() : '';
+    // Search by email prefix; never expose an unfiltered directory or wildcard searches.
+    if (term.length < 2 || term.length > 254 || !/^[a-z0-9@._+-]+$/.test(term)) return [];
+    const prefix = term.replace(/_/g, '\\_');
+    const { data, error } = await supabaseAdmin.from('usuario')
+      .select('nombre, apellido, correo')
+      .eq('id_estado', USER_STATUS.ACTIVE)
+      .neq('id', Number(userId))
+      .ilike('correo', `${prefix}%`)
+      .order('correo', { ascending: true }).limit(8);
+    if (error) throw createServiceError('No se pudieron buscar los destinatarios', 500, 'RECIPIENT_SEARCH_FAILED');
+    return data || [];
+  },
+  async resolveReceiver(email) {
+    const { data, error } = await supabaseAdmin.from('usuario').select('id').eq('correo', String(email).trim().toLowerCase()).eq('id_estado', USER_STATUS.ACTIVE).maybeSingle();
+    if (error) throw createServiceError('No se pudo consultar el destinatario', 500, 'RECEIVER_QUERY_FAILED');
+    if (!data) throw createServiceError('No existe un usuario activo con ese correo', 404, 'RECEIVER_NOT_FOUND');
+    return data.id;
+  },
   async shareFile({ senderUserId, receiverUserId, fileId, permissionId, expiresAt }) {
     const parsedSenderId = parseInt(senderUserId, 10);
     const parsedReceiverId = parseInt(receiverUserId, 10);
@@ -318,6 +338,7 @@ const ShareService = {
         fecha_compartido,
         fecha_expiracion,
         archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        carpeta:id_carpeta(id, nombre, id_estado),
         receptor:id_usuario_receptor(id, nombre, apellido, correo),
         permiso:id_permiso(id, nombre)
       `)
@@ -354,6 +375,7 @@ const ShareService = {
         fecha_compartido,
         fecha_expiracion,
         archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        carpeta:id_carpeta(id, nombre, id_estado),
         emisor:id_usuario_emisor(id, nombre, apellido, correo),
         permiso:id_permiso(id, nombre)
       `)
@@ -394,6 +416,7 @@ const ShareService = {
         fecha_compartido,
         fecha_expiracion,
         archivo:id_archivo(id, nombre, tamano_bytes, id_estado, fecha_subida),
+        carpeta:id_carpeta(id, nombre, id_estado),
         emisor:id_usuario_emisor(id, nombre, apellido, correo),
         receptor:id_usuario_receptor(id, nombre, apellido, correo),
         permiso:id_permiso(id, nombre)
@@ -519,11 +542,176 @@ const ShareService = {
   },
 
   async shareFolder({ senderUserId, receiverUserId, folderId, permissionId, expiresAt }) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+    const parsedSenderId = parseInt(senderUserId, 10);
+    const parsedReceiverId = parseInt(receiverUserId, 10);
+    const parsedFolderId = parseInt(folderId, 10);
+    const parsedPermissionId = parseInt(permissionId, 10);
+
+    if (!parsedSenderId || isNaN(parsedSenderId)) {
+      throw createServiceError('El usuario emisor no es válido', 404, 'SENDER_NOT_FOUND');
+    }
+
+    if (!parsedReceiverId || isNaN(parsedReceiverId)) {
+      throw createServiceError('El usuario receptor no es válido', 404, 'RECEIVER_NOT_FOUND');
+    }
+
+    // Prevent users from granting permissions to their own account
+    if (parsedSenderId === parsedReceiverId) {
+      throw createServiceError('No puedes compartir una carpeta contigo mismo', 400, 'CANNOT_SHARE_WITH_SELF');
+    }
+
+    if (!parsedFolderId || isNaN(parsedFolderId)) {
+      throw createServiceError('La carpeta especificada no es válida', 404, 'FOLDER_NOT_FOUND');
+    }
+
+    if (![PERMISSIONS.EDITOR, PERMISSIONS.VIEWER].includes(parsedPermissionId)) {
+      throw createServiceError('El permiso especificado no es válido', 400, 'INVALID_PERMISSION');
+    }
+
+    let normalizedExpiresAt = null;
+    if (expiresAt !== undefined && expiresAt !== null) {
+      const expirationDate = new Date(expiresAt);
+      if (isNaN(expirationDate.getTime())) {
+        throw createServiceError('La fecha de expiración no es válida', 400, 'INVALID_EXPIRATION_DATE');
+      }
+
+      // Reject expired timestamps to avoid creating unusable shares
+      if (expirationDate <= new Date()) {
+        throw createServiceError('La fecha de expiración debe ser una fecha futura', 400, 'INVALID_EXPIRATION_DATE');
+      }
+      normalizedExpiresAt = expirationDate.toISOString();
+    }
+
+    const { data: sender, error: senderError } = await supabaseAdmin
+      .from('usuario')
+      .select('id, id_estado')
+      .eq('id', parsedSenderId)
+      .single();
+
+    if (senderError || !sender || sender.id_estado !== USER_STATUS.ACTIVE) {
+      throw createServiceError('El usuario emisor no existe o no se encuentra activo', 404, 'SENDER_NOT_FOUND');
+    }
+
+    const { data: receiver, error: receiverError } = await supabaseAdmin
+      .from('usuario')
+      .select('id, id_estado')
+      .eq('id', parsedReceiverId)
+      .single();
+
+    if (receiverError || !receiver || receiver.id_estado !== USER_STATUS.ACTIVE) {
+      throw createServiceError('El usuario receptor no existe o no se encuentra activo', 404, 'RECEIVER_NOT_FOUND');
+    }
+
+    const { data: file, error: fileError } = await supabaseAdmin
+      .from('carpeta')
+      .select('id, id_usuario, id_estado')
+      .eq('id', parsedFolderId)
+      .single();
+
+    if (fileError || !file) {
+      throw createServiceError('La carpeta no existe', 404, 'FOLDER_NOT_FOUND');
+    }
+
+    // Block sharing files that are currently placed in trash or deleted
+    if (file.id_estado !== FOLDER_STATUS.ACTIVE) {
+      throw createServiceError('La carpeta no está disponible para compartir', 400, 'FOLDER_NOT_FOUND');
+    }
+
+    // Verify ownership to prevent unauthorized sharing of third-party resources
+    if (file.id_usuario !== parsedSenderId) {
+      throw createServiceError('No tienes permisos de propietario sobre esta carpeta', 403, 'NOT_RESOURCE_OWNER');
+    }
+
+    const { data: existingShares, error: shareQueryError } = await supabaseAdmin
+      .from('compartir')
+      .select('id, id_estado')
+      .eq('id_carpeta', parsedFolderId)
+      .eq('id_usuario_emisor', parsedSenderId)
+      .eq('id_usuario_receptor', parsedReceiverId);
+
+    if (shareQueryError) {
+      throw createServiceError(`Error al verificar compartidos previos: ${shareQueryError.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    const activeShare = existingShares?.find((share) => share.id_estado === SHARE_STATUS.ACTIVE);
+    if (activeShare) {
+      throw createServiceError('La carpeta ya ha sido compartida con este usuario', 409, 'SHARE_ALREADY_EXISTS');
+    }
+
+    const revokedShare = existingShares?.find((share) => share.id_estado === SHARE_STATUS.REVOKED);
+
+    // Reuse revoked rows to avoid duplicate state pairs in the share table
+    if (revokedShare) {
+      const { data: reactivatedShare, error: reactivateError } = await supabaseAdmin
+        .from('compartir')
+        .update({
+          id_permiso: parsedPermissionId,
+          id_estado: SHARE_STATUS.ACTIVE,
+          fecha_compartido: new Date().toISOString(),
+          fecha_expiracion: normalizedExpiresAt
+        })
+        .eq('id', revokedShare.id)
+        .select()
+        .single();
+
+      if (reactivateError) {
+        throw createServiceError(`Error al reactivar el compartido: ${reactivateError.message}`, 500, 'INTERNAL_SERVER_ERROR');
+      }
+
+      return reactivatedShare;
+    }
+
+    const { data: createdShare, error: insertError } = await supabaseAdmin
+      .from('compartir')
+      .insert({
+        id_carpeta: parsedFolderId,
+        id_archivo: null,
+        id_usuario_emisor: parsedSenderId,
+        id_usuario_receptor: parsedReceiverId,
+        id_permiso: parsedPermissionId,
+        id_estado: SHARE_STATUS.ACTIVE,
+        fecha_compartido: new Date().toISOString(),
+        fecha_expiracion: normalizedExpiresAt
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      throw createServiceError(`Error al compartir la carpeta: ${insertError.message}`, 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    return createdShare;
   },
 
   async getSharedFoldersWithUser(userId) {
-    throw createServiceError('Not implemented yet', 501, 'NOT_IMPLEMENTED');
+    const { data, error } = await supabaseAdmin.from('compartir')
+      .select('*, carpeta:id_carpeta(id, nombre, id_estado), emisor:id_usuario_emisor(id, nombre, apellido, correo), permiso:id_permiso(id, nombre)')
+      .eq('id_usuario_receptor', Number(userId)).eq('id_estado', SHARE_STATUS.ACTIVE)
+      .not('id_carpeta', 'is', null)
+      .or(`fecha_expiracion.is.null,fecha_expiracion.gt.${new Date().toISOString()}`)
+      .order('fecha_compartido', { ascending: false });
+    if (error) throw createServiceError(error.message, 500, 'SHARES_QUERY_FAILED');
+    return (data || []).filter(row => row.carpeta?.id_estado === FOLDER_STATUS.ACTIVE);
+  },
+
+  async getSharedFolderContent({ userId, folderId }) {
+    const access = await this.validateFolderAccess({ userId, folderId });
+    if (!access.hasAccess) throw createServiceError('No tienes acceso a esta carpeta', 403, 'ACCESS_DENIED');
+    const results = await Promise.all([
+      supabaseAdmin.from('carpeta').select('id, nombre').eq('id_padre', Number(folderId)).eq('id_estado', 1),
+      supabaseAdmin.from('archivo').select('id, nombre, tamano_bytes').eq('id_carpeta', Number(folderId)).eq('id_estado', 1)
+    ]);
+    for (const result of results) if (result.error) throw createServiceError(result.error.message, 500, 'CONTENT_QUERY_FAILED');
+    return { folders: results[0].data, files: results[1].data, access };
+  },
+
+  async getSharedDownload({ userId, fileId }) {
+    const access = await this.validateFileAccess({ userId, fileId });
+    if (!access.hasAccess) throw createServiceError('No tienes acceso a este archivo', 403, 'ACCESS_DENIED');
+    const { data, error } = await supabaseAdmin.from('archivo').select('nombre, ruta_storage').eq('id', Number(fileId)).single();
+    if (error) throw createServiceError('Archivo no encontrado', 404, 'FILE_NOT_FOUND');
+    const url = await require('./storage.service').createSignedUrl(data.ruta_storage, 60);
+    return { url, name: data.nombre, expiresIn: 60 };
   },
 
   async validateFileAccess({ userId, fileId, requiredPermission = null }) {
