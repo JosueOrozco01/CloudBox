@@ -1,3 +1,4 @@
+
 const { createClient } = require('@supabase/supabase-js');
 const ShareService = require('./share.service');
 
@@ -18,6 +19,8 @@ function createServiceError(message, status, code) {
 }
 
 const FavoriteService = {
+
+    // Validar que el usuario tenga acceso al archivo
     async validateAccessibleFile(userId, fileId) {
         const access =
             await ShareService.validateFileAccess({
@@ -51,6 +54,7 @@ const FavoriteService = {
         return data;
     },
 
+    // Agregar un archivo a favoritos
     async addFavorite(userId, fileId) {
         const file =
             await this.validateAccessibleFile(
@@ -97,6 +101,7 @@ const FavoriteService = {
         return data;
     },
 
+    // Eliminar un archivo de favoritos
     async removeFavorite(userId, fileId) {
         const { data, error } = await supabaseAdmin
             .from('favorito')
@@ -127,6 +132,7 @@ const FavoriteService = {
         return data;
     },
 
+    // Obtener los archivos favoritos del usuario
     async getFavorites(userId) {
         const { data, error } = await supabaseAdmin
             .from('favorito')
@@ -161,6 +167,7 @@ const FavoriteService = {
 
         const visibleFavorites = [];
 
+        // Evitar errores si Supabase devuelve null
         for (const favorite of data || []) {
             if (
                 !favorite.archivo ||
@@ -182,14 +189,15 @@ const FavoriteService = {
                     visibleFavorites.push(favorite);
                 }
             } catch (error) {
-                // If access is revoked, expired or unavailable,
-                // the favorite remains stored but is not displayed.
+                // Si el acceso fue revocado, expiró o no está
+                // disponible, el favorito no se muestra.
             }
         }
 
         return visibleFavorites;
     },
 
+    // Verificar si un archivo está en favoritos
     async isFavorite(userId, fileId) {
         const { data, error } = await supabaseAdmin
             .from('favorito')
