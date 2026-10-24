@@ -1,0 +1,10 @@
+const express = require('express');
+const requireAuth = require('../middlewares/auth.middleware');
+const controller = require('../controllers/payment.controller');
+const router = express.Router();
+router.use(requireAuth);
+router.get('/methods', controller.methods);
+router.get('/history', controller.history);
+router.post('/process', controller.process);
+router.get('/:id', controller.byId);
+module.exports = router;
