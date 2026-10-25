@@ -8,6 +8,27 @@ module.exports = {
       return res.status(200).json({ success: true, data });
     } catch (error) { return next(error); }
   },
+  async changePlan(req, res, next) {
+    try {
+      const lifecycle = require('../services/subscription-lifecycle.service');
+      const result = await lifecycle.changePlan(req.user.id, req.body);
+      return res.status(result.success ? 200 : 402).json({ success: result.success, ...(result.success ? {} : { code: 'PAYMENT_DECLINED' }), data: result });
+    } catch (error) { return next(error); }
+  },
+  async renew(req, res, next) {
+    try {
+      const lifecycle = require('../services/subscription-lifecycle.service');
+      const result = await lifecycle.renew(req.user.id, req.body);
+      return res.status(result.success ? 200 : 402).json({ success: result.success, ...(result.success ? {} : { code: 'PAYMENT_DECLINED' }), data: result });
+    } catch (error) { return next(error); }
+  },
+  async cancel(req, res, next) {
+    try {
+      const lifecycle = require('../services/subscription-lifecycle.service');
+      const result = await lifecycle.cancel(req.user.id);
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) { return next(error); }
+  },
   async subscribe(req, res, next) {
     try {
       const checkout = require('../services/subscription-checkout.service');

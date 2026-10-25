@@ -38,7 +38,7 @@ function normalize(row, plan, status, now = new Date()) {
     status: status || null,
     startDate: row.fecha_inicio,
     endDate: row.fecha_fin,
-    daysRemaining: daysRemaining(row.fecha_fin, now)
+    daysRemaining: plan?.precio != null && Number(plan.precio) === 0 ? null : (['Activa', 'PorVencer'].includes(status) ? daysRemaining(row.fecha_fin, now) : 0)
   };
 }
 async function enrich(rows) {

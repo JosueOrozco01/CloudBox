@@ -7,4 +7,7 @@ router.use(requireAuth);
 router.get('/current', controller.current);
 router.get('/history', controller.history);
 router.post('/subscribe', controller.subscribe);
+router.post('/change-plan', controller.changePlan);
+router.post('/renew', controller.renew);
+router.patch('/cancel', controller.cancel);
 module.exports = router;
