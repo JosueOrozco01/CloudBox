@@ -37,12 +37,12 @@ test('unauthorized recipient never receives a signed download URL', async () => 
   assert.ok(ctx.calls[1].filters.some(([method, key, value]) => method === 'eq' && key === 'id_estado' && value === 1));
 });
 test('active direct viewer share allows download', async () => {
-  const ctx = load([ok({ id: 10, id_usuario: 1, id_carpeta: null, id_estado: 1 }), ok({ id: 5, id_permiso: 2 }), ok({ nombre: 'test.pdf', ruta_storage: 'private/test.pdf' })]);
+  const ctx = load([ok({ id: 10, id_usuario: 1, id_carpeta: null, id_estado: 1 }), ok([{ id: 5, id_permiso: 2 }]), ok({ nombre: 'test.pdf', ruta_storage: 'private/test.pdf' })]);
   const result = await ctx.service.getSharedDownload({ userId: 2, fileId: 10 });
   assert.equal(result.expiresIn, 60); assert.equal(ctx.signed(), 1);
 });
 test('viewer cannot satisfy editor permission', async () => {
-  const ctx = load([ok({ id: 10, id_usuario: 1, id_carpeta: null, id_estado: 1 }), ok({ id: 5, id_permiso: 2 })]);
+  const ctx = load([ok({ id: 10, id_usuario: 1, id_carpeta: null, id_estado: 1 }), ok([{ id: 5, id_permiso: 2 }])]);
   const access = await ctx.service.validateFileAccess({ userId: 2, fileId: 10, requiredPermission: 1 });
   assert.equal(access.hasAccess, false);
 });
