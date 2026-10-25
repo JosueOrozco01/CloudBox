@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const renameSql = fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261025050000_renombrar_tablas_suscripcion.sql'),'utf8');
 const sql = fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261025030000_subscription_policy_v2.sql'),'utf8');
 
 test('migración es transaccional y conserva firmas RPC públicas existentes',()=>{
@@ -13,7 +14,8 @@ test('migración es transaccional y conserva firmas RPC públicas existentes',()
  }
 });
 test('programación y crédito tienen persistencia propia y unicidad',()=>{
- for(const name of ['cloudbox_subscription_credit','cloudbox_subscription_credit_event','cloudbox_subscription_schedule','cloudbox_schedule_one_pending_per_user','cloudbox_credit_reference_unique']) assert.ok(sql.includes(name),name);
+ for(const name of ['credito_suscripcion','evento_credito_suscripcion','programacion_suscripcion']) assert.ok(renameSql.includes(name),name);
+ for(const name of ['cloudbox_schedule_one_pending_per_user','cloudbox_credit_reference_unique']) assert.ok(sql.includes(name),name);
 });
 test('funciones protegidas de acceso público y service role permitido',()=>{
  assert.match(sql,/REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC,anon,authenticated/);
@@ -21,7 +23,7 @@ test('funciones protegidas de acceso público y service role permitido',()=>{
 });
 test('pago cero se registra como asiento sin crear pago ficticio',()=>{
  assert.match(sql,/IF v_due>0 THEN/);
- assert.match(sql,/cloudbox_subscription_credit_event/);
+ assert.match(renameSql,/INSERT INTO public\.evento_credito_suscripcion/);
 });
 test('cancelación se programa sin reemplazo instantáneo de plan',()=>{
  const start=sql.indexOf('CREATE OR REPLACE FUNCTION public.cloudbox_subscription_cancel_v1');

@@ -80,7 +80,7 @@ Preparar migración transaccional para libro de créditos y operaciones programa
 | D06-01 | Renovar conserva vigencia restante y suma `vigencia_dias`. | Evitar pérdida de períodos pagados. |
 | D06-02 | Upgrade (`precio_nuevo > precio_actual`) inmediato, con crédito proporcional por **todos** los días restantes y crédito arrastrable. | Un período acumulado por renovación no debe perder su valor. |
 | D06-03 | Crédito = `round(precio_plan_actual × días_restantes / vigencia_dias, 2)`; se suma el saldo anterior del libro de créditos. | Cálculo transparente y auditable; evita depender del número de renovaciones. |
-| D06-04 | Crédito aplicado = `min(crédito_total, precio_nuevo)`. Pago simulado = `precio_nuevo − crédito_aplicado`; sobrante queda en `cloudbox_subscription_credit`. | Evitar importes negativos y no eliminar remanentes. |
+| D06-04 | Crédito aplicado = `min(crédito_total, precio_nuevo)`. Pago simulado = `precio_nuevo − crédito_aplicado`; sobrante queda en `credito_suscripcion`. | Evitar importes negativos y no eliminar remanentes. |
 | D06-05 | Si el crédito cubre todo el precio, **no se crea un pago de importe cero**; sí se crea nueva suscripción y un asiento de crédito auditable. | No presentar una operación interna como cobro. |
 | D06-06 | Downgrade (`precio_nuevo < precio_actual`) se **precompra** mediante pago simulado al solicitarlo, crea suscripción Pendiente y se activa al vencimiento. | Evitar cobros no autorizados o desatendidos al vencer. La interfaz debe explicar que es un prepago no reembolsable en esta simulación. |
 | D06-07 | Cancelación programada sin cobro; conserva el plan hasta fin de vigencia y entonces activa Free. | Proteger beneficios ya pagados. |
@@ -107,9 +107,9 @@ Básico Q29/30 días, 60 días restantes: crédito = Q58.00. Pro Q89/30 días: p
 
 ### Persistencia añadida
 
-- `public.cloudbox_subscription_credit`: saldo por usuario.
-- `public.cloudbox_subscription_credit_event`: asientos de generación/consumo de crédito.
-- `public.cloudbox_subscription_schedule`: acciones futuras de cancelación o downgrade, con `pending/applied/superseded/error`.
+- `public.credito_suscripcion`: saldo por usuario.
+- `public.evento_credito_suscripcion`: asientos de generación/consumo de crédito.
+- `public.programacion_suscripcion`: acciones futuras de cancelación o downgrade, con `pending/applied/superseded/error`.
 - Índices parciales para impedir dos acciones pendientes y para buscar vencimientos; única referencia en libro de crédito.
 
 ### Seguridad, prueba y despliegue
