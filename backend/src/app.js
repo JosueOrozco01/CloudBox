@@ -15,6 +15,7 @@ const favoriteRoutes = require('./routes/favorite.routes');
 const activityRoutes = require('./routes/activity.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const subscriptionRoutes = require('./routes/subscription.routes');
 
 // Middlewares
 const notFound = require('./middlewares/not-found.middleware');
@@ -43,6 +44,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Handle requests that do not match any route
 app.use(notFound);

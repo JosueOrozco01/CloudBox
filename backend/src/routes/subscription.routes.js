@@ -1,0 +1,10 @@
+'use strict';
+const express = require('express');
+const requireAuth = require('../middlewares/auth.middleware');
+const controller = require('../controllers/subscription.controller');
+const router = express.Router();
+router.use(requireAuth);
+router.get('/current', controller.current);
+router.get('/history', controller.history);
+router.post('/subscribe', controller.subscribe);
+module.exports = router;
