@@ -6,6 +6,8 @@ const authorizeRole = (allowedRoles = []) => {
         if (!userRole) {
             return res.status(403).json({ 
                 success: false, 
+                status: 403,
+                code: "FORBIDDEN",
                 message: "Acceso denegado: permisos insuficientes" 
             });
         }
@@ -16,6 +18,8 @@ const authorizeRole = (allowedRoles = []) => {
 
         return res.status(403).json({ 
             success: false, 
+            status: 403,
+            code: "FORBIDDEN",
             message: "Acceso denegado: permisos insuficientes" 
         });
     };
