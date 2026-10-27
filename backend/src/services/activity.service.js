@@ -1,4 +1,4 @@
-const { activityFilters } = require('./history-validation');
+const { activityFilters, resourceId } = require('./history-validation');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -93,6 +93,7 @@ const ActivityService = {
     },
 
     async getUserActivity(userId, options = {}) {
+        userId = resourceId(userId);
         const { limit, offset, from, to, action } = activityFilters(options);
         let query = supabaseAdmin.from('actividad')
             .select(`id,fecha,descripcion,id_usuario,id_archivo,id_carpeta,id_accion,accion${action ? '!inner' : ''}(id,nombre)`)

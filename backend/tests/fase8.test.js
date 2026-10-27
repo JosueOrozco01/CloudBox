@@ -7,7 +7,7 @@ function setup() {
  const service = load('services/notification.service.js', {'@supabase/supabase-js':{createClient:()=>db},'./history-validation':validation});
  return {tables,db,service};
 }
-test('NOT-01 accepts all seven event types; external producers are not integrated',async()=>{
+test('NOT-01 accepts the seven integrated producer event types',async()=>{
  const {service,tables}=setup();
  for(const type of service.TYPES) {
   const event={recipientUserId:1,type,title:'Aviso',message:'Acción confirmada',deduplicationKey:'resource:1:transition:2'};
@@ -69,8 +69,8 @@ test('admin controller delegates internal errors to the existing sanitized handl
 });
 test('read-all returns exact count even without returned rows',async()=>{
  const {service,tables}=setup();
- tables.notificacion=Array.from({length:1501},(_,i)=>({id:i+1,id_usuario:1,fecha_lectura:null}));
- tables.notificacion.push({id:1502,id_usuario:2,fecha_lectura:null});
+ tables.notificacion=Array.from({length:1501},(_,i)=>({id:i+1,id_usuario:1,fecha_lectura:null,leida:false}));
+ tables.notificacion.push({id:1502,id_usuario:2,fecha_lectura:null,leida:false});
  assert.equal((await service.markAllRead(1)).updatedCount,1501);
  assert.equal(tables.notificacion[1501].fecha_lectura,null);
  assert.equal((await service.markAllRead(1)).updatedCount,0);

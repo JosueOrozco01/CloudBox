@@ -1,3 +1,4 @@
+const {recordLog} = require('../services/audit.service');
 const ShareService = require('../services/share.service');
 const ActivityService = require('../services/activity.service');
 
@@ -103,6 +104,7 @@ const shareController = {
         actorUserId: req.user.id
       });
 
+      await recordLog({id_usuario:req.user.id,accion:'REVOCAR_ACCESO',entidad_afectada:'compartir',id_entidad_afectada:Number(req.params.id),ip_origen:req.ip,detalles:{operation:'Acceso revocado'}});
       return res.status(200).json({
         success: true,
         data: revokedShare

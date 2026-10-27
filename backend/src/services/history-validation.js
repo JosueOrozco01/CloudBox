@@ -28,7 +28,7 @@ function activityFilters(query = {}) {
   return result;
 }
 function resourceId(value) {
-  const id = integer(value, 0);
+  const id = integer(value, 0, 2147483647);
   if (!id) throw invalid('Identificador inválido');
   return id;
 }

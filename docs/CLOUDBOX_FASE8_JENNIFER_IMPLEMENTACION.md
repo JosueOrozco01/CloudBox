@@ -1,5 +1,7 @@
 # Fase 8 Jennifer — implementación e integración
 
+> **Actualización vigente — etapa 3 (27/10/2026):** el código está adaptado a la tabla real con leida, y los siete productores están implementados mediante triggers transaccionales, con SQL manual pendiente. Ver ETAPA3_FASE8_20261027.md. Las secciones anteriores a esta actualización describen la implementación inicial; no ejecutar la migración histórica 20261025040000_fase8_notifications.sql ni recrear notificacion. La etapa 2 comercial sigue pendiente de despliegue coordinado.
+
 Rama: `feature/fase8-jenni-notifications-activity-security`.
 Base común con develop: `ded05d8ccbbeb31c4b55e92fa7f2b1989d4237f8`.
 Referencia principal: `CLOUDBOX_FASE8_CONTRATO_JENNIFER.md`.

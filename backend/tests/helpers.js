@@ -12,7 +12,17 @@ function load(file, dependencies = {}) {
 function database(tables) {
   const calls = [];
   let failure = null;
-  return { calls, fail(error) { failure = error; }, from(table) {
+  const keys=new Set();
+  return { calls, async rpc(name,p) {
+    if (failure) return {data:null,error:failure};
+    if(name!=='cloudbox_notification_create_v1')throw new Error('Unexpected RPC '+name);
+    const key=JSON.stringify([p.p_user_id,p.p_type,p.p_key]);
+    if(p.p_key && keys.has(key))return {data:null,error:null};
+    const rows=tables.notificacion||(tables.notificacion=[]);
+    const data={id:Math.max(0,...rows.map(r=>r.id))+1,id_usuario:p.p_user_id,tipo:p.p_type,titulo:p.p_title,mensaje:p.p_message,
+      tipo_recurso:p.p_resource_type,id_recurso:p.p_resource_id,fecha_creacion:new Date().toISOString().slice(0,10),leida:false,fecha_lectura:null};
+    rows.push(data);if(p.p_key)keys.add(key);return {data,error:null};
+  }, fail(error) { failure = error; }, from(table) {
     let filters = [], operation = 'select', values, start = 0, end = Infinity, orders = [], single = false, countMode = false;
     const q = {
       select() { return q; }, insert(v) { operation = 'insert'; values = v; return q; },
