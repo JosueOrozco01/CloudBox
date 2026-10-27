@@ -21,9 +21,9 @@ const userController = {
   async updateMyProfile(req, res, next) {
     try {
       const userId = req.user.id;
-      const { nombre, apellido } = req.body;
+      const { nombre, apellido } = req.body || {};
 
-      if (!nombre || !nombre.trim()) {
+      if (typeof nombre !== 'string' || !nombre.trim()) {
         return res.status(400).json({
           success: false,
           code: 'INVALID_NAME',

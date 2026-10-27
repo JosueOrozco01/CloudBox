@@ -60,12 +60,12 @@ test('administrative audit runs once after confirmation and never on failure',as
  const res=()=>({status(){return this;},json(){return this;}});
  const req={params:{id:'2'},user:{id:1},body:{id_estado:2,id_rol:2},headers:{},socket:{remoteAddress:'127.0.0.1'}};
  await controller.updateUserStatus(req,res()); assert.deepEqual(order,['commit','CAMBIO_ESTADO_USUARIO']);
- await controller.updateUserRole(req,res()); assert.equal(order.length,2);
+ await controller.updateUserRole(req,res(),()=>{}); assert.equal(order.length,2);
 });
-test('SEC finding: existing admin controller exposes internal error (Benja ownership)',async()=>{
+test('admin controller delegates internal errors to the existing sanitized handler',async()=>{
  const controller=load('controllers/admin.controller.js',{'../services/admin.service':{getOverview:async()=>{throw new Error('INTERNAL_SENTINEL');}},'../services/audit.service':{}});
  const res={status(code){this.code=code;return this;},json(body){this.body=body;}};
- await controller.getOverview({},res); assert.equal(res.code,500); assert.equal(res.body.message,'INTERNAL_SENTINEL');
+ let forwarded; await controller.getOverview({},res,error=>{forwarded=error;}); assert.equal(forwarded.message,'INTERNAL_SENTINEL'); assert.equal(res.body,undefined);
 });
 test('read-all returns exact count even without returned rows',async()=>{
  const {service,tables}=setup();

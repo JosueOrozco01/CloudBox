@@ -8,17 +8,17 @@ const folderController = {
     try { res.json({ success: true, data: await FolderService.getTrashFolders(req.user.id) }); }
     catch (error) { next(error); }
   },
-  async getUserFolders(req, res) {
+  async getUserFolders(req, res, next) {
     try {
       const userId = parseInt(req.user.id, 10);
       const folders = await FolderService.getUserRootFolders(userId);
       res.status(200).json({ success: true, data: folders });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      return next(error);
     }
   },
 
-  async getFolderById(req, res) {
+  async getFolderById(req, res, next) {
     try {
       const folderId = parseInt(req.params.id, 10);
       const userId = parseInt(req.user.id, 10);
@@ -69,14 +69,15 @@ const folderController = {
         data: folder
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message
       });
     }
   },
-  async createFolder(req, res) {
+  async createFolder(req, res, next) {
     try {
       const userId = parseInt(req.user.id, 10);
       const { nombre, id_padre } = req.body;
@@ -171,14 +172,15 @@ const folderController = {
         });
       }
 
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message
       });
     }
   },
-  async updateFolderName(req, res) {
+  async updateFolderName(req, res, next) {
     try {
       const folderId =
         parseInt(req.params.id, 10);
@@ -256,7 +258,8 @@ const folderController = {
         });
       }
 
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message
@@ -264,7 +267,7 @@ const folderController = {
     }
   },
 
-  async getSubfolders(req, res) {
+  async getSubfolders(req, res, next) {
     try {
       const folderId =
         parseInt(req.params.id, 10);
@@ -319,14 +322,15 @@ const folderController = {
         data: subfolders
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message
       });
     }
   },
-  async getFolderContent(req, res) {
+  async getFolderContent(req, res, next) {
     try {
       const folderIdStr = req.params.id;
       const userId = parseInt(req.user.id, 10);
@@ -418,7 +422,8 @@ const folderController = {
         }
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message
@@ -426,7 +431,7 @@ const folderController = {
     }
   },
 
-  async moveFolder(req, res) {
+  async moveFolder(req, res, next) {
     try {
       const folderId =
         parseInt(req.params.id, 10);
@@ -593,7 +598,8 @@ const folderController = {
         });
       }
 
-      return res.status(error.status || 500).json({
+      if ((error.status || 500) >= 500) return next(error);
+      return res.status(error.status).json({
         success: false,
         code: error.code,
         message: error.message

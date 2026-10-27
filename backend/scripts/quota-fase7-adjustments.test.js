@@ -1,7 +1,7 @@
 /**
  * Pruebas de verificación de ajustes de integración Fase 7 (Benja)
  * Basado en: docs/CLOUDBOX_AJUSTES_BENJA_FASE7.md
- * 
+ *
  * Verifica:
  * 1. getStorageMetrics y capacidades: Free (1GB), Básico (5GB), Pro (50GB), Premium (100GB).
  * 2. Reconocimiento de estados comerciales 'Activa' y 'PorVencer'.

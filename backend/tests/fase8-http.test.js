@@ -16,7 +16,7 @@ test('HTTP routes use real auth/roles with local Supabase doubles', async () => 
  const routes=load('routes/notification.routes.js',{'express':express,'../controllers/notification.controller':controller,'../middlewares/auth.middleware':auth});
  const app=express(); app.use('/api/notifications',routes);
  const roles=require('../src/middlewares/role.middleware');
- const adminController = Object.fromEntries(['getOverview','getAllUsers','updateUserStatus','updateUserRole','getAuditLogs'].map(name=>[name,(req,res)=>res.json({success:true})]));
+ const adminController = Object.fromEntries(['getOverview','getAllUsers','updateUserStatus','updateUserRole','getAuditLogs','getStats','getUsers','getStorageMetrics','getSubscriptions','getRevenue'].map(name=>[name,(req,res)=>res.json({success:true})]));
  const adminRoutes=load('routes/admin.routes.js',{'express':express,'../controllers/admin.controller':adminController,'../middlewares/auth.middleware':auth,'../middlewares/role.middleware':roles});
  app.use('/api/admin',adminRoutes);
  const activityService=load('services/activity.service.js',{'@supabase/supabase-js':{createClient:()=>db},'./history-validation':validation});
