@@ -15,6 +15,10 @@ const favoriteRoutes = require('./routes/favorite.routes');
 const activityRoutes = require('./routes/activity.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 
+// Rutas Fase 7
+const planRoutes = require('./routes/plan.routes');
+const storageControlRoutes = require('./routes/storage-control.routes');
+
 // Middlewares
 const notFound = require('./middlewares/not-found.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
@@ -41,6 +45,10 @@ app.use('/api/favorites', favoriteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Rutas Fase 7
+app.use('/api/plans', planRoutes);
+app.use('/api/storage', storageControlRoutes);
 
 // Handle requests that do not match any route
 app.use(notFound);
