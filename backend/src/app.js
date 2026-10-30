@@ -7,6 +7,7 @@ const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const emailHookRoutes = require('./routes/emailHook.routes');
 const adminRoutes = require('./routes/admin.routes');
+const reportRoutes = require('./routes/report.routes');
 const folderRoutes = require('./routes/folder.routes');
 const fileRoutes = require('./routes/file.routes');
 const shareRoutes = require('./routes/share.routes');
@@ -33,7 +34,9 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
+
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/shares', shareRoutes);
