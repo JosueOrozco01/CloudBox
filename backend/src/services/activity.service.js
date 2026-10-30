@@ -1,3 +1,4 @@
+const { activityFilters, resourceId } = require('./history-validation');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -91,56 +92,19 @@ const ActivityService = {
         }
     },
 
-    async getUserActivity(
-        userId,
-        {
-            limit = 20,
-            offset = 0
-        } = {}
-    ) {
-        const safeLimit = Math.min(
-            Math.max(parseInt(limit, 10) || 20, 1),
-            100
-        );
-
-        const safeOffset = Math.max(
-            parseInt(offset, 10) || 0,
-            0
-        );
-
-        const { data, error } = await supabaseAdmin
-            .from('actividad')
-            .select(`
-                id,
-                fecha,
-                descripcion,
-                id_usuario,
-                id_archivo,
-                id_carpeta,
-                id_accion,
-                accion (
-                    id,
-                    nombre
-                )
-            `)
-            .eq('id_usuario', userId)
-            .order(
-                'fecha',
-                { ascending: false }
-            )
-            .range(
-                safeOffset,
-                safeOffset + safeLimit - 1
-            );
-
-        if (error) {
-            throw new Error(
-                `Error al obtener la actividad: ${error.message}`
-            );
-        }
-
+    async getUserActivity(userId, options = {}) {
+        userId = resourceId(userId);
+        const { limit, offset, from, to, action } = activityFilters(options);
+        let query = supabaseAdmin.from('actividad')
+            .select(`id,fecha,descripcion,id_usuario,id_archivo,id_carpeta,id_accion,accion${action ? '!inner' : ''}(id,nombre)`)
+            .eq('id_usuario', userId);
+        if (from) query = query.gte('fecha', from + 'T00:00:00.000Z');
+        if (to) query = query.lt('fecha', new Date(Date.parse(to) + 86400000).toISOString());
+        if (action) query = query.eq('accion.nombre', action);
+        const { data, error } = await query.order('fecha', { ascending: false })
+            .order('id', { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error('No se pudo obtener la actividad');
         return data || [];
     }
 };
-
 module.exports = ActivityService;

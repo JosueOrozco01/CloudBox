@@ -1,3 +1,4 @@
+const {recordLog} = require('../services/audit.service');
 'use strict';
 const Subscriptions = require('../services/subscription.service');
 
@@ -26,6 +27,7 @@ module.exports = {
     try {
       const lifecycle = require('../services/subscription-lifecycle.service');
       const result = await lifecycle.cancel(req.user.id);
+      if (result.success) await recordLog({id_usuario:req.user.id,accion:'CANCELAR_SUSCRIPCION',entidad_afectada:'suscripcion',id_entidad_afectada:result.previousSubscriptionId||result.subscriptionId,ip_origen:req.ip,detalles:{scheduled:result.scheduled===true,effectiveOn:result.effectiveOn||null}});
       return res.status(200).json({ success: true, data: result });
     } catch (error) { return next(error); }
   },

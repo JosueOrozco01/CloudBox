@@ -20,7 +20,7 @@ const db = { from(table) {
     async in(column, ids) { return { data: tables[table].filter(row => ids.includes(row[column])), error: null }; },
   };
 } };
-const context = { require: () => ({ createClient: () => db }), process: { env: {} }, module: { exports: {} }, Date, Number, Map };
+const context = { require: name => name === '@supabase/supabase-js' ? ({createClient:()=>db}) : require(path.resolve(__dirname,'../src/services',name)), process: { env: {} }, module: { exports: {} }, Date, Number, Map };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/services/admin.service.js'), 'utf8'), context);
 (async () => {
   const result = await context.module.exports.getAuditLogs(2, 0);

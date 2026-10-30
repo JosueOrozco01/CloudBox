@@ -1,7 +1,7 @@
 /**
  * Pruebas de verificación de ajustes de integración Fase 7 (Benja)
  * Basado en: docs/CLOUDBOX_AJUSTES_BENJA_FASE7.md
- * 
+ *
  * Verifica:
  * 1. getStorageMetrics y capacidades: Free (1GB), Básico (5GB), Pro (50GB), Premium (100GB).
  * 2. Reconocimiento de estados comerciales 'Activa' y 'PorVencer'.
@@ -63,6 +63,7 @@ function buildMockDb(initialSubscriptions = [], files = []) {
             let filterField = null;
             let filterValues = null;
             let singleFilter = {};
+            let pageStart=0,pageEnd=Infinity;
             let selectedCols = '*';
 
             const queryObj = {
@@ -86,7 +87,7 @@ function buildMockDb(initialSubscriptions = [], files = []) {
                     return this;
                 },
                 range(start, end) {
-                    return this;
+                    pageStart=start;pageEnd=end; return this;
                 },
                 update(data) {
                     return {
@@ -142,7 +143,7 @@ function buildMockDb(initialSubscriptions = [], files = []) {
                         });
                     }
 
-                    return Promise.resolve({ data, error }).then(resolve, reject);
+                    return Promise.resolve({ data:data.slice(pageStart,pageEnd+1), error }).then(resolve, reject);
                 }
             };
 
@@ -157,7 +158,7 @@ function loadQuotaService(db) {
             if (mod === '@supabase/supabase-js') {
                 return { createClient: () => db };
             }
-            return require(mod);
+            return require(path.resolve(__dirname,'../src/services',mod));
         },
         process: { env: {} },
         module: { exports: {} },
@@ -376,7 +377,7 @@ function loadQuotaService(db) {
         };
 
         const context = {
-            require: () => ({ createClient: () => db }),
+            require: name => name === '@supabase/supabase-js' ? ({createClient:()=>db}) : require(path.resolve(__dirname,'../src/services',name)),
             process: { env: {} },
             module: { exports: {} },
             Date,

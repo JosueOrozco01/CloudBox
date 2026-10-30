@@ -1,3 +1,4 @@
+const {recordLog} = require('../services/audit.service');
 const PlanService = require('../services/plan.service');
 
 const PlanController = {
@@ -30,6 +31,7 @@ const PlanController = {
   async createPlan(req, res, next) {
     try {
       const newPlan = await PlanService.createPlan(req.body);
+      await recordLog({id_usuario:req.user.id,accion:'CREAR_PLAN',entidad_afectada:'plan',id_entidad_afectada:Number(newPlan.id),ip_origen:req.ip,detalles:{operation:'CREAR_PLAN'}});
       return res.status(201).json({
         success: true,
         message: 'Plan comercial creado satisfactoriamente',
@@ -43,6 +45,7 @@ const PlanController = {
   async updatePlan(req, res, next) {
     try {
       const updatedPlan = await PlanService.updatePlan(req.params.id, req.body);
+      await recordLog({id_usuario:req.user.id,accion:'CAMBIO_PLAN',entidad_afectada:'plan',id_entidad_afectada:Number(updatedPlan.id),ip_origen:req.ip,detalles:{operation:'CAMBIO_PLAN'}});
       return res.status(200).json({
         success: true,
         message: 'Plan comercial actualizado exitosamente',
@@ -57,6 +60,7 @@ const PlanController = {
     try {
       const { id_estado } = req.body;
       const result = await PlanService.setPlanStatus(req.params.id, id_estado);
+      await recordLog({id_usuario:req.user.id,accion:'CAMBIO_ESTADO_PLAN',entidad_afectada:'plan',id_entidad_afectada:Number(result.id),ip_origen:req.ip,detalles:{operation:'CAMBIO_ESTADO_PLAN'}});
       return res.status(200).json({
         success: true,
         message: 'Estado del plan actualizado exitosamente',

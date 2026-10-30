@@ -1,5 +1,6 @@
 'use strict';
 const { createClient } = require('@supabase/supabase-js');
+const {utcDay,isCurrent,isFree} = require('./commercial-policy');
 
 let admin;
 function database() {
@@ -24,9 +25,9 @@ function assertResult(result) {
 }
 function daysRemaining(date, now = new Date()) {
   if (!date) return null;
-  const end = new Date(date);
+  const end = new Date(String(date).slice(0,10));
   if (Number.isNaN(end.getTime())) return null;
-  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86400000));
+  return Math.max(0, Math.ceil((end.getTime() - new Date(utcDay(now)).getTime()) / 86400000));
 }
 function normalize(row, plan, status, now = new Date()) {
   return {
@@ -38,7 +39,8 @@ function normalize(row, plan, status, now = new Date()) {
     status: status || null,
     startDate: row.fecha_inicio,
     endDate: row.fecha_fin,
-    daysRemaining: plan?.precio != null && Number(plan.precio) === 0 ? null : (['Activa', 'PorVencer'].includes(status) ? daysRemaining(row.fecha_fin, now) : 0)
+    daysRemaining: ['Activa','PorVencer'].includes(status) && isCurrent(row,utcDay(now))
+      ? (isFree(plan) ? null : daysRemaining(row.fecha_fin,now)) : 0
   };
 }
 async function enrich(rows) {
@@ -59,9 +61,7 @@ async function getCurrent(userId) {
     .eq('id_usuario', userId).in('id_estado', [2, 3])
     .order('fecha_inicio', { ascending: false }).order('id', { ascending: false }));
   const now = new Date();
-  const validRows = rows.filter(row => row.fecha_inicio && row.fecha_fin &&
-    new Date(row.fecha_inicio).getTime() <= now.getTime() &&
-    new Date(row.fecha_fin).getTime() > now.getTime());
+  const validRows = rows.filter(row => isCurrent(row, utcDay(now)));
   if (validRows.length > 1) throw makeError(409, 'MULTIPLE_ACTIVE_SUBSCRIPTIONS', 'El usuario tiene varias suscripciones vigentes');
   return (await enrich(validRows))[0] || null;
 }

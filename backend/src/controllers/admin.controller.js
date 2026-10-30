@@ -1,30 +1,28 @@
+
 const AdminService = require("../services/admin.service");
 const auditService = require("../services/audit.service");
 
 const adminController = {
-  async getOverview(req, res) {
+  async getOverview(req, res, next) {
     try {
       const data = await AdminService.getOverview();
+
       return res.status(200).json({
         success: true,
         data,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo ADM: Listado paginado de usuarios con soporte de filtros (q, status).
+   * Módulo ADM: Listado paginado de usuarios con filtros.
    */
-  async getUsers(req, res) {
+  async getUsers(req, res, next) {
     try {
       const { q, search, status, limit, offset } = req.query || {};
+
       const result = await AdminService.getUsersList({
         q: q || search,
         status,
@@ -38,29 +36,25 @@ const adminController = {
         pagination: result.pagination,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Alias de compatibilidad para rutas previas.
+   * Alias de compatibilidad con rutas anteriores.
    */
-  async getAllUsers(req, res) {
-    return adminController.getUsers(req, res);
+  async getAllUsers(req, res, next) {
+    return adminController.getUsers(req, res, next);
   },
 
   /**
-   * Módulo ADM: Detalle individual de un usuario por ID.
+   * Módulo ADM: Obtener usuario por ID.
    */
-  async getUserById(req, res) {
+  async getUserById(req, res, next) {
     try {
       const targetUserId = Number(req.params.id);
-      if (isNaN(targetUserId)) {
+
+      if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
         return res.status(400).json({
           success: false,
           status: 400,
@@ -76,25 +70,27 @@ const adminController = {
         data: user,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo ADM: Actualizar estado de usuario con regla anti-autodesactivación y AUD-01.
+   * Módulo ADM: Actualizar estado de usuario.
    */
-  async updateUserStatus(req, res) {
+  async updateUserStatus(req, res, next) {
     try {
       const targetUserId = Number(req.params.id);
       const { id_estado } = req.body || {};
-      const currentUserId = parseInt(req.user?.id, 10);
+      const currentUserId = Number(req.user?.id);
+      const newStatusId = Number(id_estado);
 
-      if (isNaN(targetUserId) || !id_estado) {
+      if (
+        !Number.isInteger(targetUserId) ||
+        targetUserId <= 0 ||
+        id_estado == null ||
+        !Number.isInteger(newStatusId) ||
+        newStatusId <= 0
+      ) {
         return res.status(400).json({
           success: false,
           status: 400,
@@ -103,7 +99,7 @@ const adminController = {
         });
       }
 
-      // Evitar que el administrador suspenda su propia cuenta
+      // Evitar que el administrador suspenda su propia cuenta.
       if (targetUserId === currentUserId) {
         return res.status(400).json({
           success: false,
@@ -113,9 +109,10 @@ const adminController = {
         });
       }
 
-      const newStatusId = Number(id_estado);
       const ip_origen =
-        req.headers["x-forwarded-for"] || req.socket?.remoteAddress || req.ip;
+        req.headers["x-forwarded-for"] ||
+        req.socket?.remoteAddress ||
+        req.ip;
 
       const updatedUser = await AdminService.updateUserStatus(
         targetUserId,
@@ -129,25 +126,27 @@ const adminController = {
         data: updatedUser,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo ADM: Actualizar rol de usuario con regla anti-degradación y AUD-01.
+   * Módulo ADM: Actualizar rol de usuario.
    */
-  async updateUserRole(req, res) {
+  async updateUserRole(req, res, next) {
     try {
       const targetUserId = Number(req.params.id);
       const { id_rol } = req.body || {};
-      const currentUserId = parseInt(req.user?.id, 10);
+      const currentUserId = Number(req.user?.id);
+      const newRoleId = Number(id_rol);
 
-      if (isNaN(targetUserId) || !id_rol) {
+      if (
+        !Number.isInteger(targetUserId) ||
+        targetUserId <= 0 ||
+        id_rol == null ||
+        !Number.isInteger(newRoleId) ||
+        newRoleId <= 0
+      ) {
         return res.status(400).json({
           success: false,
           status: 400,
@@ -156,7 +155,7 @@ const adminController = {
         });
       }
 
-      // Evitar que el administrador cambie su propio rol
+      // Evitar que el administrador cambie su propio rol.
       if (targetUserId === currentUserId) {
         return res.status(400).json({
           success: false,
@@ -166,9 +165,10 @@ const adminController = {
         });
       }
 
-      const newRoleId = Number(id_rol);
       const ip_origen =
-        req.headers["x-forwarded-for"] || req.socket?.remoteAddress || req.ip;
+        req.headers["x-forwarded-for"] ||
+        req.socket?.remoteAddress ||
+        req.ip;
 
       const updatedUser = await AdminService.updateUserRole(
         targetUserId,
@@ -182,22 +182,24 @@ const adminController = {
         data: updatedUser,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
-  async getAuditLogs(req, res) {
+  /**
+   * Módulo AUD: Consultar bitácora de auditoría.
+   */
+  async getAuditLogs(req, res, next) {
     try {
       const limit = Math.min(
         200,
-        Math.max(1, parseInt(req.query?.limit, 10) || 20),
+        Math.max(1, parseInt(req.query?.limit, 10) || 20)
       );
-      const offset = Math.max(0, parseInt(req.query?.offset, 10) || 0);
+
+      const offset = Math.max(
+        0,
+        parseInt(req.query?.offset, 10) || 0
+      );
 
       const data = await AdminService.getAuditLogs(limit, offset);
 
@@ -206,42 +208,33 @@ const adminController = {
         data,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: "Error al obtener bitácora",
-        error: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo STO: Estadísticas generales de almacenamiento y archivos.
+   * Módulo STO: Estadísticas generales de almacenamiento.
    */
-  async getStorageOverview(req, res) {
+  async getStorageOverview(req, res, next) {
     try {
       const data = await AdminService.getStorageOverview();
+
       return res.status(200).json({
         success: true,
         data,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo STO: Almacenamiento por usuario con paginación y filtro overQuota.
+   * Módulo STO: Almacenamiento por usuario.
    */
-  async getStorageUsers(req, res) {
+  async getStorageUsers(req, res, next) {
     try {
       const { limit, offset, overQuota } = req.query || {};
+
       const result = await AdminService.getStorageUsers({
         limit,
         offset,
@@ -254,21 +247,17 @@ const adminController = {
         pagination: result.pagination,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
   /**
-   * Módulo STO: Usuarios sobre cuota (espacio_usado_bytes > maxBytes).
+   * Módulo STO: Usuarios que exceden su cuota.
    */
-  async getUsersOverQuota(req, res) {
+  async getUsersOverQuota(req, res, next) {
     try {
       const { limit, offset } = req.query || {};
+
       const result = await AdminService.getUsersOverQuota({
         limit,
         offset,
@@ -280,12 +269,7 @@ const adminController = {
         pagination: result.pagination,
       });
     } catch (error) {
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || "SERVER_ERROR",
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
@@ -296,82 +280,64 @@ const adminController = {
   async getStats(req, res, next) {
     try {
       const stats = await AdminService.getGeneralStats();
+
       return res.status(200).json({
         success: true,
-        message: 'Estadísticas globales obtenidas exitosamente',
-        data: stats
+        message: "Estadísticas globales obtenidas exitosamente",
+        data: stats,
       });
     } catch (error) {
-      if (typeof next === 'function') return next(error);
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || 'SERVER_ERROR',
-        message: error.message
-      });
+      return next(error);
     }
   },
 
   async getStorageMetrics(req, res, next) {
     try {
       const metrics = await AdminService.getStorageMetrics();
+
       return res.status(200).json({
         success: true,
-        message: 'Métricas de almacenamiento obtenidas exitosamente',
-        data: metrics
+        message: "Métricas de almacenamiento obtenidas exitosamente",
+        data: metrics,
       });
     } catch (error) {
-      if (typeof next === 'function') return next(error);
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || 'SERVER_ERROR',
-        message: error.message
-      });
+      return next(error);
     }
   },
 
   async getSubscriptions(req, res, next) {
     try {
       const result = await AdminService.getAllSubscriptions(req.query);
+
       return res.status(200).json({
         success: true,
-        message: 'Suscripciones obtenidas exitosamente',
+        message: "Suscripciones obtenidas exitosamente",
         data: result.subscriptions,
-        pagination: result.pagination
+        pagination: result.pagination,
       });
     } catch (error) {
-      if (typeof next === 'function') return next(error);
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || 'SERVER_ERROR',
-        message: error.message
-      });
+      return next(error);
     }
   },
 
   async getRevenue(req, res, next) {
     try {
       const { startDate, endDate } = req.query || {};
-      const report = await AdminService.getRevenueReport({ startDate, endDate });
+
+      const report = await AdminService.getRevenueReport({
+        startDate,
+        endDate,
+      });
+
       return res.status(200).json({
         success: true,
-        message: 'Reporte financiero obtenido exitosamente',
-        data: report
+        message: "Reporte financiero obtenido exitosamente",
+        data: report,
       });
     } catch (error) {
-      if (typeof next === 'function') return next(error);
-      return res.status(error.status || 500).json({
-        success: false,
-        status: error.status || 500,
-        code: error.code || 'SERVER_ERROR',
-        message: error.message
-      });
+      return next(error);
     }
-  }
+  },
 };
 
 module.exports = adminController;
-
-

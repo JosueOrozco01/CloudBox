@@ -2,7 +2,7 @@ const ActivityService =
     require('../services/activity.service');
 
 const activityController = {
-    async getUserActivity(req, res) {
+    async getUserActivity(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
 
@@ -11,7 +11,10 @@ const activityController = {
                     userId,
                     {
                         limit: req.query.limit,
-                        offset: req.query.offset
+                        offset: req.query.offset,
+                        from: req.query.from,
+                        to: req.query.to,
+                        action: req.query.action
                     }
                 );
 
@@ -20,11 +23,7 @@ const activityController = {
                 data: activities
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     }
 };

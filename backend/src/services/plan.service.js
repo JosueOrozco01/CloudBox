@@ -88,19 +88,22 @@ const PlanService = {
 
     const parsedPrice = Number(precio);
     const parsedCapacity = Number(espacio_maximo_gb);
-    const parsedValidity = Number(vigencia_dias || 30);
+    const parsedValidity = Number(vigencia_dias ?? 30);
 
-    if (isNaN(parsedPrice) || parsedPrice < 0) {
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       throw createServiceError('El precio debe ser un número mayor o igual a 0', 400, 'INVALID_PLAN_PAYLOAD');
     }
 
-    if (isNaN(parsedCapacity) || parsedCapacity <= 0) {
+    if (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0) {
       throw createServiceError('El campo espacio_maximo_gb debe ser un número positivo mayor a cero', 400, 'INVALID_PLAN_PAYLOAD');
     }
 
-    if (isNaN(parsedValidity) || parsedValidity <= 0) {
+    if (!Number.isSafeInteger(parsedValidity) || parsedValidity <= 0) {
       throw createServiceError('La vigencia_dias debe ser un número entero mayor a 0', 400, 'INVALID_PLAN_PAYLOAD');
     }
+
+    if ((nombre.trim().toLowerCase()==='free') !== (parsedPrice===0) || (parsedPrice===0 && parsedCapacity!==1))
+      throw createServiceError('Free debe ser Q0/1 GB; los demás planes deben tener precio positivo',400,'INVALID_FREE_PLAN');
 
     const { data, error } = await supabaseAdmin
       .from('plan')
@@ -143,20 +146,31 @@ const PlanService = {
     if (updateData.descripcion !== undefined) payload.descripcion = updateData.descripcion ? updateData.descripcion.trim() : null;
     if (updateData.precio !== undefined) {
       const p = Number(updateData.precio);
-      if (isNaN(p) || p < 0) throw createServiceError('Precio inválido', 400, 'INVALID_PLAN_PAYLOAD');
+      if (!Number.isFinite(p) || p < 0) throw createServiceError('Precio inválido', 400, 'INVALID_PLAN_PAYLOAD');
       payload.precio = p;
     }
     if (updateData.espacio_maximo_gb !== undefined) {
       const c = Number(updateData.espacio_maximo_gb);
-      if (isNaN(c) || c <= 0) throw createServiceError('espacio_maximo_gb inválido', 400, 'INVALID_PLAN_PAYLOAD');
+      if (!Number.isFinite(c) || c <= 0) throw createServiceError('espacio_maximo_gb inválido', 400, 'INVALID_PLAN_PAYLOAD');
       payload.espacio_maximo_gb = c;
     }
     if (updateData.vigencia_dias !== undefined) {
       const v = Number(updateData.vigencia_dias);
-      if (isNaN(v) || v <= 0) throw createServiceError('vigencia_dias inválida', 400, 'INVALID_PLAN_PAYLOAD');
+      if (!Number.isSafeInteger(v) || v <= 0) throw createServiceError('vigencia_dias inválida', 400, 'INVALID_PLAN_PAYLOAD');
       payload.vigencia_dias = v;
     }
 
+    const candidate={...existing,...payload};
+    if (String(existing.nombre).trim().toLowerCase()==='free' &&
+      (String(candidate.nombre).trim().toLowerCase()!=='free'||candidate.precio!==0||candidate.espacio_maximo_gb!==1))
+      throw createServiceError('Free debe conservar Q0 y 1 GB',409,'FREE_PLAN_PROTECTED');
+    if (String(candidate.nombre).trim().toLowerCase()==='free' && (candidate.precio!==0||candidate.espacio_maximo_gb!==1))
+      throw createServiceError('Free debe conservar Q0 y 1 GB',400,'INVALID_FREE_PLAN');
+    if (['precio','espacio_maximo_gb','vigencia_dias'].some(k=>payload[k]!==undefined && Number(payload[k])!==Number(existing[k]))) {
+      const result=await supabaseAdmin.from('suscripcion').select('id').eq('id_plan',existing.id).range(0,0);
+      if (result.error) throw result.error;
+      if (result.data.length) throw createServiceError('Crea otro plan para una nueva tarifa; las condiciones contratadas son inmutables',409,'PLAN_TERMS_IMMUTABLE');
+    }
     const { data, error } = await supabaseAdmin
       .from('plan')
       .update(payload)
@@ -164,6 +178,8 @@ const PlanService = {
       .select()
       .single();
 
+    if (error && /CLOUDBOX_(PLAN_TERMS_IMMUTABLE|FREE_PLAN_PROTECTED)/.test(error.message||''))
+      throw createServiceError('Las condiciones contratadas y Free están protegidos',409,error.message.replace('CLOUDBOX_',''));
     if (error) {
       throw createServiceError(`Error al actualizar plan: ${error.message}`, 500, 'DATABASE_ERROR');
     }
@@ -192,6 +208,8 @@ const PlanService = {
       throw createServiceError('El id_estado debe ser 1 (Activo) o 2 (Inactivo)', 400, 'INVALID_PLAN_STATUS');
     }
 
+    if (String(existing.nombre).trim().toLowerCase()==='free' && stateNumber!==1)
+      throw createServiceError('Free debe permanecer activo',409,'FREE_PLAN_PROTECTED');
     const { data, error } = await supabaseAdmin
       .from('plan')
       .update({ id_estado: stateNumber })

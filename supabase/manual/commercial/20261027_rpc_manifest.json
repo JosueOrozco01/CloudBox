@@ -1,0 +1,27 @@
+[
+  {
+    "signature": "public.cloudbox_subscribe_paid_v1(integer,integer,integer,text,boolean)",
+    "old": "8811c3785afdbc611dd7167ad3e92637",
+    "next": "686b21f91eb6664ecdc3d07fddfba628"
+  },
+  {
+    "signature": "public.cloudbox_subscription_renew_v1(integer,integer,text,boolean)",
+    "old": "f54ad5f7f2034eb1ddb0b018363e43b4",
+    "next": "3f418c0b9410ffeb522d9969703504f8"
+  },
+  {
+    "signature": "public.cloudbox_subscription_change_v1(integer,integer,integer,text,boolean)",
+    "old": "5395d000756fa96445c8a5d5e075f746",
+    "next": "5d9e4641caf9ac028818e8f39a5a0080"
+  },
+  {
+    "signature": "public.cloudbox_subscription_cancel_v1(integer)",
+    "old": "65975fdb7378311eddf13c7f9e985c7d",
+    "next": "0134b78fb2122f623dcb2858d980475a"
+  },
+  {
+    "signature": "public.cloudbox_subscription_expire_v1()",
+    "old": "487add72bf7164e60d217d6f4d596bf0",
+    "next": "672e3984f8e4ab381c00857808493b57"
+  }
+]

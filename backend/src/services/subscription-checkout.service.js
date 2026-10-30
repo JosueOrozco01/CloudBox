@@ -34,6 +34,9 @@ async function subscribePaid(userId, input) {
     if (error.code === '23505') throw rules.fail(409, 'DUPLICATE_TRANSACTION_REFERENCE', 'La referencia de pago ya existe');
     if (error.code === 'P0001' && /^CLOUDBOX_/.test(error.message || '')) {
       const problems = {
+        CLOUDBOX_CHANGE_PLAN_REQUIRED: [409,'CHANGE_PLAN_REQUIRED','Utiliza cambio de plan para una suscripción pagada vigente'],
+        CLOUDBOX_SAME_PLAN_REQUIRES_RENEWAL: [409,'SAME_PLAN_REQUIRES_RENEWAL','Para el mismo plan utiliza renovación'],
+        CLOUDBOX_PENDING_ACTION_EXISTS: [409,'PENDING_ACTION_EXISTS','Existe una operación programada'],
         CLOUDBOX_USER_NOT_FOUND: [404, 'USER_NOT_FOUND', 'Usuario no encontrado'],
         CLOUDBOX_PLAN_UNAVAILABLE: [400, 'PLAN_NOT_AVAILABLE', 'Plan no disponible'],
         CLOUDBOX_FREE_NOT_PAYABLE: [400, 'FREE_PLAN_NO_PAYMENT', 'El plan Free no requiere pago'],
