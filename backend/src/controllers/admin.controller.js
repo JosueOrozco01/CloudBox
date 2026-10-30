@@ -288,6 +288,88 @@ const adminController = {
       });
     }
   },
+
+  // ==========================================
+  // EXTENSIONES FASE 7 - CONTROLADOR ADMIN
+  // ==========================================
+
+  async getStats(req, res, next) {
+    try {
+      const stats = await AdminService.getGeneralStats();
+      return res.status(200).json({
+        success: true,
+        message: 'Estadísticas globales obtenidas exitosamente',
+        data: stats
+      });
+    } catch (error) {
+      if (typeof next === 'function') return next(error);
+      return res.status(error.status || 500).json({
+        success: false,
+        status: error.status || 500,
+        code: error.code || 'SERVER_ERROR',
+        message: error.message
+      });
+    }
+  },
+
+  async getStorageMetrics(req, res, next) {
+    try {
+      const metrics = await AdminService.getStorageMetrics();
+      return res.status(200).json({
+        success: true,
+        message: 'Métricas de almacenamiento obtenidas exitosamente',
+        data: metrics
+      });
+    } catch (error) {
+      if (typeof next === 'function') return next(error);
+      return res.status(error.status || 500).json({
+        success: false,
+        status: error.status || 500,
+        code: error.code || 'SERVER_ERROR',
+        message: error.message
+      });
+    }
+  },
+
+  async getSubscriptions(req, res, next) {
+    try {
+      const result = await AdminService.getAllSubscriptions(req.query);
+      return res.status(200).json({
+        success: true,
+        message: 'Suscripciones obtenidas exitosamente',
+        data: result.subscriptions,
+        pagination: result.pagination
+      });
+    } catch (error) {
+      if (typeof next === 'function') return next(error);
+      return res.status(error.status || 500).json({
+        success: false,
+        status: error.status || 500,
+        code: error.code || 'SERVER_ERROR',
+        message: error.message
+      });
+    }
+  },
+
+  async getRevenue(req, res, next) {
+    try {
+      const { startDate, endDate } = req.query || {};
+      const report = await AdminService.getRevenueReport({ startDate, endDate });
+      return res.status(200).json({
+        success: true,
+        message: 'Reporte financiero obtenido exitosamente',
+        data: report
+      });
+    } catch (error) {
+      if (typeof next === 'function') return next(error);
+      return res.status(error.status || 500).json({
+        success: false,
+        status: error.status || 500,
+        code: error.code || 'SERVER_ERROR',
+        message: error.message
+      });
+    }
+  }
 };
 
 module.exports = adminController;

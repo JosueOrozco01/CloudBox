@@ -12,10 +12,15 @@ router.use(requireAuth, authorizeRole(["Administrador"]));
 // Reportes administrativos (Módulo REP)
 router.use("/reports", reportRoutes);
 
-// Vista general y bitácora de auditoría
-
+// Vista general y estadísticas de alto nivel
 router.get("/overview", adminController.getOverview);
+router.get("/stats", adminController.getStats);
 router.get("/audit-logs", adminController.getAuditLogs);
+
+// Endpoints analíticos y métricas agregadas (Fase 7)
+router.get("/storage-metrics", adminController.getStorageMetrics);
+router.get("/subscriptions", adminController.getSubscriptions);
+router.get("/revenue", adminController.getRevenue);
 
 // Administración de almacenamiento (Módulo STO)
 router.get("/storage/overview", adminController.getStorageOverview);

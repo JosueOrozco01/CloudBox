@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const DEFAULT_FREE_QUOTA_GB = 1;
-const DEFAULT_FREE_QUOTA_BYTES = DEFAULT_FREE_QUOTA_GB * BYTES_PER_GB;
+const DEFAULT_FREE_QUOTA_BYTES = DEFAULT_FREE_QUOTA_GB * BYTES_PER_GB; // Free comercial = 1 GB
 
 function createServiceError(message, status, code) {
     const error = new Error(message);
@@ -17,42 +17,52 @@ function createServiceError(message, status, code) {
     return error;
 }
 
+function getCalendarDateString(date = new Date()) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function parseCalendarDate(dateVal) {
+    if (!dateVal) return null;
+    return String(dateVal).substring(0, 10);
+}
+
 function normalizeDateStr(val) {
-    if (!val) return null;
-    if (val instanceof Date) return val.toISOString().split('T')[0];
-    const str = String(val).trim();
-    if (str.includes('T')) return str.split('T')[0];
-    return str.substring(0, 10);
+    return parseCalendarDate(val);
 }
 
 const QuotaService = {
     /**
-     * Obtiene la suscripción comercial activa del usuario.
-     * Reconoce estados 'Activa' y 'PorVencer' siempre que la fecha esté en período válido (fecha_inicio <= CURRENT_DATE <= fecha_fin).
-     * El estado 'Pendiente' u otros no otorgan cuota comercial activa.
+     * Obtiene la única suscripción vigente del usuario (Activa o PorVencer con fecha_fin >= CURRENT_DATE).
+     * Sigue la convención inclusiva acordada con normalización de fecha calendario y exclusión de fechas no iniciadas.
      */
     async getActiveSubscription(userId) {
-        const { data: statusRows, error: statusError } =
+        const { data: activeStatuses, error: statusError } =
             await supabaseAdmin
                 .from('estado_suscripcion')
                 .select('id, nombre')
                 .in('nombre', ['Activa', 'PorVencer']);
 
         if (statusError) {
-            throw new Error(
-                `Error al obtener los estados de suscripción: ${statusError.message}`
+            throw createServiceError(
+                `Error al obtener estados de suscripción: ${statusError.message}`,
+                500,
+                'DATABASE_ERROR'
             );
         }
 
-        const validStatusIds = (statusRows || []).map(s => s.id);
-
-        if (!validStatusIds.length) {
-            const error = new Error(
-                'No se encontraron los estados de suscripción Activa o PorVencer'
+        if (!activeStatuses || activeStatuses.length === 0) {
+            throw createServiceError(
+                'No se encontraron los estados de suscripción Activa ni PorVencer en el catálogo',
+                500,
+                'STATUS_CATALOG_ERROR'
             );
-            error.status = 500;
-            throw error;
         }
+
+        const validStatusIds = activeStatuses.map(s => s.id);
 
         const { data: subscriptions, error: subscriptionError } =
             await supabaseAdmin
@@ -64,7 +74,7 @@ const QuotaService = {
                     id_usuario,
                     id_plan,
                     id_estado,
-                    plan:id_plan(
+                    plan:id_plan (
                         id,
                         nombre,
                         precio,
@@ -72,7 +82,7 @@ const QuotaService = {
                         vigencia_dias,
                         id_estado
                     ),
-                    estado:id_estado(
+                    estado:id_estado (
                         id,
                         nombre
                     )
@@ -82,32 +92,33 @@ const QuotaService = {
                 .order('fecha_inicio', { ascending: false });
 
         if (subscriptionError) {
-            throw new Error(
-                `Error al obtener la suscripción: ${subscriptionError.message}`
+            throw createServiceError(
+                `Error al obtener la suscripción: ${subscriptionError.message}`,
+                500,
+                'DATABASE_ERROR'
             );
         }
 
-        const today = normalizeDateStr(new Date());
-
+        const todayStr = getCalendarDateString();
         const activeSub = (subscriptions || []).find(sub => {
-            const startDate = normalizeDateStr(sub.fecha_inicio);
-            const endDate = normalizeDateStr(sub.fecha_fin);
+            const startDate = parseCalendarDate(sub.fecha_inicio);
+            const endDate = parseCalendarDate(sub.fecha_fin);
 
-            if (startDate && startDate > today) {
+            if (startDate && startDate > todayStr) {
                 return false; // Período aún no inicia
             }
-            if (endDate && endDate < today) {
+            if (endDate && endDate < todayStr) {
                 return false; // Período ya venció
             }
             return true;
         });
 
         if (!activeSub) {
-            const error = new Error(
-                'El usuario no tiene una suscripción activa'
+            const error = createServiceError(
+                'El usuario no tiene una suscripción activa o vigente',
+                403,
+                'NO_ACTIVE_SUBSCRIPTION'
             );
-            error.status = 403;
-            error.code = 'NO_ACTIVE_SUBSCRIPTION';
             throw error;
         }
 
@@ -234,8 +245,10 @@ const QuotaService = {
         }
 
         if (error) {
-            throw new Error(
-                `Error al actualizar el espacio utilizado: ${error.message}`
+            throw createServiceError(
+                `Error al actualizar el espacio utilizado: ${error.message}`,
+                500,
+                'DATABASE_ERROR'
             );
         }
 
@@ -293,7 +306,13 @@ const QuotaService = {
                 : 0;
 
         return {
-            subscription: subscription ? { fecha_fin: subscription.fecha_fin, estado: subscription.estado?.nombre || 'Activa' } : null,
+            subscription: subscription ? {
+                id: subscription.id,
+                fecha_inicio: subscription.fecha_inicio,
+                fecha_fin: subscription.fecha_fin,
+                id_estado: subscription.id_estado,
+                estado: subscription.estado?.nombre || 'Activa'
+            } : null,
             plan: {
                 id: plan.id,
                 nombre: plan.nombre,
@@ -371,6 +390,13 @@ const QuotaService = {
         return await this.getStorageMetrics(userId);
     },
 
+    // ========================================================
+    // NUEVAS EXTENSIONES FASE 7 IMPLEMENTADAS POR BENJA
+    // ========================================================
+
+    /**
+     * Resumen unificado de cuota para el endpoint GET /api/storage/quota-summary.
+     */
     async getQuotaSummary(userId) {
         const metrics = await this.getStorageMetrics(userId);
         return {
@@ -385,24 +411,55 @@ const QuotaService = {
             espacio_disponible_bytes: metrics.availableBytes,
             porcentaje_uso: metrics.percentageUsed,
             bloqueo_subida: metrics.availableBytes <= 0,
-            suscripcion_vigente: !!metrics.subscription
+            suscripcion_vigente: !!metrics.subscription,
+            estado_comercial: metrics.subscription?.estado || (metrics.subscription ? 'Activa' : 'Sin suscripción vigente'),
+            fecha_vencimiento: metrics.subscription?.fecha_fin || null
         };
     },
 
-    async releaseStorageQuota({ userId, freedBytes } = {}) {
+    /**
+     * Contrato 2: releaseStorageQuota
+     * Consumido por Jenni y FileStorage al eliminar archivos o vaciar papelera.
+     */
+    async releaseStorageQuota(arg1, arg2) {
+        let userId;
+        let freedBytes;
+
+        if (arg1 && typeof arg1 === 'object') {
+            userId = arg1.userId || arg1.id_usuario;
+            freedBytes = arg1.freedBytes ?? arg1.size ?? 0;
+        } else {
+            userId = arg1;
+            freedBytes = arg2 ?? 0;
+        }
+
         const bytesToFree = Number(freedBytes);
         if (isNaN(bytesToFree) || bytesToFree <= 0) {
             throw createServiceError('Cantidad de bytes a liberar inválida', 400, 'INVALID_FREED_BYTES');
         }
 
+        // Sincroniza desde la base de datos para preservar consistencia ACID
         const updatedUsedBytes = await this.syncUsedStorage(userId);
 
         return {
             success: true,
             updatedUsedBytes
         };
+    },
+
+    /**
+     * Actualiza el límite de almacenamiento tras un cambio de plan.
+     */
+    async updateUserPlanQuota(userId, newCapacityBytes) {
+        const summary = await this.getQuotaSummary(userId);
+        return {
+            success: true,
+            userId,
+            newCapacityBytes,
+            usedBytes: summary.espacio_usado_bytes,
+            availableBytes: Math.max(newCapacityBytes - summary.espacio_usado_bytes, 0)
+        };
     }
 };
 
 module.exports = QuotaService;
-
