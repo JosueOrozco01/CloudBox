@@ -2,16 +2,14 @@ const AdminService = require("../services/admin.service");
 const auditService = require("../services/audit.service");
 
 const adminController = {
-  async getOverview(req, res) {
+  async getOverview(req, res, next) {
     try {
       res.json({ success: true, data: await AdminService.getOverview() });
     } catch (error) {
-      res
-        .status(error.status || 500)
-        .json({ success: false, message: error.message });
+      return next(error);
     }
   },
-  async getAllUsers(req, res) {
+  async getAllUsers(req, res, next) {
     try {
       const users = await AdminService.getAllUsers();
 
@@ -20,14 +18,11 @@ const adminController = {
         data: users,
       });
     } catch (error) {
-      res.status(error.status || 500).json({
-        success: false,
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
-  async updateUserStatus(req, res) {
+  async updateUserStatus(req, res, next) {
     try {
       const targetUserId = Number(req.params.id);
       const { id_estado } = req.body;
@@ -76,14 +71,11 @@ const adminController = {
         data: updatedUser,
       });
     } catch (error) {
-      res.status(error.status || 500).json({
-        success: false,
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
-  async updateUserRole(req, res) {
+  async updateUserRole(req, res, next) {
     try {
       const targetUserId = Number(req.params.id);
       const { id_rol } = req.body;
@@ -132,14 +124,11 @@ const adminController = {
         data: updatedUser,
       });
     } catch (error) {
-      res.status(error.status || 500).json({
-        success: false,
-        message: error.message,
-      });
+      return next(error);
     }
   },
 
-  async getAuditLogs(req, res) {
+  async getAuditLogs(req, res, next) {
     try {
       const limit = Math.min(
         200,
@@ -154,11 +143,7 @@ const adminController = {
         data,
       });
     } catch (error) {
-      res.status(error.status || 500).json({
-        success: false,
-        message: "Error al obtener bitácora",
-        error: error.message,
-      });
+      return next(error);
     }
   },
 

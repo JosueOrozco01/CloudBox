@@ -75,7 +75,7 @@ const db = {
   },
 };
 const context = {
-  require: () => ({ createClient: () => db }),
+  require: name => name === '@supabase/supabase-js' ? ({createClient:()=>db}) : require(path.resolve(__dirname,'../src/services',name)),
   process: { env: {} },
   module: { exports: {} },
   Date,

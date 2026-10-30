@@ -166,7 +166,12 @@ const FolderService = {
 
     if (newParentId !== null) {
       const isValid = await this.validateFolderOwnership(newParentId, userId);
-      if (!isValid) throw new Error('La carpeta destino no existe o no tienes permisos.');
+      if (!isValid) {
+        const error = new Error('La carpeta destino no existe o no tienes permisos.');
+        error.status = 403;
+        error.code = 'EDITOR_PERMISSION_REQUIRED';
+        throw error;
+      }
 
       const isDescendant = await this._isDescendant(folderId, newParentId, userId);
       if (isDescendant) {

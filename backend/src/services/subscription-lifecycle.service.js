@@ -22,6 +22,8 @@ function validatePayment(input, mode) {
 function toDomainError(error) {
   if (error.code === '23505') return rules.fail(409, 'DUPLICATE_TRANSACTION_REFERENCE', 'Referencia de pago duplicada');
   const problems = {
+    CLOUDBOX_PENDING_ACTION_EXISTS: [409,'PENDING_ACTION_EXISTS','Existe una operación programada'],
+    CLOUDBOX_SAME_PRICE_CHANGE_NOT_SUPPORTED: [409,'SAME_PRICE_CHANGE_NOT_SUPPORTED','No se permite un cambio al mismo precio'],
     CLOUDBOX_USER_NOT_FOUND: [404, 'USER_NOT_FOUND', 'Usuario no encontrado'],
     CLOUDBOX_NO_ACTIVE_SUBSCRIPTION: [409, 'NO_ACTIVE_SUBSCRIPTION', 'No existe una suscripción vigente'],
     CLOUDBOX_FREE_RENEWAL_NOT_REQUIRED: [400, 'FREE_RENEWAL_NOT_REQUIRED', 'Free no requiere renovación'],

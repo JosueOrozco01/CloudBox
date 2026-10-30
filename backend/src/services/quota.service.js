@@ -1,3 +1,4 @@
+const {utcDay,isCurrent,readPages,freePlan} = require('./commercial-policy');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -7,26 +8,12 @@ const supabaseAdmin = createClient(
 );
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
-const DEFAULT_FREE_QUOTA_BYTES = 1 * BYTES_PER_GB; // Free comercial = 1 GB
 
 function createServiceError(message, status, code) {
     const error = new Error(message);
     error.status = status;
     error.code = code;
     return error;
-}
-
-function getCalendarDateString(date = new Date()) {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-function parseCalendarDate(dateVal) {
-    if (!dateVal) return null;
-    return String(dateVal).substring(0, 10);
 }
 
 const QuotaService = {
@@ -88,12 +75,10 @@ const QuotaService = {
 
         // Convención Fase 7: fecha_fin >= CURRENT_DATE (límite inclusivo, normalizado a calendario)
         // Suscripciones sin fecha_fin (Free indefinido) se consideran vigentes.
-        const todayStr = getCalendarDateString();
-        const subscription = (subscriptions || []).find(sub => {
-            if (!sub.fecha_fin) return true;
-            const subDate = parseCalendarDate(sub.fecha_fin);
-            return subDate >= todayStr;
-        });
+        const todayStr = utcDay();
+        const valid = (subscriptions || []).filter(sub => isCurrent(sub, todayStr));
+        if (valid.length > 1) throw createServiceError('Varias suscripciones vigentes',409,'MULTIPLE_ACTIVE_SUBSCRIPTIONS');
+        const subscription = valid[0];
 
         if (!subscription) {
             const error = createServiceError(
@@ -143,46 +128,25 @@ const QuotaService = {
             );
         }
 
+        if (!fileStates || fileStates.length!==2) throw createServiceError('Catálogo de archivos incompleto',503,'FILE_STATES_UNAVAILABLE');
         const countedStateIds = fileStates.map(
             state => state.id
         );
 
-        const { data: files, error } = await supabaseAdmin
-            .from('archivo')
-            .select('tamano_bytes')
-            .eq('id_usuario', userId)
-            .in('id_estado', countedStateIds);
+        const files = await readPages(() => supabaseAdmin.from('archivo')
+            .select('id,tamano_bytes').eq('id_usuario',userId).in('id_estado',countedStateIds).order('id'));
 
-        if (error) {
-            throw new Error(
-                `Error al calcular el espacio utilizado: ${error.message}`
-            );
-        }
-
-        return files.reduce(
+        const used = files.reduce(
             (total, file) =>
                 total + Number(file.tamano_bytes || 0),
             0
         );
+        if (!Number.isSafeInteger(used)||used<0) throw createServiceError('Uso de almacenamiento inválido',503,'INVALID_STORAGE_TOTAL');
+        return used;
     },
 
     async updateUsedStorage(userId, usedBytes) {
-        let { error } = await supabaseAdmin
-            .from('usuario')
-            .update({
-                espacio_usado_bytes: usedBytes
-            })
-            .eq('id', userId);
-
-        if (error && (error.code === '42703' || (error.message && error.message.includes('column')))) {
-            const retry = await supabaseAdmin
-                .from('usuario')
-                .update({
-                    espacio_usado_by: usedBytes
-                })
-                .eq('id', userId);
-            error = retry.error;
-        }
+        const {error} = await supabaseAdmin.from('usuario').update({espacio_usado_by:usedBytes}).eq('id',userId);
 
         if (error) {
             throw createServiceError(
@@ -208,11 +172,12 @@ const QuotaService = {
     },
 
     async getStorageMetrics(userId) {
-        const subscription =
-            await this.getActiveSubscription(userId);
-
-        const plan =
-            await this.getPlan(subscription.id_plan);
+        let subscription, plan;
+        try { subscription = await this.getActiveSubscription(userId); }
+        catch (error) { if (error.code !== 'NO_ACTIVE_SUBSCRIPTION') throw error; }
+        plan = subscription ? await this.getPlan(subscription.id_plan) : await freePlan(supabaseAdmin);
+        const hasSubscription = Boolean(subscription);
+        subscription ||= {id:null,fecha_inicio:null,fecha_fin:null,id_estado:null,estado:{nombre:'Sin suscripción vigente'}};
 
         const usedBytes =
             await this.syncUsedStorage(userId);
@@ -235,6 +200,7 @@ const QuotaService = {
                 : 0;
 
         return {
+            hasSubscription,
             subscription: {
                 id: subscription.id,
                 fecha_inicio: subscription.fecha_inicio,
@@ -256,6 +222,8 @@ const QuotaService = {
     },
 
     async validateUpload(userId, fileSize) {
+        fileSize = Number(fileSize);
+        if (!Number.isSafeInteger(fileSize) || fileSize <= 0) throw createServiceError('Tamaño inválido',400,'INVALID_FILE_SIZE');
         const metrics =
             await this.getStorageMetrics(userId);
 
@@ -284,48 +252,23 @@ const QuotaService = {
      * Resumen unificado de cuota para el endpoint GET /api/storage/quota-summary.
      */
     async getQuotaSummary(userId) {
-        try {
-            const metrics = await this.getStorageMetrics(userId);
-            return {
-                id_usuario: Number(userId),
-                plan_actual: {
-                    id: metrics.plan.id,
-                    nombre: metrics.plan.nombre,
-                    espacio_maximo_gb: metrics.plan.espacio_maximo_gb,
-                    capacidad_bytes: metrics.maxBytes
-                },
-                espacio_usado_bytes: metrics.usedBytes,
-                espacio_disponible_bytes: metrics.availableBytes,
-                porcentaje_uso: metrics.percentageUsed,
-                bloqueo_subida: metrics.availableBytes <= 0,
-                suscripcion_vigente: true,
-                estado_comercial: metrics.subscription?.estado || 'Activa',
-                fecha_vencimiento: metrics.subscription?.fecha_fin || null
-            };
-        } catch (err) {
-            // Fallback para usuarios sin suscripción activa: Plan Free Base (1 GB)
-            if (err.code === 'NO_ACTIVE_SUBSCRIPTION') {
-                const usedBytes = await this.syncUsedStorage(userId);
-                const availableBytes = Math.max(DEFAULT_FREE_QUOTA_BYTES - usedBytes, 0);
-                return {
-                    id_usuario: Number(userId),
-                    plan_actual: {
-                        id: 8,
-                        nombre: 'Free',
-                        espacio_maximo_gb: 1,
-                        capacidad_bytes: DEFAULT_FREE_QUOTA_BYTES
-                    },
-                    espacio_usado_bytes: usedBytes,
-                    espacio_disponible_bytes: availableBytes,
-                    porcentaje_uso: Number(((usedBytes / DEFAULT_FREE_QUOTA_BYTES) * 100).toFixed(2)),
-                    bloqueo_subida: availableBytes <= 0,
-                    suscripcion_vigente: false,
-                    estado_comercial: 'Sin suscripción vigente',
-                    fecha_vencimiento: null
-                };
-            }
-            throw err;
-        }
+        const metrics = await this.getStorageMetrics(userId);
+        return {
+            id_usuario: Number(userId),
+            plan_actual: {
+                id: metrics.plan.id,
+                nombre: metrics.plan.nombre,
+                espacio_maximo_gb: metrics.plan.espacio_maximo_gb,
+                capacidad_bytes: metrics.maxBytes
+            },
+            espacio_usado_bytes: metrics.usedBytes,
+            espacio_disponible_bytes: metrics.availableBytes,
+            porcentaje_uso: metrics.percentageUsed,
+            bloqueo_subida: metrics.availableBytes <= 0,
+            suscripcion_vigente: metrics.hasSubscription,
+            estado_comercial: metrics.subscription?.estado || 'Activa',
+            fecha_vencimiento: metrics.subscription?.fecha_fin || null
+        };
     },
 
     /**
@@ -338,7 +281,7 @@ const QuotaService = {
      */
     async canUserUpload({ userId, incomingSizeBytes }) {
         const size = Number(incomingSizeBytes);
-        if (isNaN(size) || size <= 0) {
+        if (!Number.isSafeInteger(size) || size <= 0) {
             return {
                 allowed: false,
                 currentUsedBytes: 0,

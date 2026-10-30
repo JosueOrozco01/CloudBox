@@ -1,3 +1,4 @@
+const {utcDay,isCurrent,readPages,calendarDate} = require('./commercial-policy');
 const { createClient } = require("@supabase/supabase-js");
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
@@ -15,34 +16,21 @@ function createServiceError(message, status, code) {
   return error;
 }
 
-function getCalendarDateString(date = new Date()) {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+const getCalendarDateString = utcDay;
+const parseCalendarDate = value => value ? String(value).slice(0,10) : null;
+async function readAll(table, columns, filter = q => q) {
+  return readPages(() => filter(supabaseAdmin.from(table).select(columns)).order('id'));
 }
-
-function parseCalendarDate(dateVal) {
-  if (!dateVal) return null;
-  return String(dateVal).substring(0, 10);
+function pagination(page, limit) {
+  const p=Number(page),requested=Number(limit),l=Math.min(requested,100);
+  if (!Number.isSafeInteger(p)||p<1||!Number.isSafeInteger(requested)||l<1) throw createServiceError('Paginación inválida',400,'INVALID_PAGINATION');
+  return {p,l,from:(p-1)*l,to:p*l-1};
 }
-
-async function readAll(table, columns) {
-  const rows = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await supabaseAdmin
-      .from(table)
-      .select(columns)
-      .order("id")
-      .range(offset, offset + 999);
-    if (error)
-      throw new Error(`No se pudo consultar ${table}: ${error.message}`);
-    rows.push(...data);
-    if (data.length < 1000) return rows;
-  }
+function totalMoney(rows) {
+  const cents=rows.reduce((sum,row)=>sum+Math.round(Number(row.monto)*100),0);
+  if (!Number.isSafeInteger(cents)) throw createServiceError('Total monetario inválido',500,'INVALID_REPORT_TOTAL');
+  return cents/100;
 }
-
 async function readAvatars() {
   const avatars = new Map();
   for (let page = 1; ; page += 1) {
@@ -98,11 +86,7 @@ const AdminService = {
       if (stateName !== "Activa" && stateName !== "PorVencer") {
         return false;
       }
-      if (!sub.fecha_fin) {
-        return true;
-      }
-      const subDate = parseCalendarDate(sub.fecha_fin);
-      return subDate >= todayStr;
+      return isCurrent(sub,todayStr);
     });
 
     const stored = files.filter((file) =>
@@ -150,7 +134,7 @@ const AdminService = {
         monthlyFiles: stored.filter(
           (file) =>
             new Date(file.fecha_subida) >=
-            new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)),
         ).length,
         planDistribution: [
           ...new Map(active.map((sub) => [sub.plan?.id, sub.plan])).values(),
@@ -361,99 +345,34 @@ const AdminService = {
    * Estadísticas de alto nivel: usuarios, suscripciones e ingresos globales.
    */
   async getGeneralStats() {
-    const { count: totalUsuarios } = await supabaseAdmin
-      .from('usuario')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: usuariosActivos } = await supabaseAdmin
-      .from('usuario')
-      .select('*', { count: 'exact', head: true })
-      .eq('id_estado', 1);
-
-    const { data: activeStatusRows } = await supabaseAdmin
-      .from('estado_suscripcion')
-      .select('id, nombre')
-      .in('nombre', ['Activa', 'PorVencer']);
-
-    const activeStatusIds = (activeStatusRows || []).map(s => s.id);
-    const todayStr = getCalendarDateString();
-
-    const { data: subsVigentes } = await supabaseAdmin
-      .from('suscripcion')
-      .select('id, fecha_fin')
-      .in('id_estado', activeStatusIds.length > 0 ? activeStatusIds : [2, 3]);
-
-    const totalSuscripcionesActivas = (subsVigentes || []).filter(sub => {
-      if (!sub.fecha_fin) return true;
-      return parseCalendarDate(sub.fecha_fin) >= todayStr;
-    }).length;
-
-    const { data: pagos } = await supabaseAdmin
-      .from('pago')
-      .select('monto')
-      .eq('id_estado', 1); // 1 = Aprobado
-
-    const ingresosTotales = (pagos || []).reduce((acc, p) => acc + Number(p.monto || 0), 0);
-
-    const { data: archivos } = await supabaseAdmin
-      .from('archivo')
-      .select('tamano_bytes')
-      .neq('id_estado', 3);
-
-    const almacenamientoUsadoBytes = (archivos || []).reduce((acc, a) => acc + Number(a.tamano_bytes || 0), 0);
-
-    return {
-      totalUsuarios: totalUsuarios || 0,
-      usuariosActivos: usuariosActivos || 0,
-      totalSuscripcionesActivas,
-      ingresosTotales: Number(ingresosTotales.toFixed(2)),
-      almacenamientoUsadoBytes,
-      almacenamientoUsadoGb: Number((almacenamientoUsadoBytes / BYTES_PER_GB).toFixed(2))
-    };
+    const [users,subs,pagos,files]=await Promise.all([
+      readAll('usuario','id,id_estado'),readAll('suscripcion','id,fecha_inicio,fecha_fin,id_estado',q=>q.in('id_estado',[2,3])),
+      readAll('pago','id,monto',q=>q.eq('id_estado',1)),readAll('archivo','id,tamano_bytes',q=>q.in('id_estado',[1,2]))
+    ]);
+    const used=files.reduce((sum,f)=>sum+Number(f.tamano_bytes),0);
+    return {totalUsuarios:users.length,usuariosActivos:users.filter(u=>u.id_estado===1).length,
+      totalSuscripcionesActivas:subs.filter(s=>isCurrent(s)).length,ingresosTotales:totalMoney(pagos),
+      almacenamientoUsadoBytes:used,almacenamientoUsadoGb:Number((used/BYTES_PER_GB).toFixed(2))};
   },
 
   /**
    * Listado paginado de usuarios con rol, estado y cuota usada.
    */
   async getUsersList({ page = 1, limit = 20, search = '', status } = {}) {
-    const p = Math.max(Number(page) || 1, 1);
-    const l = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    const from = (p - 1) * l;
-    const to = from + l - 1;
-
-    const buildQuery = (storageCol) => {
-      let q = supabaseAdmin
-        .from('usuario')
-        .select(`
-          id,
-          nombre,
-          apellido,
-          correo,
-          ${storageCol},
-          fecha_registro,
-          rol:rol (nombre),
-          estado:estado_usuario (nombre)
-        `, { count: 'exact' });
-
-      if (search) {
-        q = q.or(`nombre.ilike.%${search}%,apellido.ilike.%${search}%,correo.ilike.%${search}%`);
-      }
-
-      if (status) {
-        q = q.eq('estado_usuario.nombre', status);
-      }
-
-      return q.order('id', { ascending: true }).range(from, to);
-    };
-
-    let { data, count, error } = await buildQuery('espacio_usado_bytes');
-
-    if (error && (error.code === '42703' || (error.message && error.message.includes('column')))) {
-      const retry = await buildQuery('espacio_usado_by');
-      data = retry.data;
-      count = retry.count;
-      error = retry.error;
+    const {p,l,from,to}=pagination(page,limit);
+    let stateId;
+    if (status !== undefined && status !== '') {
+      const states=await readAll('estado_usuario','id,nombre');
+      stateId=states.find(s=>String(s.id)===String(status)||s.nombre.toLowerCase()===String(status).toLowerCase())?.id;
+      if (!stateId) throw createServiceError('Estado inválido',400,'INVALID_USER_STATUS');
     }
+    let q=supabaseAdmin.from('usuario').select('id,nombre,apellido,correo,espacio_usado_by,fecha_registro,rol:id_rol(nombre),estado:id_estado(nombre)',{count:'exact'});
+    if (search) {
+      const pattern=JSON.stringify('%'+String(search).replace(/[\\%_]/g,'\\$&')+'%');
+      q=q.or(['nombre','apellido','correo'].map(k=>k+'.ilike.'+pattern).join(','));
+    }
+    if (stateId) q=q.eq('id_estado',stateId);
+    const {data,count,error}=await q.order('id').range(from,to);
 
     if (error) {
       throw createServiceError(`Error al listar usuarios admin: ${error.message}`, 500, 'DATABASE_ERROR');
@@ -483,14 +402,7 @@ const AdminService = {
    * Métricas agregadas de almacenamiento global consumido.
    */
   async getStorageMetrics() {
-    const { data: archivos, error } = await supabaseAdmin
-      .from('archivo')
-      .select('id, nombre, tamano_bytes')
-      .neq('id_estado', 3);
-
-    if (error) {
-      throw createServiceError(`Error en storage-metrics: ${error.message}`, 500, 'DATABASE_ERROR');
-    }
+    const archivos=await readAll('archivo','id,nombre,tamano_bytes',q=>q.in('id_estado',[1,2]));
 
     let espacioConsumidoTotalBytes = 0;
     const distribucionPorTipo = { pdf: 0, imagenes: 0, documentos: 0, otros: 0 };
@@ -518,54 +430,24 @@ const AdminService = {
    * Listado exhaustivo de suscripciones con filtros.
    */
   async getAllSubscriptions({ page = 1, limit = 20, status } = {}) {
-    const p = Math.max(Number(page) || 1, 1);
-    const l = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    const from = (p - 1) * l;
-    const to = from + l - 1;
-
-    const { data: catalogStatuses } = await supabaseAdmin
-      .from('estado_suscripcion')
-      .select('id, nombre');
-
-    const statusMap = new Map((catalogStatuses || []).map(s => [s.nombre.toLowerCase(), s.id]));
-
-    const buildSubQuery = (dateCol) => {
-      let q = supabaseAdmin
-        .from('suscripcion')
-        .select(`id, fecha_inicio, ${dateCol}, id_usuario, id_plan, id_estado, estado:id_estado(id, nombre)`, { count: 'exact' });
-
-      if (status) {
-        const statusLower = String(status).toLowerCase();
-        const statusId = statusMap.get(statusLower) || Number(status);
-        if (statusId) {
-          q = q.eq('id_estado', statusId);
-        }
-      }
-
-      return q.order('id', { ascending: false }).range(from, to);
-    };
-
-    let { data: subs, count, error } = await buildSubQuery('fecha_vencimiento');
-
-    if (error && (error.code === '42703' || (error.message && error.message.includes('column')))) {
-      const retry = await buildSubQuery('fecha_fin');
-      subs = retry.data;
-      count = retry.count;
-      error = retry.error;
+    const {p,l,from,to}=pagination(page,limit);
+    const catalogStatuses=await readAll('estado_suscripcion','id,nombre');
+    let q=supabaseAdmin.from('suscripcion').select('id,fecha_inicio,fecha_fin,id_usuario,id_plan,id_estado,estado:id_estado(id,nombre)',{count:'exact'});
+    if (status !== undefined && status !== '') {
+      const state=catalogStatuses.find(s=>String(s.id)===String(status)||s.nombre.toLowerCase()===String(status).toLowerCase());
+      if (!state) throw createServiceError('Estado inválido',400,'INVALID_SUBSCRIPTION_STATUS');
+      q=q.eq('id_estado',state.id);
     }
-
-    if (error) {
-      throw createServiceError(`Error al listar suscripciones admin: ${error.message}`, 500, 'DATABASE_ERROR');
-    }
-
+    const {data:subs,count,error}=await q.order('id',{ascending:false}).range(from,to);
+    if (error) throw error;
     if (!subs || subs.length === 0) {
       return {
         subscriptions: [],
         pagination: {
-          currentPage: 1,
+          currentPage: p,
           pageSize: l,
-          totalRecords: 0,
-          totalPages: 0
+          totalRecords: count || 0,
+          totalPages: Math.ceil((count || 0)/l)
         }
       };
     }
@@ -582,6 +464,8 @@ const AdminService = {
         : Promise.resolve({ data: [] })
     ]);
 
+    if (usersRes.error) throw usersRes.error;
+    if (plansRes.error) throw plansRes.error;
     const usersMap = new Map((usersRes.data || []).map(u => [u.id, u]));
     const plansMap = new Map((plansRes.data || []).map(p => [p.id, p]));
 
@@ -609,30 +493,16 @@ const AdminService = {
    * Desglose financiero por rango de fechas.
    */
   async getRevenueReport({ startDate, endDate } = {}) {
-    let query = supabaseAdmin
-      .from('pago')
-      .select(`
-        id,
-        monto,
-        fecha_pago,
-        id_estado,
-        referencia,
-        suscripcion (
-          plan (id, nombre)
-        )
-      `)
-      .eq('id_estado', 1); // 1 = Aprobado
-
-    if (startDate) query = query.gte('fecha_pago', `${startDate}T00:00:00.000Z`);
-    if (endDate) query = query.lte('fecha_pago', `${endDate}T23:59:59.999Z`);
-
-    const { data: pagos, error } = await query.order('fecha_pago', { ascending: false });
-
-    if (error) {
-      throw createServiceError(`Error al calcular ingresos: ${error.message}`, 500, 'DATABASE_ERROR');
-    }
-
-    const totalRecaudado = (pagos || []).reduce((acc, p) => acc + Number(p.monto || 0), 0);
+    if ((startDate && !calendarDate(startDate)) || (endDate && !calendarDate(endDate)) || (startDate && endDate && startDate>endDate))
+      throw createServiceError('Rango de fechas inválido',400,'INVALID_REPORT_DATES');
+    const pagos=await readAll('pago','id,monto,fecha_pago,id_estado,referencia,suscripcion(plan(id,nombre))',q=>{
+      q=q.eq('id_estado',1);
+      if(startDate)q=q.gte('fecha_pago',startDate);
+      if(endDate)q=q.lte('fecha_pago',endDate);
+      return q;
+    });
+    pagos.sort((a,b)=>String(b.fecha_pago).localeCompare(String(a.fecha_pago)) || b.id-a.id);
+    const totalRecaudado=totalMoney(pagos);
 
     return {
       periodo: {
