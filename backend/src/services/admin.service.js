@@ -23,6 +23,13 @@ try {
   // audit.service no disponible o en entorno de pruebas unitarias aisladas
 }
 
+let ActivityService = null;
+try {
+  ActivityService = require("./activity.service");
+} catch {
+  // activity.service no disponible o en entorno de pruebas unitarias aisladas
+}
+
 async function readAll(table, columns) {
   const rows = [];
   for (let offset = 0; ; offset += 1000) {
@@ -474,6 +481,19 @@ const AdminService = {
       }
     }
 
+    // Registrar actividad del administrador actor (ADM-12) - aislado contra fallos secundarios
+    if (auditContext.currentUserId && ActivityService && typeof ActivityService.recordActivity === "function") {
+      try {
+        await ActivityService.recordActivity({
+          userId: auditContext.currentUserId,
+          action: "Actualizar estado de usuario",
+          description: `Cambio de estado del usuario ID ${parsedTargetId} (${prevStatus} -> ${newStatus})`,
+        });
+      } catch {
+        // Fallos secundarios en actividad no revierten la operación principal
+      }
+    }
+
     return data;
   },
 
@@ -560,6 +580,19 @@ const AdminService = {
         });
       } catch (logErr) {
         console.error("Error al registrar auditoría CAMBIO_ROL_USUARIO:", logErr);
+      }
+    }
+
+    // Registrar actividad del administrador actor (ADM-12) - aislado contra fallos secundarios
+    if (auditContext.currentUserId && ActivityService && typeof ActivityService.recordActivity === "function") {
+      try {
+        await ActivityService.recordActivity({
+          userId: auditContext.currentUserId,
+          action: "Actualizar rol de usuario",
+          description: `Cambio de rol del usuario ID ${parsedTargetId} (${prevRole} -> ${newRole})`,
+        });
+      } catch {
+        // Fallos secundarios en actividad no revierten la operación principal
       }
     }
 

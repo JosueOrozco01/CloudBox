@@ -1,5 +1,4 @@
 const { createClient } = require("@supabase/supabase-js");
-const QuotaService = require("./quota.service");
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,

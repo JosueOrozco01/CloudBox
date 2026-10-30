@@ -219,7 +219,7 @@ const QuotaService = {
         let { error } = await supabaseAdmin
             .from('usuario')
             .update({
-                espacio_usado_bytes: usedBytes
+                espacio_usado_by: usedBytes
             })
             .eq('id', userId);
 
@@ -227,7 +227,7 @@ const QuotaService = {
             const retry = await supabaseAdmin
                 .from('usuario')
                 .update({
-                    espacio_usado_by: usedBytes
+                    espacio_usado_bytes: usedBytes
                 })
                 .eq('id', userId);
             error = retry.error;
