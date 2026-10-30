@@ -1,3 +1,4 @@
+
 const {utcDay,isCurrent,readPages,calendarDate} = require('./commercial-policy');
 const { createClient } = require("@supabase/supabase-js");
 
@@ -16,21 +17,42 @@ function createServiceError(message, status, code) {
   return error;
 }
 
+let recordLog = async () => {};
+try {
+  const auditMod = require("./audit.service");
+  if (auditMod && typeof auditMod.recordLog === "function") {
+    recordLog = auditMod.recordLog;
+  }
+} catch {
+  // audit.service no disponible o en entorno de pruebas unitarias aisladas
+}
+
+let ActivityService = null;
+try {
+  ActivityService = require("./activity.service");
+} catch {
+  // activity.service no disponible o en entorno de pruebas unitarias aisladas
+}
+
 const getCalendarDateString = utcDay;
 const parseCalendarDate = value => value ? String(value).slice(0,10) : null;
+
 async function readAll(table, columns, filter = q => q) {
   return readPages(() => filter(supabaseAdmin.from(table).select(columns)).order('id'));
 }
+
 function pagination(page, limit) {
   const p=Number(page),requested=Number(limit),l=Math.min(requested,100);
   if (!Number.isSafeInteger(p)||p<1||!Number.isSafeInteger(requested)||l<1) throw createServiceError('Paginación inválida',400,'INVALID_PAGINATION');
   return {p,l,from:(p-1)*l,to:p*l-1};
 }
+
 function totalMoney(rows) {
   const cents=rows.reduce((sum,row)=>sum+Math.round(Number(row.monto)*100),0);
   if (!Number.isSafeInteger(cents)) throw createServiceError('Total monetario inválido',500,'INVALID_REPORT_TOTAL');
   return cents/100;
 }
+
 async function readAvatars() {
   const avatars = new Map();
   for (let page = 1; ; page += 1) {
@@ -74,7 +96,6 @@ const AdminService = {
         readAll("rol", "id,nombre"),
         readAvatars(),
       ]);
-
     const todayStr = getCalendarDateString();
     const fiveDaysDate = new Date();
     fiveDaysDate.setDate(fiveDaysDate.getDate() + 5);
@@ -88,7 +109,6 @@ const AdminService = {
       }
       return isCurrent(sub,todayStr);
     });
-
     const stored = files.filter((file) =>
       ["Activo", "En papelera"].includes(file.estado?.nombre),
     );
@@ -187,79 +207,420 @@ const AdminService = {
     return (await this.getOverview()).users;
   },
 
-  async updateUserStatus(targetUserId, newStatusId) {
-    if (
-      !Number.isSafeInteger(targetUserId) ||
-      targetUserId <= 0 ||
-      !Number.isSafeInteger(newStatusId) ||
-      newStatusId <= 0
-    ) {
-      const error = new Error("El identificador solicitado no es válido.");
-      error.status = 400;
-      throw error;
+  /**
+   * Módulo ADM: Listado paginado de usuarios con soporte de búsqueda textual q y filtro por status.
+   */
+  async getUsersList({ q, search, status, limit = 20, offset = 0, page } = {}) {
+    const p = Math.max(Number(page) || 0, 0);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const parsedOffset = p > 0 ? (p - 1) * parsedLimit : Math.max(0, parseInt(offset, 10) || 0);
+
+    let statusId = null;
+    if (status !== undefined && status !== null && String(status).trim() !== "") {
+      const statusNum = Number(status);
+      if (Number.isSafeInteger(statusNum) && statusNum > 0) {
+        statusId = statusNum;
+      } else {
+        const { data: estadoEntry, error: estadoError } = await supabaseAdmin
+          .from("estado_usuario")
+          .select("id")
+          .ilike("nombre", String(status).trim())
+          .maybeSingle();
+
+        if (estadoError) {
+          throw createServiceError(`Error al consultar estado de usuario: ${estadoError.message}`, 500, "DATABASE_ERROR");
+        }
+
+        if (estadoEntry) {
+          statusId = estadoEntry.id;
+        } else {
+          return {
+            users: [],
+            pagination: {
+              limit: parsedLimit,
+              offset: parsedOffset,
+              total: 0,
+              currentPage: p > 0 ? p : 1,
+              pageSize: parsedLimit,
+              totalRecords: 0,
+              totalPages: 0,
+            },
+          };
+        }
+      }
     }
+
+    const buildQuery = (storageCol) => {
+      let query = supabaseAdmin
+        .from("usuario")
+        .select(`
+          id,
+          auth_user_id,
+          nombre,
+          apellido,
+          correo,
+          fecha_registro,
+          id_rol,
+          rol:id_rol(id, nombre),
+          id_estado,
+          estado:id_estado(id, nombre),
+          ${storageCol}
+        `, { count: "exact" });
+
+      const searchTerm = q || search;
+      if (searchTerm && typeof searchTerm === "string" && searchTerm.trim() !== "") {
+        const term = searchTerm.trim();
+        query = query.or(`nombre.ilike.%${term}%,apellido.ilike.%${term}%,correo.ilike.%${term}%`);
+      }
+
+      if (statusId) {
+        query = query.eq("id_estado", statusId);
+      }
+
+      return query
+        .order("fecha_registro", { ascending: false })
+        .order("id", { ascending: false })
+        .range(parsedOffset, parsedOffset + parsedLimit - 1);
+    };
+
+    let { data, error, count } = await buildQuery("espacio_usado_by");
+
+    if (error && (error.code === "42703" || (error.message && error.message.includes("column")))) {
+      const retry = await buildQuery("espacio_usado_bytes");
+      data = retry.data;
+      count = retry.count;
+      error = retry.error;
+    }
+
+    if (error) {
+      throw createServiceError(`Error al listar usuarios: ${error.message}`, 500, "DATABASE_ERROR");
+    }
+
+    const users = (data || []).map((u) => ({
+      id: u.id,
+      auth_user_id: u.auth_user_id,
+      nombre: u.nombre,
+      apellido: u.apellido,
+      correo: u.correo,
+      id_rol: u.id_rol,
+      rol: u.rol?.nombre || "Cliente",
+      id_estado: u.id_estado,
+      estado: u.estado?.nombre || "Activo",
+      estado_usuario: u.estado || { id: u.id_estado, nombre: u.estado?.nombre || "Activo" },
+      espacio_usado_bytes: Number(u.espacio_usado_bytes || u.espacio_usado_by || 0),
+      fecha_registro: u.fecha_registro,
+    }));
+
+    return {
+      users,
+      pagination: {
+        limit: parsedLimit,
+        offset: parsedOffset,
+        total: count || 0,
+        currentPage: p > 0 ? p : Math.floor(parsedOffset / parsedLimit) + 1,
+        pageSize: parsedLimit,
+        totalRecords: count || 0,
+        totalPages: Math.ceil((count || 0) / parsedLimit),
+      },
+    };
+  },
+
+  /**
+   * Módulo ADM: Obtiene el detalle individual de un usuario por ID con su rol, estado y cuota actual.
+   */
+  async getUserById(targetUserId) {
+    const userId = Number(targetUserId);
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw createServiceError("El identificador solicitado no es válido.", 400, "INVALID_USER_ID");
+    }
+
+    const buildQuery = (storageCol) =>
+      supabaseAdmin
+        .from("usuario")
+        .select(`
+          id,
+          auth_user_id,
+          nombre,
+          apellido,
+          correo,
+          fecha_registro,
+          id_rol,
+          rol:id_rol(id, nombre),
+          id_estado,
+          estado:id_estado(id, nombre),
+          ${storageCol}
+        `)
+        .eq("id", userId)
+        .maybeSingle();
+
+    let { data: user, error } = await buildQuery("espacio_usado_by");
+
+    if (error && (error.code === "42703" || (error.message && error.message.includes("column")))) {
+      const retry = await buildQuery("espacio_usado_bytes");
+      user = retry.data;
+      error = retry.error;
+    }
+
+    if (error) {
+      throw createServiceError(`Error al consultar usuario: ${error.message}`, 500, "DATABASE_ERROR");
+    }
+
+    if (!user) {
+      throw createServiceError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    }
+
+    let subscription = null;
+    let maxBytes = null;
+    let plan = "Sin suscripción activa";
+
+    try {
+      const { data: subData } = await supabaseAdmin
+        .from("suscripcion")
+        .select(`
+          id,
+          fecha_inicio,
+          fecha_fin,
+          id_estado,
+          estado:id_estado(id, nombre),
+          plan:id_plan(id, nombre, espacio_maximo_gb)
+        `)
+        .eq("id_usuario", userId)
+        .order("fecha_inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subData) {
+        subscription = subData;
+        if (subData.plan?.espacio_maximo_gb) {
+          maxBytes = Number(subData.plan.espacio_maximo_gb) * 1024 ** 3;
+          plan = subData.plan.nombre || plan;
+        }
+      }
+    } catch {
+      // Degrada elegantemente si la tabla suscripcion no está disponible
+    }
+
+    const usedBytes = Number(user.espacio_usado_bytes || user.espacio_usado_by || 0);
+
+    return {
+      id: user.id,
+      auth_user_id: user.auth_user_id,
+      nombre: user.nombre,
+      apellido: user.apellido,
+      correo: user.correo,
+      fecha_registro: user.fecha_registro,
+      id_rol: user.id_rol,
+      rol: user.rol?.nombre || "Cliente",
+      id_estado: user.id_estado,
+      estado: user.estado?.nombre || "Activo",
+      estado_usuario: user.estado || { id: user.id_estado, nombre: user.estado?.nombre || "Activo" },
+      espacio_usado_bytes: usedBytes,
+      usedBytes,
+      maxBytes,
+      plan,
+      suscripcion: subscription,
+    };
+  },
+
+  /**
+   * Módulo ADM: Actualiza el estado de un usuario con validaciones de seguridad y auditoría AUD-01.
+   */
+  async updateUserStatus(targetUserId, newStatusId, auditContext = {}) {
+    const parsedTargetId = Number(targetUserId);
+    const parsedStatusId = Number(newStatusId);
+
+    if (
+      !Number.isSafeInteger(parsedTargetId) ||
+      parsedTargetId <= 0 ||
+      !Number.isSafeInteger(parsedStatusId) ||
+      parsedStatusId <= 0
+    ) {
+      throw createServiceError("El identificador solicitado no es válido.", 400, "INVALID_IDENTIFIER");
+    }
+
+    // Regla anti-autodesactivación
+    if (auditContext.currentUserId && parsedTargetId === Number(auditContext.currentUserId)) {
+      throw createServiceError("No puedes suspender tu propia cuenta", 400, "CANNOT_MODIFY_OWN_ACCOUNT");
+    }
+
+    // Verificar existencia del usuario objetivo y recuperar estado anterior
+    const { data: targetUser, error: userError } = await supabaseAdmin
+      .from("usuario")
+      .select("id, id_estado, estado:id_estado(id, nombre)")
+      .eq("id", parsedTargetId)
+      .maybeSingle();
+
+    if (userError) {
+      throw createServiceError(`Error al consultar usuario: ${userError.message}`, 500, "DATABASE_ERROR");
+    }
+    if (!targetUser) {
+      throw createServiceError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    }
+
+    const prevStatus = targetUser.estado?.nombre || targetUser.id_estado;
+
+    // Validar existencia del nuevo estado en catálogo
     const { data: catalogEntry, error: catalogError } = await supabaseAdmin
       .from("estado_usuario")
-      .select("id")
-      .eq("id", newStatusId)
+      .select("id, nombre")
+      .eq("id", parsedStatusId)
       .maybeSingle();
-    if (catalogError) throw catalogError;
-    if (!catalogEntry) {
-      const error = new Error(
-        "La opción seleccionada no existe en el catálogo.",
-      );
-      error.status = 400;
-      throw error;
+
+    if (catalogError) {
+      throw createServiceError(`Error al consultar catálogo: ${catalogError.message}`, 500, "DATABASE_ERROR");
     }
+    if (!catalogEntry) {
+      throw createServiceError("La opción seleccionada no existe en el catálogo.", 400, "INVALID_STATUS_CATALOG");
+    }
+
+    const newStatus = catalogEntry.nombre || catalogEntry.id;
+
+    // Actualización atómica en la tabla usuario
     const { data, error } = await supabaseAdmin
       .from("usuario")
-      .update({ id_estado: newStatusId })
-      .eq("id", targetUserId)
+      .update({ id_estado: parsedStatusId })
+      .eq("id", parsedTargetId)
       .select("id, nombre, id_estado")
       .single();
 
     if (error) {
-      throw new Error(
-        `Error al actualizar estado del usuario: ${error.message}`,
-      );
+      throw createServiceError(`Error al actualizar estado del usuario: ${error.message}`, 500, "DATABASE_ERROR");
+    }
+
+    // Invocar contrato congelado AUD-01 (atrapa internamente sus fallos para no revertir la operación)
+    if (auditContext.currentUserId && typeof recordLog === "function") {
+      try {
+        await recordLog({
+          id_usuario: auditContext.currentUserId,
+          accion: "CAMBIO_ESTADO_USUARIO",
+          entidad_afectada: "usuario",
+          id_entidad_afectada: parsedTargetId,
+          ip_origen: auditContext.ip_origen,
+          detalles: {
+            anterior: prevStatus,
+            nuevo: newStatus,
+            targetUserId: parsedTargetId,
+            newStatusId: parsedStatusId,
+          },
+        });
+      } catch (logErr) {
+        console.error("Error al registrar auditoría CAMBIO_ESTADO_USUARIO:", logErr);
+      }
+    }
+
+    // Registrar actividad del administrador actor (ADM-12) - aislado contra fallos secundarios
+    if (auditContext.currentUserId && ActivityService && typeof ActivityService.recordActivity === "function") {
+      try {
+        await ActivityService.recordActivity({
+          userId: auditContext.currentUserId,
+          action: "Actualizar estado de usuario",
+          description: `Cambio de estado del usuario ID ${parsedTargetId} (${prevStatus} -> ${newStatus})`,
+        });
+      } catch {
+        // Fallos secundarios en actividad no revierten la operación principal
+      }
     }
 
     return data;
   },
 
-  async updateUserRole(targetUserId, newRoleId) {
+  /**
+   * Módulo ADM: Actualiza el rol de un usuario con validaciones de seguridad y auditoría AUD-01.
+   */
+  async updateUserRole(targetUserId, newRoleId, auditContext = {}) {
+    const parsedTargetId = Number(targetUserId);
+    const parsedRoleId = Number(newRoleId);
+
     if (
-      !Number.isSafeInteger(targetUserId) ||
-      targetUserId <= 0 ||
-      !Number.isSafeInteger(newRoleId) ||
-      newRoleId <= 0
+      !Number.isSafeInteger(parsedTargetId) ||
+      parsedTargetId <= 0 ||
+      !Number.isSafeInteger(parsedRoleId) ||
+      parsedRoleId <= 0
     ) {
-      const error = new Error("El identificador solicitado no es válido.");
-      error.status = 400;
-      throw error;
+      throw createServiceError("El identificador solicitado no es válido.", 400, "INVALID_IDENTIFIER");
     }
+
+    // Regla anti-degradación de privilegios propios
+    if (auditContext.currentUserId && parsedTargetId === Number(auditContext.currentUserId)) {
+      throw createServiceError("No puedes degradar tus propios privilegios", 400, "CANNOT_MODIFY_OWN_ROLE");
+    }
+
+    // Verificar existencia del usuario objetivo y recuperar rol anterior
+    const { data: targetUser, error: userError } = await supabaseAdmin
+      .from("usuario")
+      .select("id, id_rol, rol:id_rol(id, nombre)")
+      .eq("id", parsedTargetId)
+      .maybeSingle();
+
+    if (userError) {
+      throw createServiceError(`Error al consultar usuario: ${userError.message}`, 500, "DATABASE_ERROR");
+    }
+    if (!targetUser) {
+      throw createServiceError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    }
+
+    const prevRole = targetUser.rol?.nombre || targetUser.id_rol;
+
+    // Validar existencia del nuevo rol en catálogo
     const { data: catalogEntry, error: catalogError } = await supabaseAdmin
       .from("rol")
-      .select("id")
-      .eq("id", newRoleId)
+      .select("id, nombre")
+      .eq("id", parsedRoleId)
       .maybeSingle();
-    if (catalogError) throw catalogError;
-    if (!catalogEntry) {
-      const error = new Error(
-        "La opción seleccionada no existe en el catálogo.",
-      );
-      error.status = 400;
-      throw error;
+
+    if (catalogError) {
+      throw createServiceError(`Error al consultar catálogo: ${catalogError.message}`, 500, "DATABASE_ERROR");
     }
+    if (!catalogEntry) {
+      throw createServiceError("La opción seleccionada no existe en el catálogo.", 400, "INVALID_ROLE_CATALOG");
+    }
+
+    const newRole = catalogEntry.nombre || catalogEntry.id;
+
+    // Actualización atómica en la tabla usuario
     const { data, error } = await supabaseAdmin
       .from("usuario")
-      .update({ id_rol: newRoleId })
-      .eq("id", targetUserId)
+      .update({ id_rol: parsedRoleId })
+      .eq("id", parsedTargetId)
       .select("id, nombre, id_rol")
       .single();
 
     if (error) {
-      throw new Error(`Error al actualizar rol del usuario: ${error.message}`);
+      throw createServiceError(`Error al actualizar rol del usuario: ${error.message}`, 500, "DATABASE_ERROR");
+    }
+
+    // Invocar contrato congelado AUD-01
+    if (auditContext.currentUserId && typeof recordLog === "function") {
+      try {
+        await recordLog({
+          id_usuario: auditContext.currentUserId,
+          accion: "CAMBIO_ROL_USUARIO",
+          entidad_afectada: "usuario",
+          id_entidad_afectada: parsedTargetId,
+          ip_origen: auditContext.ip_origen,
+          detalles: {
+            anterior: prevRole,
+            nuevo: newRole,
+            targetUserId: parsedTargetId,
+            newRoleId: parsedRoleId,
+          },
+        });
+      } catch (logErr) {
+        console.error("Error al registrar auditoría CAMBIO_ROL_USUARIO:", logErr);
+      }
+    }
+
+    // Registrar actividad del administrador actor (ADM-12) - aislado contra fallos secundarios
+    if (auditContext.currentUserId && ActivityService && typeof ActivityService.recordActivity === "function") {
+      try {
+        await ActivityService.recordActivity({
+          userId: auditContext.currentUserId,
+          action: "Actualizar rol de usuario",
+          description: `Cambio de rol del usuario ID ${parsedTargetId} (${prevRole} -> ${newRole})`,
+        });
+      } catch {
+        // Fallos secundarios en actividad no revierten la operación principal
+      }
     }
 
     return data;
@@ -337,6 +698,30 @@ const AdminService = {
     };
   },
 
+  /**
+   * Módulo STO: Estadísticas generales de almacenamiento y archivos.
+   */
+  async getStorageOverview() {
+    const service = require("./admin-storage.service");
+    return service.getStorageOverview();
+  },
+
+  /**
+   * Módulo STO: Almacenamiento por usuario con paginación y filtro de sobre cuota.
+   */
+  async getStorageUsers(params) {
+    const service = require("./admin-storage.service");
+    return service.getStorageUsers(params);
+  },
+
+  /**
+   * Módulo STO: Usuarios sobre cuota.
+   */
+  async getUsersOverQuota(params) {
+    const service = require("./admin-storage.service");
+    return service.getUsersOverQuota(params);
+  },
+
   // ==========================================
   // EXTENSIONES FASE 7 - PANEL DE ADMINISTRACIÓN
   // ==========================================
@@ -353,49 +738,6 @@ const AdminService = {
     return {totalUsuarios:users.length,usuariosActivos:users.filter(u=>u.id_estado===1).length,
       totalSuscripcionesActivas:subs.filter(s=>isCurrent(s)).length,ingresosTotales:totalMoney(pagos),
       almacenamientoUsadoBytes:used,almacenamientoUsadoGb:Number((used/BYTES_PER_GB).toFixed(2))};
-  },
-
-  /**
-   * Listado paginado de usuarios con rol, estado y cuota usada.
-   */
-  async getUsersList({ page = 1, limit = 20, search = '', status } = {}) {
-    const {p,l,from,to}=pagination(page,limit);
-    let stateId;
-    if (status !== undefined && status !== '') {
-      const states=await readAll('estado_usuario','id,nombre');
-      stateId=states.find(s=>String(s.id)===String(status)||s.nombre.toLowerCase()===String(status).toLowerCase())?.id;
-      if (!stateId) throw createServiceError('Estado inválido',400,'INVALID_USER_STATUS');
-    }
-    let q=supabaseAdmin.from('usuario').select('id,nombre,apellido,correo,espacio_usado_by,fecha_registro,rol:id_rol(nombre),estado:id_estado(nombre)',{count:'exact'});
-    if (search) {
-      const pattern=JSON.stringify('%'+String(search).replace(/[\\%_]/g,'\\$&')+'%');
-      q=q.or(['nombre','apellido','correo'].map(k=>k+'.ilike.'+pattern).join(','));
-    }
-    if (stateId) q=q.eq('id_estado',stateId);
-    const {data,count,error}=await q.order('id').range(from,to);
-
-    if (error) {
-      throw createServiceError(`Error al listar usuarios admin: ${error.message}`, 500, 'DATABASE_ERROR');
-    }
-
-    return {
-      users: (data || []).map(u => ({
-        id: u.id,
-        nombre: u.nombre,
-        apellido: u.apellido,
-        correo: u.correo,
-        rol: u.rol?.nombre || 'Cliente',
-        estado: u.estado?.nombre || 'Activo',
-        espacio_usado_bytes: Number(u.espacio_usado_bytes || u.espacio_usado_by || 0),
-        fecha_registro: u.fecha_registro
-      })),
-      pagination: {
-        currentPage: p,
-        pageSize: l,
-        totalRecords: count || 0,
-        totalPages: Math.ceil((count || 0) / l)
-      }
-    };
   },
 
   /**
