@@ -179,20 +179,9 @@
   cursor: not-allowed;
 }
 
-.cf-spinner {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #ffffff;
-  animation: cf-spin 0.7s linear infinite;
-}
 
-@keyframes cf-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+
+
 
 @keyframes cf-fade-in {
   from {
@@ -216,8 +205,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cf-backdrop,
-  .cf-modal,
-  .cf-spinner {
-    animation: none;
-  }
+  .cf-modal { animation: none; }
 }

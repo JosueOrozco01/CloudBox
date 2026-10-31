@@ -1,3 +1,4 @@
+import { clearSession } from "../../services/authService";
 import { formatFileSize } from "../../utils/preferences";
 import { getFileFavorites, setItemFavorite, favoriteKey } from "../../services/favoriteService";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import {
   getTrashFolders,
   renameItem,
   trashItem,
+  permanentlyDeleteFile,
   restoreItem,
   moveItem,
   getFolderLocations,
@@ -61,6 +63,7 @@ export default function FileBrowser({ user, trash = false }) {
 
   useEffect(() => {
     let active = true;
+    const sessionToken = localStorage.getItem('token');
     Promise.all([
       trash ? getTrashFiles() : favoritesMode ? Promise.resolve([]) : getUserFiles(folderId),
       trash ? getTrashFolders() : favoritesMode ? Promise.resolve([]) : getUserFolders(folderId),
@@ -129,9 +132,7 @@ export default function FileBrowser({ user, trash = false }) {
       .catch((error) => {
         if (!active) return;
         if (error.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
+          if (!clearSession(sessionToken)) return;
           navigate("/login", {
             replace: true,
             state: {
@@ -290,8 +291,10 @@ export default function FileBrowser({ user, trash = false }) {
             favoriteAvailability={favoriteAvailability}
             onToggleFavorite={toggleFavorite}
             items={data.items}
+            storage={data.storage}
             query={search}
             trash={trash}
+            busy={busy}
             totalCount={
               trash || favoritesMode ? data.items.length : data.fileCount + data.folderCount
             }
@@ -329,7 +332,7 @@ export default function FileBrowser({ user, trash = false }) {
             onOpenItem={openFile}
             onDownloadItem={openFile}
             onRename={(item) => openAction("rename", item)}
-            onDelete={(item) => openAction("delete", item)}
+            onDelete={(item) => openAction(trash ? 'permanent' : 'delete', item)}
             onMove={(item) => openAction("move", item)}
             onRestore={(item) =>
               run(
@@ -405,13 +408,7 @@ export default function FileBrowser({ user, trash = false }) {
             })
           }
           onClose={() => setUploadOpen(false)}
-          onViewPlans={() =>
-            setNotice({
-              type: "info",
-              message:
-                "La administración de planes estará disponible próximamente.",
-            })
-          }
+          onViewPlans={() => navigate('/plan')}
         />
       )}
       {folderOpen && (
@@ -477,13 +474,17 @@ export default function FileBrowser({ user, trash = false }) {
           onSubmit={() =>
             run(
               () =>
-                action.kind === "delete"
+                action.kind === "permanent"
+                  ? permanentlyDeleteFile(action.item.rawId)
+                  : action.kind === "delete"
                   ? trashItem(action.item)
                   : moveItem(
                       action.item,
                       destination ? Number(destination) : null,
                     ),
-              action.kind === "delete"
+              action.kind === "permanent"
+                ? `«${action.item.name}» eliminado permanentemente.`
+                : action.kind === "delete"
                 ? `«${action.item.name}» enviado a la papelera.`
                 : `«${action.item.name}» movido correctamente.`,
               action.kind === "delete" ? "error" : "info",

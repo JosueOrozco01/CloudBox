@@ -1,3 +1,4 @@
+import { KeyRound, LogOut, Monitor, ShieldCheck, Smartphone } from "lucide-react";
 import { useMemo, useState } from "react";
 import "./Securitytab.css";
 
@@ -68,8 +69,8 @@ export default function SecurityTab({
     <div className="sec-tab">
       {/* Cambiar contraseña */}
       <section className="sec-card">
-        <h2>Cambiar contraseña</h2>
-        <p className="sec-subtitle">Asegura tu cuenta actualizando tu contraseña regularmente</p>
+        <h2><KeyRound size={20} />Cambiar contraseña</h2>
+        <p className="sec-subtitle">Elige una contraseña que solo tú conozcas.</p>
 
         <form onSubmit={handleSubmit} className="sec-form">
           <label className="sec-field">
@@ -138,6 +139,7 @@ export default function SecurityTab({
             )}
           </label>
 
+          <div className="account-password-progress"><span><ShieldCheck size={14} />Requisitos cumplidos</span><strong>{requirementsStatus.filter(req => req.met).length} de {requirementsStatus.length}</strong><div role="progressbar" aria-label="Requisitos de la contraseña cumplidos" aria-valuemin={0} aria-valuemax={requirementsStatus.length} aria-valuenow={requirementsStatus.filter(req => req.met).length}>{requirementsStatus.map(req => <span key={req.id} className={req.met ? 'met' : ''} />)}</div></div>
           <div className="sec-requirements">
             <p>Requisitos para la nueva contraseña:</p>
             <ul>
@@ -164,16 +166,13 @@ export default function SecurityTab({
 
       {/* Sesiones activas */}
       <section className="sec-card">
-        <h2>Sesiones registradas</h2><p className="sec-subtitle">Dispositivo, IP y ubicación aproximada de accesos registrados desde esta actualización. Las ubicaciones locales y privadas no se pueden determinar. Los cierres externos a CloudBox pueden tardar en reflejarse.</p>
-
+        <h2><Monitor size={20} />Sesiones registradas<span className="account-session-count">{sessions.length}</span></h2><p className="sec-subtitle">Revisa los dispositivos y los accesos registrados por CloudBox.</p><details className="account-session-about"><summary>Acerca de este historial</summary><p>Las ubicaciones son aproximadas y no se pueden determinar para IP locales o privadas. Los cierres externos a CloudBox pueden tardar en reflejarse.</p></details>
+        {!sessions.length && <div className="account-sessions-empty"><Monitor size={28} /><p>No hay accesos registrados en esta consulta.</p></div>}
         <ul className="sec-session-list">
           {sessions.map((session) => (
             <li key={session.id} className="sec-session-item">
               <span className="sec-session-icon">
-                <svg {...icon} width="20" height="20">
-                  <rect width="20" height="14" x="2" y="3" rx="2" />
-                  <path d="M8 21h8 M12 17v4" />
-                </svg>
+                {/android|iphone|móvil|mobile/i.test(session.device || '') ? <Smartphone size={21} /> : <Monitor size={21} />}
               </span>
               <div className="sec-session-info">
                 <p className="sec-session-device">
@@ -196,7 +195,7 @@ export default function SecurityTab({
 
       {/* Cuenta */}
       <section className="sec-card">
-        <h2>Cuenta</h2>
+        <h2><LogOut size={20} />Tu cuenta</h2>
         <p className="sec-account-text">
           Si cierras sesión tendrás que ingresar tus credenciales nuevamente. Si decides desactivar
           tu cuenta, perderás acceso, pero tus archivos y datos se conservarán.

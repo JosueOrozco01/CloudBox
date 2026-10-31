@@ -1,3 +1,5 @@
+import { RefreshCw as LoadingArrows } from "lucide-react";
+import "../Loading/Loading.css";
 import { useRef, useState } from "react";
 import "./UploadModal.css";
 
@@ -305,7 +307,7 @@ export default function UploadModal({
           <div className="upload-footer-status">
             {isUploading && (
               <>
-                <span className="upload-spinner" aria-hidden="true" />
+                <LoadingArrows size={16} className="loading-arrows" aria-hidden="true" />
                 Subiendo archivos activos...
               </>
             )}

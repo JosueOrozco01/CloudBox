@@ -1,3 +1,5 @@
+import Loading from "../../components/Loading/Loading";
+import { persistSession } from "../../services/authService";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./Loginstyle.css";
@@ -15,31 +17,12 @@ export default function LoginPage() {
   const location = useLocation();
   const logoutAlert = location.state?.alert;
 
-  const [alert, setAlert] = useState({
-    isOpen: false,
-    type: "info",
-    title: "",
-    message: "",
-  });
-
+  const [alert, setAlert] = useState(() => logoutAlert ? {
+    isOpen: true, type: logoutAlert.type || 'success', title: logoutAlert.title || 'Sesión cerrada', message: logoutAlert.message || 'Has cerrado sesión exitosamente.'
+  } : { isOpen: false, type: 'info', title: '', message: '' });
   useEffect(() => {
-    if (!logoutAlert) return;
-
-    setAlert({
-      isOpen: true,
-      type: logoutAlert.type || "success",
-      title: logoutAlert.title || "Sesión cerrada",
-      message:
-        logoutAlert.message ||
-        "Has cerrado sesión exitosamente.",
-    });
-
-  // Limpiar el mensaje para que no reaparezca al actualizar
-  navigate(location.pathname, {
-    replace: true,
-    state: null,
-  });
-}, [logoutAlert, navigate, location.pathname]);
+    if (logoutAlert) navigate(location.pathname, { replace: true, state: null });
+  }, [logoutAlert, navigate, location.pathname]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +55,7 @@ export default function LoginPage() {
       // Mostrar Loading
       setLoading(true);
 
-      const startTime = Date.now();
+
 
       const response = await fetch(
         "http://localhost:3000/api/auth/login",
@@ -90,19 +73,6 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      // Asegurar que el Loading se vea al menos 700 ms
-      const elapsed = Date.now() - startTime;
-      const minimumLoadingTime = 700;
-
-      if (elapsed < minimumLoadingTime) {
-        await new Promise((resolve) =>
-          setTimeout(
-            resolve,
-            minimumLoadingTime - elapsed
-          )
-        );
-      }
-
       // Error del backend
       if (!response.ok) {
         setAlert({
@@ -117,18 +87,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Guardar sesión
-      localStorage.setItem("token", data.token);
-
-      localStorage.setItem(
-        "refreshToken",
-        data.refreshToken
-      );
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-      );
+      persistSession(data);
 
       // Indicar que el usuario acaba de iniciar sesión
       localStorage.setItem("justLoggedIn", "true");
@@ -157,6 +116,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <Topbar />
+      {loading && <Loading text="Iniciando sesión" fullScreen={false} />}
 
       <main className="split">
         {/* Panel izquierdo */}

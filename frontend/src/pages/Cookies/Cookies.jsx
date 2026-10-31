@@ -1,6 +1,4 @@
-import "./Cookies.css";
-import Topbar from "../../components/TopBarPrincipal/Topbarprincipal";
-import Footer from "../../components/FooterSignOut/Footer";
+import LegalDocument from "../../components/LegalDocument/LegalDocument";
 
 const sections = [
   {
@@ -46,32 +44,5 @@ const sections = [
 ];
 
 export default function Cookies({ embedded = false }) {
-  return (
-    <div className="cookies-page">
-      {!embedded && <Topbar />}
-
-      <main className="cookies-main">
-        <div className="cookies-container">
-          <h1 className="cookies-title">Política de cookies</h1>
-          <p className="cookies-updated">Última actualización: 6 de octubre de 2026</p>
-
-          <p className="cookies-intro">
-            Esta política explica qué son las cookies, cuáles utilizamos en
-            CloudBox y cómo puedes gestionarlas desde tu navegador.
-          </p>
-
-          <div className="cookies-sections">
-            {sections.map((section) => (
-              <section className="cookies-section" key={section.title}>
-                <h2>{section.title}</h2>
-                <p>{section.content}</p>
-              </section>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {!embedded && <Footer />}
-    </div>
-  );
+  return <LegalDocument kind="cookies" embedded={embedded} intro="Esta política explica qué son las cookies, cuáles utilizamos en CloudBox y cómo puedes gestionarlas desde tu navegador." sections={sections} />;
 }

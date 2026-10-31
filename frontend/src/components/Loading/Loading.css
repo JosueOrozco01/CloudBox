@@ -1,88 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap");
-
-.loading-page {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f3f4f9;
-  font-family: "Manrope", system-ui, sans-serif;
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-}
-
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(243, 244, 249, 0.55);
-
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
-.loading-overlay .loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  min-width: 180px;
-  padding: 28px 36px;
-
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 16px;
-
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
-}
-
-.loading-inline {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 0;
-  font-family: "Manrope", system-ui, sans-serif;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-}
-
-.loading-spinner {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 4px solid #d5dae3;
-  border-top-color: #1565c0;
-  animation: loading-spin 0.8s linear infinite;
-}
-
-.loading-text {
-  font-family: "Outfit", sans-serif;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #0b1a2e;
-}
-
-@keyframes loading-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .loading-spinner {
-    animation-duration: 1.6s;
-  }
-}
+.loading-page,.loading-overlay,.loading-inline { display:flex; align-items:center; justify-content:center; font-family:"Manrope",sans-serif; color:var(--textPrimary,#0b1a2e); }
+.loading-page { position:fixed; inset:0; z-index:9999; background:var(--backgroundColor,#f3f4f9); min-height:100dvh; }
+.loading-overlay { position:fixed; inset:0; z-index:9999; background:#14274044; backdrop-filter:blur(5px); }
+.loading-inline { width:100%; min-height:160px; padding:32px 20px; }
+.loading-content { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+.loading-overlay .loading-content { padding:32px; border-radius:16px; background:var(--surfaceColor,#fff); border:1px solid var(--borderColor,#e0e7f0); }
+.loading-arrows { color:var(--primaryColor,#1565c0); animation:cloudbox-loading-turn 1s linear infinite; flex-shrink:0; }
+.loading-text { font-family:"Outfit",sans-serif; font-size:.95rem; font-weight:600; }
+.loading-description { font-size:.75rem; line-height:1.7; color:var(--textSecondary,#718096); }
+@keyframes cloudbox-loading-turn { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .loading-arrows { animation:none; } }

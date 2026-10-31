@@ -1,4 +1,5 @@
 import AdminNotifications from "../AdminNotifications/AdminNotifications";
+import ClientNotifications from '../ClientNotifications/ClientNotifications';
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../services/authService";
@@ -100,7 +101,8 @@ export default function AppTopbar({ user }) {
     setMenuOpen(false);
 
     try {
-      await logout();
+      const result = await logout();
+      if (result?.sessionChanged) return;
 
       navigate("/login", {
         replace: true,
@@ -220,6 +222,7 @@ export default function AppTopbar({ user }) {
         )}
 
         {isAdmin && <AdminNotifications userId={user.id} />}
+        {!isAdmin && <ClientNotifications userId={user.id} />}
 
         <div className="app-user-menu" ref={menuRef}>
           <button
@@ -269,6 +272,8 @@ export default function AppTopbar({ user }) {
               >
                 Mi perfil
               </Link>
+              {!isAdmin && <Link to="/actividad" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Mi actividad</Link>}
+              {!isAdmin && <Link to="/notificaciones" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Notificaciones</Link>}
               <button
                 type="button"
                 className="app-user-dropdown-item danger"

@@ -457,8 +457,6 @@
 .sc-feedback { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-radius: 10px; font-size: 13px; }
 .sc-feedback-error { background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; }
 .sc-feedback button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-weight: 700; }
-.sc-loading { min-height: 360px; align-items: center; justify-content: center; color: #1565c0; gap: 12px; }
-.sc-loading span { color: #64748b; font-size: 13px; }
 .sc-dialog { max-width: 530px; max-height: calc(100dvh - 32px); overflow-y: auto; outline: none; }
 .sc-dialog .cf-header-text { flex: 1; min-width: 0; }
 .sc-dialog .cf-header-text p { overflow-wrap: anywhere; }

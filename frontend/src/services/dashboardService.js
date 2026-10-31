@@ -90,6 +90,7 @@ export const createDashboardFolder = (nombre, parentId = null) =>
   });
 export const getFileDownloadUrl = (id) => request(`/files/${id}/download-url`);
 export const getTrashFiles = () => request("/files/trash");
+export const permanentlyDeleteFile = id => request(`/files/${id}/permanent`, { method: 'DELETE' });
 export const getTrashFolders = () => request("/folders/trash");
 const jsonMutation = (path, method, body) =>
   request(path, {

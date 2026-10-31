@@ -1,8 +1,9 @@
-import { Star } from "lucide-react";
+import { ArrowRight, FileText, FolderOpen, Inbox, Search, Share2, ShieldCheck, Star, Users, X } from "lucide-react";
 import { favoriteKey } from "../../services/favoriteService";
 import ViewToggle from "../../components/ViewToggle/ViewToggle";
 import { useState } from "react";
 import "./Compartidoconmigo.css";
+import "./SharedRefresh.css";
 
 const icon = {
   width: 16,
@@ -43,7 +44,7 @@ const typeIcons = {
 function TypeIcon({ type }) {
   const style = typeStyles[type] ?? typeStyles.docx;
   return (
-    <span className="sc-type-icon" style={{ background: style.bg, color: style.color }}>
+    <span className="sc-type-icon" data-type={type} style={{ background: style.bg, color: style.color }}>
       <svg {...icon}>{typeIcons[type] ?? typeIcons.docx}</svg>
     </span>
   );
@@ -58,7 +59,7 @@ const permissionStyles = {
 function PermissionBadge({ permission }) {
   const style = permissionStyles[permission] ?? { bg: "#f1f5f9", color: "#64748b" };
   return (
-    <span className="sc-badge" style={{ background: style.bg, color: style.color }}>
+    <span className="sc-badge" data-permission={permission} style={{ background: style.bg, color: style.color }}>
       {permission}
     </span>
   );
@@ -71,6 +72,7 @@ export default function CompartidosConmigo({
   onToggleFavorite,
   items = [],
   sent = false,
+  insideFolder = false,
   totalCount = 0,
   folderCount = 0,
   fileCount = 0,
@@ -111,89 +113,18 @@ export default function CompartidosConmigo({
           <p>{sent ? "Administra los accesos que has otorgado a otros usuarios" : "Accede a los archivos y carpetas que otros usuarios han compartido contigo"}</p>
         </div>
 
-        <div className="sc-tabs">
-          {[
-            { id: "todos", label: "Todos" },
-            { id: "archivos", label: "Archivos" },
-            { id: "carpetas", label: "Carpetas" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={tab === t.id ? "active" : ""}
-              onClick={() => { setTab(t.id); setPage(1); }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
       </div>
-
-      {/* Buscador */}
-      <form className="sc-search" onSubmit={handleSearchSubmit}>
-        <span className="sc-search-icon">
-          <svg {...icon}>
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-        </span>
-        <input
-          type="search"
-          placeholder="Buscar en compartidos..."
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-        />
-      </form>
-
-      {/* Tarjetas resumen */}
-      <div className="sc-stats">
-        <article className="sc-stat-card">
-          <div className="sc-stat-head">
-            <span className="sc-stat-icon">
-              <svg {...icon}>
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13" />
-              </svg>
-            </span>
-            <button type="button" className="sc-stat-more" aria-label="Mostrar elementos" onClick={() => { setTab("todos"); setFilters({}); setQuery(""); }}>⋯</button>
-          </div>
-          <p className="sc-stat-label">{sent ? "Compartidos por mí" : "Compartidos conmigo"}</p>
-          <p className="sc-stat-value">{totalCount} elementos</p>
-          <p className="sc-stat-sub">{folderCount} carpetas y {fileCount} archivos</p>
-        </article>
-
-        <article className="sc-stat-card">
-          <div className="sc-stat-head">
-            <span className="sc-stat-icon">
-              <svg {...icon}>
-                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
-            </span>
-            <button type="button" className="sc-stat-more" aria-label="Mostrar elementos" onClick={() => { setTab("carpetas"); setFilters({}); setQuery(""); }}>⋯</button>
-          </div>
-          <p className="sc-stat-label">Carpetas</p>
-          <p className="sc-stat-value">{folderCount} carpetas</p>
-          <p className="sc-stat-sub">{sent ? "Compartido con" : "Compartido por"} {sharedByCount} personas</p>
-        </article>
-
-        <article className="sc-stat-card">
-          <div className="sc-stat-head">
-            <span className="sc-stat-icon">
-              <svg {...icon}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" />
-              </svg>
-            </span>
-            <button type="button" className="sc-stat-more" aria-label="Mostrar elementos" onClick={() => { setTab("archivos"); setFilters({}); setQuery(""); }}>⋯</button>
-          </div>
-          <p className="sc-stat-label">Archivos</p>
-          <p className="sc-stat-value">{fileCount} archivos</p>
-          <p className="sc-stat-sub">Archivos disponibles para ti</p>
-        </article>
+      <section className="sc-share-hero" aria-labelledby="sc-share-hero-title"><div><span className="sc-share-eyebrow"><Share2 size={16} />TU ESPACIO PARA COLABORAR</span><h2 id="sc-share-hero-title">{sent ? <>Tus archivos, más allá de ti.<br /><span>Comparte lo que importa.</span></> : <>Las mejores ideas se comparten.<br /><span>Aquí empieza el trabajo en equipo.</span></>}</h2><p>{sent ? 'Consulta los recursos que compartiste y administra sus permisos desde un solo lugar.' : 'Encuentra los archivos que te compartieron, guárdalos en favoritos y sigue creando.'}</p><span className="sc-share-hero-note"><ShieldCheck size={14} />{sent ? 'Tú decides quién tiene acceso' : 'Acceso según los permisos que recibiste'}</span></div><div className="sc-share-art" aria-hidden="true"><span className="sc-share-orbit" /><span className="sc-share-folder"><FolderOpen size={58} strokeWidth={1.3} /></span><span className="sc-share-person sc-share-person-one">A</span><span className="sc-share-person sc-share-person-two">M</span><span className="sc-share-art-label"><Users size={13} />Un espacio para conectar</span></div></section>
+      <div className="sc-share-stats">
+        {[[Inbox, sent ? 'Recursos compartidos por ti' : 'Recursos compartidos contigo', totalCount, insideFolder ? 'Acceso heredado de la carpeta' : `${sharedByCount} ${sharedByCount === 1 ? 'persona' : 'personas'} en esta vista`, 'todos', 'blue'], [FolderOpen, 'Carpetas', folderCount, 'Proyectos y archivos organizados', 'carpetas', 'violet'], [FileText, 'Archivos', fileCount, sent ? 'Recursos que has compartido' : 'Archivos compartidos contigo', 'archivos', 'cyan']].map(([Icon, label, value, hint, target, tone]) => <button type="button" className="sc-share-stat" key={target} onClick={() => { setTab(target); setFilters({}); setQuery(''); setPage(1); }}><span className={`sc-share-stat-icon ${tone}`}><Icon size={22} strokeWidth={1.8} /></span><span><span className="sc-share-stat-label">{label}</span><strong>{value}</strong><small>{hint}</small></span><ArrowRight size={15} className="sc-share-stat-arrow" /></button>)}
       </div>
+      <div className="sc-resources-heading"><div><span className="sc-resources-kicker">TODO LISTO PARA COLABORAR</span><h2>{sent ? 'Lo que compartiste' : 'Compartido contigo'}</h2><p>{sent ? 'Revisa destinatarios, permisos y detalles de cada recurso.' : 'Abre una carpeta o encuentra ese archivo que necesitabas.'}</p></div><span className="sc-match-count" role="status">{matched.length} {matched.length === 1 ? 'recurso' : 'recursos'}</span></div>
+      <div className="sc-share-discovery"><div className="sc-tabs" role="group" aria-label="Filtrar recursos compartidos">{[['todos', 'Todos', Inbox], ['archivos', 'Archivos', FileText], ['carpetas', 'Carpetas', FolderOpen]].map(([id, label, Icon]) => <button type="button" key={id} className={tab === id ? 'active' : ''} aria-pressed={tab === id} onClick={() => { setTab(id); setPage(1); }}><Icon size={15} />{label}</button>)}</div><form className="sc-search" onSubmit={handleSearchSubmit}><span className="sc-search-icon"><Search size={17} /></span><label className="sc-share-sr-only" htmlFor="sc-shared-search">Buscar en compartidos</label><input id="sc-shared-search" type="search" placeholder="Buscar archivos o carpetas…" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} />{query && <button type="button" className="sc-search-clear" aria-label="Limpiar búsqueda de compartidos" onClick={() => { setQuery(''); setPage(1); }}><X size={15} /></button>}</form></div>
 
       {/* Filtros */}
       <div className="sc-toolbar">
         <div className="sc-filters">
-          {[["owner", "Propietario"], ["typeLabel", "Tipo de archivo"], ["permission", "Permiso"], ["sharedOn", "Fecha"]].map(([key, label]) => (
+          {[["owner", sent ? "Destinatario" : "Propietario"], ["typeLabel", "Tipo de archivo"], ["permission", "Permiso"], ["sharedOn", "Fecha"]].map(([key, label]) => (
             <select className="sc-filter-btn" key={key} aria-label={label} value={filters[key] || ""} onChange={e => { setFilters({ ...filters, [key]: e.target.value }); setPage(1); }}>
               <option value="">{label}: todos</option>
               {[...new Set(items.map(item => item[key]))].map(value => <option key={value} value={value}>{value}</option>)}
@@ -202,6 +133,7 @@ export default function CompartidosConmigo({
         </div>
 
         <div className="sc-toolbar-right">
+          {(query || Object.values(filters).some(Boolean)) && <button type="button" className="sc-reset-filters" onClick={() => { setQuery(''); setFilters({}); setPage(1); }}>Limpiar<X size={13} /></button>}
           <select aria-label="Ordenar por" value={sort} onChange={e => setSort(e.target.value)}><option value="recent">Más reciente</option><option value="name">Nombre</option></select>
 
           <ViewToggle value={view} onChange={setView} />
@@ -222,13 +154,13 @@ export default function CompartidosConmigo({
             </tr>
           </thead>
           <tbody>
-            {!filteredItems.length && <tr><td colSpan={6}>No hay elementos compartidos que coincidan.</td></tr>}
+            {!filteredItems.length && <tr className="sc-empty-row"><td colSpan={6}><div className="sc-share-empty"><span><Share2 size={33} strokeWidth={1.5} /></span><h3>{query || Object.values(filters).some(Boolean) || tab !== 'todos' ? 'Probemos con otra búsqueda' : sent ? 'Comparte tu primera idea' : 'Aquí hay espacio para colaborar'}</h3><p>No hay elementos compartidos que coincidan.{query || Object.values(filters).some(Boolean) || tab !== 'todos' ? ' Prueba con otro nombre o ajusta los filtros.' : sent ? ' Usa Compartir para dar acceso a tus archivos o carpetas.' : ' Los archivos y carpetas que te compartan aparecerán aquí.'}</p>{(query || Object.values(filters).some(Boolean) || tab !== 'todos') && <button type="button" className="sc-open-btn" onClick={() => { setQuery(''); setFilters({}); setTab('todos'); setPage(1); }}>Ver todos los recursos</button>}</div></td></tr>}
             {filteredItems.map((item) => (
               <tr key={item.id}>
                 <td>
                   <div className="sc-name-cell">
                     <TypeIcon type={item.type} />
-                    <span>{item.name}</span>
+                    <div className="sc-resource-name"><button type="button" onClick={() => onOpenItem?.(item)}>{item.name}</button><span>{item.type === 'carpeta' ? 'Carpeta compartida' : `${item.typeLabel} · Archivo compartido`}</span></div>
                   </div>
                 </td>
                 <td>

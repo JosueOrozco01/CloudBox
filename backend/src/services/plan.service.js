@@ -15,6 +15,16 @@ function createServiceError(message, status, code) {
 }
 
 const PlanService = {
+  async getAllPlans() {
+    const { data, error } = await supabaseAdmin.from('plan')
+      .select('id,nombre,descripcion,precio,espacio_maximo_gb,vigencia_dias,id_estado')
+      .order('precio', { ascending: true }).order('id');
+    if (error) throw createServiceError('No se pudo consultar el catálogo administrativo', 500, 'DATABASE_ERROR');
+    return (data || []).map(plan => ({ ...plan,
+      precio: Number(plan.precio), espacio_maximo_gb: Number(plan.espacio_maximo_gb),
+      estado: plan.id_estado === 1 ? 'Activo' : 'Inactivo',
+    }));
+  },
   /**
    * Obtiene todos los planes comerciales activos (id_estado = 1).
    */

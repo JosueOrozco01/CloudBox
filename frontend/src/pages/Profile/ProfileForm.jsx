@@ -1,5 +1,7 @@
+import UserAvatar from "../../components/UserAvatar/UserAvatar";
+import { date } from "../../utils/moduleFormat";
 import { useState } from "react";
-import { Upload } from "lucide-react";
+import { LockKeyhole, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { updateMyProfile } from "../../services/profileService";
 import Loading from "../../components/Loading/Loading";
@@ -39,9 +41,7 @@ function ProfileForm({ user, onProfileUpdated }) {
     navigate("/perfil?tab=seguridad");
   };
 
-  const formattedDate = user.fecha_registro
-    ? new Date(`${user.fecha_registro}T00:00:00`).toLocaleDateString("es-GT")
-    : "";
+  const formattedDate = date(user.fecha_registro);
 
   const handleCancel = () => {
     setFirstName(user.nombre || "");
@@ -123,35 +123,11 @@ function ProfileForm({ user, onProfileUpdated }) {
   return (
     <section className="profilePanel">
       <div className="profilePanelHeading">
-        <h2>Información personal</h2>
+        <h2><UserRound size={20} />Información personal</h2>
         <p>Administra la información asociada a tu cuenta</p>
       </div>
 
-      <div className="profilePhotoRow">
-        <span className="profileAvatar profileAvatarLarge">
-          {user.nombre?.charAt(0).toUpperCase()}
-          {user.apellido?.charAt(0).toUpperCase()}
-        </span>
-
-        <div>
-          <button
-            className="secondaryButton profilePhotoButton"
-            type="button"
-          >
-            <Upload
-              className="profileUploadIcon"
-              size={16}
-              strokeWidth={2.2}
-              aria-hidden="true"
-            />
-            Cambiar foto
-          </button>
-
-          <small>
-            Recomendado: JPG o PNG de al menos 400x400px
-          </small>
-        </div>
-      </div>
+      <div className="profilePhotoRow"><UserAvatar user={{ name: [user.nombre, user.apellido].filter(Boolean).join(' '), avatarUrl: user.avatarUrl }} className="account-form-avatar" /><div><strong>{[user.nombre, user.apellido].filter(Boolean).join(' ') || 'Tu perfil'}</strong><span>{user.correo}</span><small>{user.avatarUrl ? 'Imagen asociada a tu cuenta' : 'Tu avatar se representa con tus iniciales.'}</small></div></div>
 
       <div className="profileFormGrid">
         <label>
@@ -161,6 +137,7 @@ function ProfileForm({ user, onProfileUpdated }) {
             name="firstName"
             type="text"
             maxLength={255}
+            disabled={isSaving}
             onChange={(event) => setFirstName(event.target.value)}
           />
         </label>
@@ -172,6 +149,7 @@ function ProfileForm({ user, onProfileUpdated }) {
             name="lastName"
             type="text"
             maxLength={255}
+            disabled={isSaving}
             onChange={(event) => setLastName(event.target.value)}
           />
         </label>
@@ -180,7 +158,7 @@ function ProfileForm({ user, onProfileUpdated }) {
           Correo electrónico
           <div className="profileReadonlyInput">
             <span>{user.correo}</span>
-            <img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+            <LockKeyhole size={15} aria-hidden="true" />
           </div>
         </label>
 
@@ -188,7 +166,7 @@ function ProfileForm({ user, onProfileUpdated }) {
           Rol
           <div className="profileReadonlyInput">
             <span>{user.rol}</span>
-            <img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+            <LockKeyhole size={15} aria-hidden="true" />
           </div>
         </label>
 
@@ -196,7 +174,7 @@ function ProfileForm({ user, onProfileUpdated }) {
           Estado
           <div className="profileReadonlyInput">
             <span>{user.estado}</span>
-            <img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+            <LockKeyhole size={15} aria-hidden="true" />
           </div>
         </label>
 
@@ -204,7 +182,7 @@ function ProfileForm({ user, onProfileUpdated }) {
           Fecha de creación
           <div className="profileReadonlyInput">
             <span>{formattedDate}</span>
-            <img className="profileReadonlyIcon" src="/seguro.png" alt="" />
+            <LockKeyhole size={15} aria-hidden="true" />
           </div>
         </label>
       </div>

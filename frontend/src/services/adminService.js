@@ -1,3 +1,4 @@
+import { api, query } from './apiClient';
 import { normalizeApiUrl } from "./dashboardService";
 
 const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
@@ -42,3 +43,8 @@ export const mapAdminUser = (user) => ({
     : "—",
   storage: `${(user.usedBytes / 1024 ** 3).toFixed(2)} GB`,
 });
+
+// Paginated administration APIs keep metadata alongside data.
+export const getAdminSubscriptions = filters => api(`/admin/subscriptions?${query(filters)}`);
+export const getStorageOverview = () => api('/admin/storage/overview').then(r => r.data);
+export const getStorageUsers = ({ overQuota, ...page }) => api(`/admin/storage/${overQuota ? 'over-quota' : 'users'}?${query(page)}`);

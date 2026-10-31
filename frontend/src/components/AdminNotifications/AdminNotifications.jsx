@@ -1,3 +1,4 @@
+import Loading from "../Loading/Loading";
 import { activityLabel as label } from "../../utils/activityLabels";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -154,9 +155,7 @@ export default function AdminNotifications({ userId }) {
               </p>
             )}
             {loading && (
-              <p className="admin-notification-feedback" role="status">
-                Cargando actividad…
-              </p>
+              <Loading inline text="Cargando actividad…" />
             )}
             {!loading && !error && !logs.length && (
               <p className="admin-notification-feedback">

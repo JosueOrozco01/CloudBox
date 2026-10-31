@@ -1,6 +1,4 @@
-import "./Terms.css";
-import Topbar from "../../components/TopBarPrincipal/Topbarprincipal";
-import Footer from "../../components/FooterSignOut/Footer";
+import LegalDocument from "../../components/LegalDocument/LegalDocument";
 
 const sections = [
   {
@@ -56,32 +54,5 @@ const sections = [
 ];
 
 export default function Terms({ embedded = false }) {
-  return (
-    <div className="terms-page">
-      {!embedded && <Topbar />}
-
-      <main className="terms-main">
-        <div className="terms-container">
-          <h1 className="terms-title">Términos y condiciones</h1>
-          <p className="terms-updated">Última actualización: 6 de octubre de 2026</p>
-
-          <p className="terms-intro">
-            Estos Términos y Condiciones regulan el uso de CloudBox. Por favor,
-            léelos cuidadosamente antes de utilizar nuestros servicios.
-          </p>
-
-          <div className="terms-sections">
-            {sections.map((section) => (
-              <section className="terms-section" key={section.title}>
-                <h2>{section.title}</h2>
-                <p>{section.content}</p>
-              </section>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {!embedded && <Footer />}
-    </div>
-  );
+  return <LegalDocument kind="terms" embedded={embedded} intro="Estos Términos y Condiciones regulan el uso de CloudBox. Por favor, léelos cuidadosamente antes de utilizar nuestros servicios." sections={sections} />;
 }

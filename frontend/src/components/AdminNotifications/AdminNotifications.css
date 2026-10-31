@@ -145,3 +145,19 @@
     right: 16px;
   }
 }
+
+.admin-notification-panel footer a {
+  display: block;
+  color: #1565c0;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.client-notification-message { grid-column: 1 / -1; }
+.client-notification-message dd { white-space: pre-wrap; line-height: 1.6; }
+html[data-theme="dark"] .admin-notification-panel footer a { color: var(--dark-accent); }
+html[data-theme="dark"] .admin-notification-panel li > button { border-bottom-color: var(--dark-border); }
+html[data-theme="dark"] :is(.admin-notification-icon, .admin-notification-panel header button, .admin-notification-dismiss) {
+  background: var(--dark-selected);
+  color: var(--dark-accent);
+}

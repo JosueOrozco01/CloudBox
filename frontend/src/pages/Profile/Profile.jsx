@@ -1,3 +1,8 @@
+import { ArrowRight, LifeBuoy, LogOut, Settings2, ShieldAlert, ShieldCheck, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Modal } from "../../components/ModuleUI/ModuleUI";
+import Footer from "../../components/FooterSignOut/Footer";
+import ProfileHero from "./ProfileHero";
 import SecurityTab from "../SecurityTab/Securitytab";
 import PreferencesTab from "../Preferencestab/Preferencetab";
 import { getPreferences, getSecurity, savePreferences, changePassword, logoutOtherSessions } from "../../services/settingsService";
@@ -7,12 +12,14 @@ import ProfileForm from "./ProfileForm.jsx";
 import StorageSummary from "./StorageSummary.jsx";
 import { getMyProfile, deactivateMyAccount } from "../../services/profileService.js";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { logout } from "../../services/authService";
+import { logout, clearSession } from "../../services/authService";
 import Loading from "../../components/Loading/Loading";
 import AlertModal from "../../components/AlertModal/AlertModal";
 import "./Profile.css";
+import "./ProfileRefresh.css";
 
 function UserProfile() {
+  const [sessionToken] = useState(() => localStorage.getItem('token'));
   const [params, setParams] = useSearchParams();
   const tab = ['seguridad', 'preferencias'].includes(params.get('tab')) ? params.get('tab') : 'perfil';
   const [preferences, setPreferences] = useState(null);
@@ -61,7 +68,8 @@ function UserProfile() {
     setIsLoggingOut(true);
 
     try {
-      await logout();
+      const result = await logout();
+      if (result?.sessionChanged) return;
       navigate("/login", { replace: true });
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -92,15 +100,14 @@ function UserProfile() {
       // La cuenta ya está inactiva en la base de datos.
       // Limpiar la sesión local aunque el endpoint de logout
       // rechace el token por el nuevo estado del usuario.
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
+      if (!clearSession(sessionToken)) return;
 
       setDeletePassword("");
       setShowDeleteConfirm(false);
 
       navigate("/login", { replace: true });
     } catch (error) {
+      setDeleteError(error.message || "No se pudo desactivar la cuenta");
       showAlert(
         "error",
         "Error al desactivar cuenta",
@@ -113,20 +120,24 @@ function UserProfile() {
 
   // Cargar perfil
   useEffect(() => {
+    let active = true;
+    const currentSession = () => active && sessionToken === localStorage.getItem("token");
     const loadProfile = async () => {
       try {
         const [profile, saved, security] = await Promise.all([getMyProfile(), getPreferences(), getSecurity()]);
+        if (!currentSession()) return;
         setUser(profile); setPreferences(saved); setSessions(security.sessions);
-        applyPreferences(profile.id, saved);
+        applyPreferences(profile.id, saved, sessionToken);
       } catch (error) {
-        setError(error.message);
+        if (currentSession()) setError(error.message);
       } finally {
-        setIsLoading(false);
+        if (currentSession()) setIsLoading(false);
       }
     };
 
     loadProfile();
-  }, []);
+    return () => { active = false; };
+  }, [sessionToken]);
 
   if (isLoading) {
     return (
@@ -152,47 +163,13 @@ function UserProfile() {
     <div className="profilePage">
       <main className="profileMain">
         <header className="profilePageHeader">
-          <h1>Configuración</h1>
-          <p>Administra tu perfil, seguridad y preferencias de CloudBox</p>
+          <h1>Mi perfil</h1>
+          <p>Un espacio para tus datos, tu seguridad y tus preferencias.</p>
         </header>
 
+        <ProfileHero user={user} />
         <div className="profileContent">
-          <aside
-            className="profileTabs"
-            aria-label="Configuración de cuenta"
-          >
-            <button
-              className={`profileTab ${tab === "perfil" ? "profileTabActive" : ""}`}
-              onClick={() => setParams({})}
-              aria-pressed={tab === "perfil"}
-              type="button"
-            >
-              <img
-                className="profileTabIcon"
-                src="/Usuario.png"
-                alt=""
-              />
-              Perfil
-            </button>
-
-            <button className={`profileTab ${tab === "seguridad" ? "profileTabActive" : ""}`} aria-pressed={tab === "seguridad"} onClick={() => setParams({ tab: "seguridad" })} type="button">
-              <img
-                className="profileTabIcon"
-                src="/seguro.png"
-                alt=""
-              />
-              Seguridad
-            </button>
-
-            <button className={`profileTab ${tab === "preferencias" ? "profileTabActive" : ""}`} aria-pressed={tab === "preferencias"} onClick={() => setParams({ tab: "preferencias" })} type="button">
-              <img
-                className="profileTabIcon"
-                src="/preferencias.png"
-                alt=""
-              />
-              Preferencias
-            </button>
-          </aside>
+          <aside className="account-sidebar"><nav className="profileTabs" aria-label="Configuración de cuenta"><span className="account-nav-caption">CONFIGURACIÓN</span>{[['perfil', 'Perfil', 'Tu información personal', UserRound], ['seguridad', 'Seguridad', 'Contraseña y sesiones', ShieldCheck], ['preferencias', 'Preferencias', 'Un espacio a tu estilo', Settings2]].map(([id, label, description, Icon]) => <button key={id} className={`profileTab ${tab === id ? 'profileTabActive' : ''}`} onClick={() => setParams(id === 'perfil' ? {} : { tab: id })} aria-pressed={tab === id} aria-label={label} type="button"><span className="account-tab-icon"><Icon size={19} /></span><span>{label}<small>{description}</small></span><ArrowRight size={14} className="account-tab-arrow" /></button>)}</nav><div className="account-sidebar-help"><LifeBuoy size={23} /><h2>Estamos para ayudarte</h2><p>Encuentra respuestas sobre tu cuenta y tu espacio.</p><Link to="/soporte">Ir al centro de ayuda<ArrowRight size={14} /></Link></div></aside>
 
           <section className="profilePanels">
             {tab === 'seguridad' && <SecurityTab sessions={sessions} isUpdatingPassword={settingsBusy} passwordError={passwordError} onUpdatePassword={async values => {
@@ -207,10 +184,10 @@ function UserProfile() {
               catch (error) { showAlert('error', 'Sesiones', error.message); }
               finally { setSettingsBusy(false); }
             }} onLogout={handleLogout} onDeleteAccount={() => setShowDeleteConfirm(true)} />}
-            {tab === 'preferencias' && preferences && <PreferencesTab initialNotifications={preferences.notifications} initialTheme={preferences.theme} initialLanguage={preferences.language} initialShowKB={preferences.showKB} isSaving={settingsBusy} onSavePreferences={async values => {
+            {tab === 'preferencias' && preferences && <PreferencesTab userId={user.id} initialNotifications={preferences.notifications} initialTheme={preferences.theme} initialLanguage={preferences.language} initialShowKB={preferences.showKB} isSaving={settingsBusy} onSavePreferences={async values => {
               if (settingsBusy) return;
               setSettingsBusy(true);
-              try { const saved = await savePreferences(values); setPreferences(saved); applyPreferences(user.id, saved); showAlert('success', 'Preferencias', 'Preferencias guardadas correctamente.'); }
+              try { const saved = await savePreferences(values); setPreferences(saved); applyPreferences(user.id, saved, sessionToken); showAlert('success', 'Preferencias', 'Preferencias guardadas correctamente.'); }
               catch (error) { showAlert('error', 'Preferencias', error.message); }
               finally { setSettingsBusy(false); }
             }} onLogout={handleLogout} onDeleteAccount={() => setShowDeleteConfirm(true)} />}
@@ -223,11 +200,11 @@ function UserProfile() {
               }}
               />
 
-            <StorageSummary />
+            <StorageSummary isAdmin={user.permissions?.includes("admin_panel")} />
 
             <section className="profilePanel profileAccountPanel">
               <div className="profilePanelHeading">
-                <h2>Cuenta</h2>
+                <h2><LogOut size={20} />Tu cuenta</h2>
                 <p>
                   Si cierras sesión tendrás que ingresar tus credenciales
                   nuevamente. Si decides desactivar tu cuenta, perderás
@@ -260,86 +237,10 @@ function UserProfile() {
           </section>
         </div>
       </main>
-      {showDeleteConfirm && (
-        <div className="deleteAccountOverlay">
-          <div
-            className="deleteAccountModal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="deleteAccountTitle"
-          >
-            <h2 id="deleteAccountTitle">
-              Desactivar cuenta
-            </h2>
+      <Footer />
+      {showDeleteConfirm && <Modal title="Desactivar cuenta" subtitle="Revisa esta decisión antes de continuar" icon={ShieldAlert} busy={isDeleting} onClose={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(''); setShowDeletePassword(false); }}><form className="module-form account-deactivate-form" onSubmit={event => { event.preventDefault(); handleDeactivateAccount(); }}><div className="account-deactivate-note"><ShieldAlert size={20} /><p>Perderás el acceso a CloudBox. Tus archivos, carpetas y datos permanecerán almacenados.</p></div><label className="module-field" htmlFor="deletePassword">Confirma con tu contraseña actual<div className="account-password-wrap"><input id="deletePassword" type={showDeletePassword ? 'text' : 'password'} value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Contraseña actual" autoComplete="current-password" disabled={isDeleting} required /><button type="button" disabled={isDeleting} onClick={() => setShowDeletePassword(!showDeletePassword)} aria-label={showDeletePassword ? 'Ocultar contraseña de confirmación' : 'Mostrar contraseña de confirmación'}>{showDeletePassword ? 'Ocultar' : 'Mostrar'}</button></div></label>{deleteError && <p className="deleteAccountError" role="alert">{deleteError}</p>}<div className="module-actions"><button className="module-button" type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(''); setShowDeletePassword(false); }} disabled={isDeleting}>Cancelar</button><button className="module-button danger" type="submit" disabled={isDeleting || !deletePassword.trim()}>{isDeleting ? 'Desactivando...' : 'Confirmar desactivación'}</button></div></form></Modal>}
 
-            <p>
-              Tu cuenta será desactivada y perderás el acceso a CloudBox.
-              Tus archivos, carpetas y datos permanecerán almacenados.
-              Ingresa tu contraseña para confirmar esta acción.
-            </p>
-
-            <label
-              className="deletePasswordLabel"
-              htmlFor="deletePassword"
-            >
-              Ingresa tu contraseña actual
-            </label>
-
-            <div className="deletePasswordField">
-              <input
-                id="deletePassword"
-                type={showDeletePassword ? "text" : "password"}
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder="Contraseña actual"
-                autoComplete="current-password"
-                disabled={isDeleting}
-              />
-
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => setShowDeletePassword(!showDeletePassword)}
-              >
-                {showDeletePassword ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-
-            {deleteError && (
-              <p className="deleteAccountError" role="alert">
-                {deleteError}
-              </p>
-            )}
-
-            <div className="deleteAccountActions">
-              <button
-                className="secondaryButton"
-                type="button"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeletePassword("");
-                  setDeleteError("");
-                  setShowDeletePassword(false);
-                }}
-                disabled={isDeleting}
-              >
-                Cancelar
-              </button>
-
-              <button
-                className="dangerButton"
-                type="button"
-                onClick={handleDeactivateAccount}
-                disabled={isDeleting || !deletePassword.trim()}
-              >
-                {isDeleting ? "Desactivando..." : "Confirmar desactivación"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(isLoggingOut || isDeleting) && <Loading />}
+      {(isLoggingOut || isDeleting || settingsBusy) && <Loading text={isLoggingOut ? "Cerrando sesión" : "Guardando cambios"} fullScreen={false} />}
 
       <AlertModal
         isOpen={alert.isOpen}

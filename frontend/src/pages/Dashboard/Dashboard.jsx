@@ -470,7 +470,7 @@ export default function Dashboard({ user, initialData = null }) {
                   : unavailable()
           }
           onViewAllFiles={() => navigate("/archivos")}
-          onViewPlans={unavailable}
+          onViewPlans={() => navigate("/plan")}
         />
       ) : (
         !error && (
@@ -503,7 +503,7 @@ export default function Dashboard({ user, initialData = null }) {
             })
           }
           onClose={() => setUploadOpen(false)}
-          onViewPlans={unavailable}
+          onViewPlans={() => navigate("/plan")}
         />
       )}
       {folderOpen && (

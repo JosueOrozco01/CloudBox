@@ -1,142 +1,28 @@
-import { useEffect, useState, useCallback } from "react";
+import Loading from "../../components/Loading/Loading";
+import { useEffect, useEffectEvent } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, HardDrive, Info, RefreshCw } from "lucide-react";
 import { getMyStorage } from "../../services/profileService";
+import { useResource } from "../../hooks/useResource";
 
-function StorageSummary() {
-  const [storage, setStorage] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const loadStorage = useCallback(async (showLoading = false) => {
-    if (showLoading) setIsLoading(true);
-
-    try {
-      const data = await getMyStorage();
-      setStorage(data);
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
+const formatStorage = value => {
+  if (value == null) return '—';
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes)) return '—';
+  if (bytes === 0) return '0 B';
+  const index = Math.min(3, Math.max(0, Math.floor(Math.log(bytes) / Math.log(1024))));
+  return `${(bytes / 1024 ** index).toLocaleString('es-GT', { maximumFractionDigits: 2 })} ${['B', 'KB', 'MB', 'GB'][index]}`;
+};
+export default function StorageSummary({ isAdmin = false }) {
+  const resource = useResource(getMyStorage);
+  const refreshStorage = useEffectEvent(() => resource.refresh());
   useEffect(() => {
-    loadStorage(true);
-
-    const handleStorageUpdated = () => {
-      loadStorage();
-    };
-
-    window.addEventListener(
-      "cloudbox:storage-updated",
-      handleStorageUpdated
-    );
-
-    return () => {
-      window.removeEventListener(
-        "cloudbox:storage-updated",
-        handleStorageUpdated
-      );
-    };
-  }, [loadStorage]);
-
-  const formatStorage = (bytes) => {
-    const GB = 1024 * 1024 * 1024;
-    const MB = 1024 * 1024;
-    const KB = 1024;
-
-    if (bytes === 0) return "0 B";
-    if (bytes < KB) return `${bytes} B`;
-    if (bytes < MB) return `${(bytes / KB).toFixed(2)} KB`;
-    if (bytes < GB) return `${(bytes / MB).toFixed(2)} MB`;
-
-    return `${(bytes / GB).toFixed(2)} GB`;
-  };
-
-  if (isLoading) {
-    return (
-      <section className="storageSummary">
-        <p>Cargando almacenamiento...</p>
-      </section>
-    );
-  }
-
-  if (error && !storage) {
-    return (
-      <section className="storageSummary">
-        <p role="alert">{error}</p>
-      </section>
-    );
-  }
-
-  if (!storage) return null;
-
-  const storageCapacityGb = storage.plan.espacio_maximo_gb;
-
-  const usagePercent = Math.min(
-    100,
-    Math.max(0, storage.percentageUsed)
-  );
-
-  const storageColorClass =
-    usagePercent > 80
-      ? "storageSummaryFillRed"
-      : usagePercent > 50
-        ? "storageSummaryFillYellow"
-        : "storageSummaryFillBlue";
-
-  return (
-    <section
-      className="storageSummary"
-      aria-labelledby="storageSummaryTitle"
-    >
-      <div>
-        <div className="storageSummaryHeader">
-          <h2
-            className="storageSummaryTitle"
-            id="storageSummaryTitle"
-          >
-            Espacio utilizado
-          </h2>
-
-          <span className="storagePlanBadge">
-            Plan {storage.plan.nombre}
-          </span>
-        </div>
-
-        <p className="storageSummaryAvailable">
-          {formatStorage(storage.usedBytes)} de{" "}
-          {storageCapacityGb} GB usado
-        </p>
-
-        <div
-          className="storageSummaryTrack"
-          role="progressbar"
-          aria-label="Almacenamiento usado"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={usagePercent}
-        >
-          <div
-            className={`storageSummaryFill ${storageColorClass}`}
-            style={{
-              width: `${usagePercent}%`,
-            }}
-          />
-        </div>
-
-        <div className="storageSummaryFooter">
-          <span>{usagePercent}% usado</span>
-
-          <span>
-            {formatStorage(storage.availableBytes)} disponibles
-          </span>
-        </div>
-
-        {error && <p role="alert">{error}</p>}
-      </div>
-    </section>
-  );
+    const refresh = () => refreshStorage();
+    window.addEventListener('cloudbox:storage-updated', refresh);
+    return () => window.removeEventListener('cloudbox:storage-updated', refresh);
+  }, []);
+  const storage = resource.data;
+  const usage = storage ? Math.min(100, Math.max(0, Number(storage.percentageUsed) || 0)) : 0;
+  const capacity = storage?.maxBytes ?? (storage?.plan?.espacio_maximo_gb != null ? Number(storage.plan.espacio_maximo_gb) * 1024 ** 3 : null);
+  return <section className="storageSummary account-storage" aria-labelledby="storageSummaryTitle"><div className="account-storage-heading"><div><span className="account-section-icon"><HardDrive size={20} /></span><div><h2 id="storageSummaryTitle">Tu espacio en la nube</h2><p>Un vistazo al almacenamiento de tu cuenta.</p></div></div>{storage?.plan?.nombre && <span className="storagePlanBadge">Plan {storage.plan.nombre}</span>}</div>{resource.loading && <Loading inline text="Cargando almacenamiento…" />}{resource.error && <div className="account-storage-message" role="alert"><p>{resource.error}</p><button type="button" className="secondaryButton" onClick={resource.refresh}><RefreshCw size={14} />Reintentar</button></div>}{storage && <><div className="account-storage-metrics">{[['Utilizado', formatStorage(storage.usedBytes)], ['Disponible', formatStorage(storage.availableBytes)], ['Capacidad', formatStorage(capacity)]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="storageSummaryTrack" role="progressbar" aria-label="Almacenamiento usado" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usage}><span className={`storageSummaryFill ${usage > 80 ? 'storageSummaryFillRed' : usage > 50 ? 'storageSummaryFillYellow' : 'storageSummaryFillBlue'}`} style={{ width: `${usage}%` }} /></div><div className="account-storage-bottom"><span><Info size={13} />{usage.toFixed(1)} % de tu espacio utilizado</span><Link to={isAdmin ? '/admin/almacenamiento' : '/plan'}>Ver {isAdmin ? 'almacenamiento' : 'mi plan'}<ArrowRight size={14} /></Link></div></>}</section>;
 }
-
-export default StorageSummary;

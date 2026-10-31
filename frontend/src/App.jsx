@@ -1,5 +1,6 @@
+import Product from "./pages/Product/Product";
 import { getPreferences } from "./services/settingsService";
-import { applyPreferences } from "./utils/preferences";
+import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
 import SharedPage from "./pages/Compratidoconmigo/ConnectedCompartidos";
 import UserManagement from "./pages/UserManagement/ConnectedUserManagement";
 import { useEffect, useState } from "react";
@@ -27,6 +28,15 @@ import AppTopbar from "./components/Apptopbar/Apptopbar";
 import Loading from "./components/Loading/Loading";
 import { getMyProfile } from "./services/profileService";
 import { getDashboard } from "./services/dashboardService";
+import Plans from './pages/Plans/Plans';
+import Payments from './pages/Payments/Payments';
+import Activity from './pages/Activity/Activity';
+import Notifications from './pages/Notifications/Notifications';
+import Support from './pages/Support/Support';
+import AdminPlans from './pages/AdminPlans/AdminPlans';
+import AdminSubscriptions from './pages/AdminSubscriptions/AdminSubscriptions';
+import AdminStorage from './pages/AdminStorage/AdminStorage';
+import AdminReports from './pages/AdminReports/AdminReports';
 
 function AuthenticatedPage({
   children,
@@ -44,32 +54,38 @@ function AuthenticatedPage({
   useEffect(() => {
     let active = true;
 
+    const expectedToken = localStorage.getItem('token');
+    const currentSession = () => active && expectedToken === localStorage.getItem('token');
     const loadUser = async () => {
       setIsLoading(true);
       setProfileError(null);
 
       try {
         const profile = await getMyProfile();
+        if (!currentSession()) return;
+        localStorage.setItem('user', JSON.stringify(profile));
+        beginAccountAppearance(profile.id, expectedToken);
         const preferences = await getPreferences().catch(() => null);
-        if (active && preferences) applyPreferences(profile.id, preferences);
+        if (!currentSession()) return;
+        if (preferences) applyPreferences(profile.id, preferences, expectedToken);
         const summary =
           preloadDashboard && !profile.permissions?.includes("admin_panel")
             ? await getDashboard().catch(() => null)
             : null;
 
-        if (active) {
+        if (currentSession()) {
           setUser(profile);
           setDashboardData(summary);
         }
       } catch (error) {
         console.error("Error al obtener usuario:", error);
 
-        if (active) {
+        if (currentSession()) {
           setUser(null);
           setProfileError(error);
         }
       } finally {
-        if (active) {
+        if (currentSession()) {
           setIsLoading(false);
         }
       }
@@ -128,16 +144,30 @@ function AuthenticatedPage({
   );
 }
 
-function InformationalPage({ component: Page }) {
+function InformationalPage({ component: Page, ...props }) {
   return localStorage.getItem('token')
-    ? <AuthenticatedPage><Page embedded /></AuthenticatedPage>
-    : <Page />;
+    ? <AuthenticatedPage><Page {...props} embedded /></AuthenticatedPage>
+    : <Page {...props} />;
 }
 function RecoveryPage() {
   return localStorage.getItem('token') ? <Navigate to="/perfil?tab=seguridad" replace /> : <ForgotPassword />;
 }
 
 function App() {
+  const [sessionVersion, setSessionVersion] = useState(0);
+  useEffect(() => {
+    let token = localStorage.getItem('token');
+    const synchronize = () => {
+      const next = localStorage.getItem('token');
+      if (next !== token) { token = next; restoreCachedPreferences(); setSessionVersion(version => version + 1); }
+    };
+    const storageChanged = event => {
+      if (event.key === null || ['token', 'refreshToken', 'user'].includes(event.key)) synchronize();
+    };
+    window.addEventListener('cloudbox:session-changed', synchronize);
+    window.addEventListener('storage', storageChanged);
+    return () => { window.removeEventListener('cloudbox:session-changed', synchronize); window.removeEventListener('storage', storageChanged); };
+  }, []);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => {
@@ -149,11 +179,26 @@ function App() {
   return (
     <BrowserRouter>
       <OfflineBanner />
-      <Routes>
+      <Routes key={sessionVersion}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/recuperar" element={<RecoveryPage />} />
+        <Route path="/sobre-nosotros" element={<InformationalPage component={Product} kind="about" />} />
+        <Route path="/nosotros" element={<Navigate to="/sobre-nosotros" replace />} />
+        <Route path="/caracteristicas" element={<InformationalPage component={Product} kind="features" />} />
+        <Route path="/seguridad" element={<InformationalPage component={Product} kind="security" />} />
+        <Route path="/planes" element={<InformationalPage component={Plans} publicCatalog />} />
+        <Route path="/soporte" element={<InformationalPage component={Support} />} />
+        <Route path="/plan" element={<AuthenticatedPage clientOnly><Plans /></AuthenticatedPage>} />
+        <Route path="/pagos" element={<AuthenticatedPage clientOnly><Payments /></AuthenticatedPage>} />
+        <Route path="/actividad" element={<AuthenticatedPage clientOnly><Activity /></AuthenticatedPage>} />
+        <Route path="/notificaciones" element={<AuthenticatedPage clientOnly><Notifications /></AuthenticatedPage>} />
+        <Route path="/admin/planes" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminPlans /></AuthenticatedPage>} />
+        <Route path="/admin/suscripciones" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminSubscriptions /></AuthenticatedPage>} />
+        <Route path="/admin/almacenamiento" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminStorage /></AuthenticatedPage>} />
+        <Route path="/admin/metricas" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminReports /></AuthenticatedPage>} />
+        <Route path="/admin/reportes" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminReports /></AuthenticatedPage>} />
         <Route
           path="/dashboard"
           element={

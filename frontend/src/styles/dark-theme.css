@@ -132,7 +132,4 @@ html[data-theme="dark"] .loading-overlay .loading-content {
   box-shadow: 0 16px 40px #00000040;
 }
 html[data-theme="dark"] .loading-text { color: var(--dark-text); }
-html[data-theme="dark"] .loading-spinner {
-  border-color: var(--dark-border);
-  border-top-color: var(--dark-accent);
-}
+html[data-theme="dark"] .loading-arrows { color: var(--dark-accent); }

@@ -1,3 +1,4 @@
+import Loading from "../../components/Loading/Loading";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import "../../components/CreateFolderModal/Createfoldermodal.css";
@@ -22,7 +23,7 @@ export default function SharedDialog({ title, subtitle, icon: Icon, busy, onClos
   return <div className="cf-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) onClose(); }}>
     <form ref={root} tabIndex={-1} className="cf-modal sc-dialog" role="dialog" aria-modal="true" aria-labelledby="shared-dialog-title" onKeyDown={keyboard} onSubmit={e => { e.preventDefault(); if (onSubmit && !busy) onSubmit(e); }}>
       <div className="cf-header"><span className="cf-header-icon"><Icon size={21} /></span><div className="cf-header-text"><h2 id="shared-dialog-title">{title}</h2><p>{subtitle}</p></div><button className="sc-dismiss" type="button" aria-label="Cerrar" disabled={busy} onClick={onClose}><X size={19} /></button></div>
-      <div className="cf-body">{children}</div>
+      <div className="cf-body">{busy && <Loading inline text="Procesando tu solicitud" />}{children}</div>
       <div className="cf-footer">{footer}</div>
     </form>
   </div>;

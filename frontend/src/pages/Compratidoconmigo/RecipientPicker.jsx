@@ -1,3 +1,4 @@
+import Loading from "../../components/Loading/Loading";
 import { useEffect, useId, useState } from "react";
 import { Check, Search, UserRound } from "lucide-react";
 import { request } from "../../services/dashboardService";
@@ -44,7 +45,7 @@ export default function RecipientPicker({ value, onChange, disabled }) {
           <span className="sc-recipient-avatar"><UserRound size={18} /></span><span className="sc-recipient-person"><strong>{[user.nombre, user.apellido].filter(Boolean).join(" ") || user.correo}</strong><span>{user.correo}</span></span>{value === user.correo && <Check size={16} />}
         </li>)}
       </ul>
-      <div className="sc-recipient-status" role="status">{pending ? "Buscando usuarios…" : result.error ? <>{result.error} <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></> : !users.length ? "No hay usuarios activos que coincidan con ese correo." : "Selecciona una persona o usa las flechas y Enter."}</div>
+      <div className="sc-recipient-status" role="status">{pending ? <Loading inline text="Buscando usuarios…" description="" /> : result.error ? <>{result.error} <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => setRetry(n => n + 1)}>Reintentar</button></> : !users.length ? "No hay usuarios activos que coincidan con ese correo." : "Selecciona una persona o usa las flechas y Enter."}</div>
     </div>}
     <small id={`${id}-help`} className="sc-field-help">Escribe al menos 2 caracteres. Solo se muestran otras cuentas activas.</small>
   </div>;

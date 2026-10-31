@@ -2,6 +2,11 @@ const {recordLog} = require('../services/audit.service');
 const PlanService = require('../services/plan.service');
 
 const PlanController = {
+  async getAllPlans(req, res, next) {
+    try {
+      return res.status(200).json({ success: true, data: await PlanService.getAllPlans() });
+    } catch (error) { next(error); }
+  },
   async getActivePlans(req, res, next) {
     try {
       const plans = await PlanService.getActivePlans();

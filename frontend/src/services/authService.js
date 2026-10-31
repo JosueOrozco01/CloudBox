@@ -1,4 +1,24 @@
+import { resetAppearance, restoreCachedPreferences } from "../utils/preferences.js";
+
 const API_URL = "http://localhost:3000/api/auth";
+
+export function persistSession(data) {
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('refreshToken', data.refreshToken);
+  localStorage.setItem('user', JSON.stringify(data.user));
+  restoreCachedPreferences();
+  window.dispatchEvent(new Event('cloudbox:session-changed'));
+}
+export function clearSession(expectedToken = localStorage.getItem('token')) {
+  if (localStorage.getItem('token') !== expectedToken) return false;
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('justLoggedIn');
+  resetAppearance();
+  window.dispatchEvent(new Event('cloudbox:session-changed'));
+  return true;
+}
 
 export const login = async (email, password) => {
   const response = await fetch(`${API_URL}/login`, {
@@ -18,24 +38,17 @@ export const login = async (email, password) => {
     throw new Error(data.message || "Error al iniciar sesión");
   }
 
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("refreshToken", data.refreshToken);
-  localStorage.setItem("user", JSON.stringify(data.user));
+  persistSession(data);
 
   return data;
 };
 
 export const logout = async () => {
-  document.documentElement.removeAttribute('data-theme');
-  document.documentElement.removeAttribute('data-theme-mode');
-  document.documentElement.removeAttribute('data-size-unit');
   const accessToken = localStorage.getItem("token");
   const refreshToken = localStorage.getItem("refreshToken");
 
   if (!accessToken || !refreshToken) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
+    clearSession(accessToken);
     return;
   }
 
@@ -52,9 +65,7 @@ export const logout = async () => {
 
   const data = await response.json();
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("user");
+  if (!clearSession(accessToken)) return { sessionChanged: true };
 
   if (!response.ok) {
     throw new Error(data.message || "Error al cerrar sesión");

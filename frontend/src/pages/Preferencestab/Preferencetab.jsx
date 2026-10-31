@@ -1,4 +1,5 @@
-import { previewTheme } from "../../utils/preferences";
+import { Activity, Bell, CreditCard, HardDrive, LogOut, Monitor, Moon, Palette, Share2, Sun } from "lucide-react";
+import { previewAccountTheme, restoreAccountAppearance } from "../../utils/preferences";
 import { useEffect, useState } from "react";
 import "./Preferencetab.css";
 
@@ -29,6 +30,9 @@ const defaultNotifications = [
   },
 ];
 
+const preferenceIcons = { storage: HardDrive, renewal: CreditCard, shared: Share2, activity: Activity };
+const themeIcons = { claro: Sun, oscuro: Moon, sistema: Monitor };
+
 const languages = [
   "Español (América Latina)",
   "Español (España)",
@@ -37,6 +41,7 @@ const languages = [
 ];
 
 export default function PreferencesTab({
+  userId,
   initialNotifications = defaultNotifications,
   initialTheme = "claro",
   initialLanguage = languages[0],
@@ -46,15 +51,16 @@ export default function PreferencesTab({
   onLogout,
   onDeleteAccount,
 }) {
+  const [appearanceToken] = useState(() => localStorage.getItem('token'));
   const [notifications, setNotifications] = useState(() => defaultNotifications.map(item => ({ ...item, enabled: initialNotifications.find(saved => saved.id === item.id)?.enabled === true })));
   const [theme, setTheme] = useState(initialTheme);
   const [language, setLanguage] = useState(initialLanguage);
   const [showKB, setShowKB] = useState(initialShowKB);
 
   useEffect(() => {
-    previewTheme(initialTheme);
-    return () => previewTheme(initialTheme);
-  }, [initialTheme]);
+    previewAccountTheme(userId, initialTheme, appearanceToken);
+    return () => { restoreAccountAppearance(userId, appearanceToken); };
+  }, [initialTheme, userId, appearanceToken]);
 
   const toggleNotification = (id) => {
     setNotifications((prev) =>
@@ -75,12 +81,13 @@ export default function PreferencesTab({
     <div className="pref-tab">
       {/* Notificaciones */}
       <section className="pref-card">
-        <h2>Notificaciones</h2>
+        <h2><Bell size={20} />Tus avisos</h2>
         <p className="pref-subtitle">Puedes guardar qué avisos deseas recibir. El envío de correos todavía no está habilitado.</p>
 
         <ul className="pref-toggle-list">
-          {notifications.map((item) => (
+          {notifications.map((item) => { const Icon = preferenceIcons[item.id] || Bell; return (
             <li key={item.id}>
+              <span className="account-preference-icon"><Icon size={19} /></span>
               <div>
                 <p className="pref-toggle-label">{item.label}</p>
                 <p className="pref-toggle-desc">{item.description}</p>
@@ -97,34 +104,34 @@ export default function PreferencesTab({
                 <span className="pref-switch-thumb" />
               </button>
             </li>
-          ))}
+          ); })}
         </ul>
       </section>
 
       {/* Interfaz y región */}
       <section className="pref-card">
-        <h2>Interfaz y región</h2>
+        <h2><Palette size={20} />Interfaz y región</h2>
         <p className="pref-subtitle">Personaliza la apariencia y el idioma de tu plataforma</p>
 
         <div className="pref-field">
           <span className="pref-field-label">Tema de la interfaz</span>
-          <div className="pref-theme-toggle">
+          <div className="pref-theme-toggle account-theme-options">
             {[
               { id: "claro", label: "Claro" },
               { id: "oscuro", label: "Oscuro" },
               { id: "sistema", label: "Sistema" },
-            ].map((opt) => (
+            ].map((opt) => { const Icon = themeIcons[opt.id]; return (
               <button
                 key={opt.id}
                 type="button"
                 className={theme === opt.id ? "active" : ""}
                 disabled={isSaving}
                 aria-pressed={theme === opt.id}
-                onClick={() => { setTheme(opt.id); previewTheme(opt.id); }}
+                onClick={() => { setTheme(opt.id); previewAccountTheme(userId, opt.id, appearanceToken); }}
               >
-                {opt.label}
+                <span className={`account-theme-preview ${opt.id}`} aria-hidden="true"><i /><span><i /><i /><i /></span></span><span className="account-theme-label"><Icon size={15} />{opt.label}</span>
               </button>
-            ))}
+            ); })}
           </div>
         </div>
 
@@ -177,7 +184,7 @@ export default function PreferencesTab({
 
       {/* Cuenta */}
       <section className="pref-card">
-        <h2>Cuenta</h2>
+        <h2><LogOut size={20} />Tu cuenta</h2>
         <p className="pref-account-text">
           Si cierras sesión tendrás que ingresar tus credenciales nuevamente. Si decides desactivar
           tu cuenta, perderás acceso, pero tus archivos y datos se conservarán.

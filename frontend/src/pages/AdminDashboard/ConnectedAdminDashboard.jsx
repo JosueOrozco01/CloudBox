@@ -120,21 +120,10 @@ export default function ConnectedAdminDashboard() {
   ];
   const inspect = (id) => {
     if (id === "users") navigate("/admin/usuarios");
-    else if (id === "storage")
-      setNotice({
-        type: "info",
-        message: `Se utilizan ${usedGB.toFixed(2)} GB de ${allocatedGB.toFixed(2)} GB asignados en planes. Incluye archivos en papelera; no representa la capacidad física del servidor.`,
-      });
-    else if (id === "subs" || id === "plans")
-      setNotice({
-        type: "info",
-        message: `Hay ${metrics.activeSubscriptions} suscripciones vigentes. La distribución por plan está disponible en este panel; aún no existe una API para modificar planes o suscripciones.`,
-      });
-    else
-      setNotice({
-        type: "info",
-        message: `Usuarios: ${users.length}. Archivos almacenados: ${metrics.fileCount}. Uso de almacenamiento: ${usedGB.toFixed(2)} GB.`,
-      });
+    else if (id === "storage") navigate("/admin/almacenamiento");
+    else if (id === "subs") navigate("/admin/suscripciones");
+    else if (id === "plans") navigate("/admin/planes");
+    else navigate("/admin/metricas");
   };
   return (
     <>

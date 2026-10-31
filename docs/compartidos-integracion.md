@@ -65,7 +65,7 @@ No se ejecutaron operaciones contra datos reales. Las acciones del cliente se re
 | Registrar actividad al compartir archivo | Hecho: registro en `LogAuditoria`, visible únicamente al administrador |
 | Registrar actividad al compartir carpeta | Hecho: registro en `LogAuditoria`, visible únicamente al administrador |
 | Registrar actividad al eliminar carpeta | Hecho: registro en `LogAuditoria`, visible únicamente al administrador |
-| Crear API para consultar actividad del usuario | Pendiente |
+| Crear API para consultar actividad del usuario | Implementada en backend: `GET /api/activity`; sin pantalla de historial personal |
 
 ## Diseño y notificaciones
 
@@ -108,7 +108,7 @@ Las rutas de descarga propias y compartidas registran **Descarga autorizada** al
 
 El panel y la campana comparten `GET /api/admin/audit-logs`, protegido para administradores. Muestran actor, acción, recurso y resultado; los nombres de recursos no se confunden con usuarios que tengan el mismo identificador. El panel actualiza la actividad cada cinco segundos mientras la pestaña está visible, al recuperar el foco y tras acciones administrativas. Ver más actividad amplía la lista hasta los últimos 100 eventos. La campana conserva su contador y lectura por administrador/navegador. Los clientes no tienen campana.
 
-La integración registra las acciones nuevas desde su instalación; no reconstruye acciones pasadas. El API de historial individual del cliente no forma parte de este cambio.
+La integración registra las acciones nuevas desde su instalación; no reconstruye acciones pasadas. El backend actual también dispone de `GET /api/activity` para consultar la actividad propia; el frontend aún no lo consume.
 
 
 ## Sugerencias de destinatarios

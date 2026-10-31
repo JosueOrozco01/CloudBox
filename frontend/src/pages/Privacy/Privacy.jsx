@@ -1,6 +1,4 @@
-import "./Privacy.css";
-import Topbar from "../../components/TopBarPrincipal/Topbarprincipal";
-import Footer from "../../components/FooterSignOut/Footer";
+import LegalDocument from "../../components/LegalDocument/LegalDocument";
 
 const sections = [
   {
@@ -56,33 +54,5 @@ const sections = [
 ];
 
 export default function Privacy({ embedded = false }) {
-  return (
-    <div className="privacy-page">
-      {!embedded && <Topbar />}
-
-      <main className="privacy-main">
-        <div className="privacy-container">
-          <h1 className="privacy-title">Política de privacidad</h1>
-          <p className="privacy-updated">Última actualización: 6 de octubre de 2026</p>
-
-          <p className="privacy-intro">
-            En CloudBox nos tomamos muy en serio la privacidad de tus datos.
-            Esta política explica qué información recopilamos, cómo la usamos
-            y qué derechos tienes sobre ella.
-          </p>
-
-          <div className="privacy-sections">
-            {sections.map((section) => (
-              <section className="privacy-section" key={section.title}>
-                <h2>{section.title}</h2>
-                <p>{section.content}</p>
-              </section>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {!embedded && <Footer />}
-    </div>
-  );
+  return <LegalDocument kind="privacy" embedded={embedded} intro="En CloudBox nos tomamos muy en serio la privacidad de tus datos. Esta política explica qué información recopilamos, cómo la usamos y qué derechos tienes sobre ella." sections={sections} />;
 }

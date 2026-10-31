@@ -4,3 +4,15 @@
   gap: 12px;
   margin-top: 16px;
 }
+
+.file-permanent-icon { background: #fff0f3; color: #dc2626; }
+.file-permanent-warning { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 10px; border: 1px solid #fecaca; background: #fff6f6; color: #b91c1c; }
+.file-permanent-warning > svg { flex-shrink: 0; margin-top: 2px; }
+.file-permanent-warning strong { font-size: .77rem; }
+.file-permanent-warning p { font-size: .74rem; line-height: 1.8; margin-top: 6px; }
+.file-permanent-dialog .file-permanent-submit { background: #dc2626; }
+.file-permanent-dialog .file-permanent-submit:hover:not(:disabled) { background: #b91c1c; }
+html[data-theme="dark"] .file-permanent-dialog .file-permanent-icon { background: #3b242e; color: #ffb4b9; }
+html[data-theme="dark"] .file-permanent-warning { background: #3b242e; color: #ffb4b9; border-color: #7d3d4b; }
+html[data-theme="dark"] .file-permanent-dialog .file-permanent-submit { background: #dc2626; color: white; }
+html[data-theme="dark"] .file-permanent-dialog .file-permanent-submit:hover:not(:disabled) { background: #b91c1c; }

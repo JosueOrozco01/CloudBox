@@ -1,3 +1,5 @@
+import { RefreshCw as LoadingArrows } from "lucide-react";
+import "../Loading/Loading.css";
 import { useEffect, useRef, useState } from "react";
 import "./Createfoldermodal.css";
 
@@ -146,7 +148,7 @@ export default function CreateFolderModal({
           >
             {isCreating ? (
               <>
-                <span className="cf-spinner" aria-hidden="true" />
+                <LoadingArrows size={16} className="loading-arrows" aria-hidden="true" />
                 Creando...
               </>
             ) : (

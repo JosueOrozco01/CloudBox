@@ -1,6 +1,13 @@
 import ViewToggle from "../ViewToggle/ViewToggle";
 import { useState } from "react";
 import {
+  ArrowRight,
+  ChevronRight,
+  Cloud,
+  FileText,
+  FolderOpen,
+  Search,
+  X,
   Star,
   FolderHeart,
   Upload,
@@ -16,6 +23,9 @@ import {
 import FileTypeIcon from "../FileTypeIcon/FileTypeIcon";
 import { matchesFileFilters } from "./fileFilters";
 import "./FileBrowser.css";
+import FileLibraryHero from "./FileLibraryHero";
+import TrashOverview, { TrashGuidance } from "./TrashOverview";
+import "./FileLibrary.css";
 
 export default function MisArchivos({
   favoritesMode = false,
@@ -26,12 +36,14 @@ export default function MisArchivos({
   favoriteAvailability = {},
   onToggleFavorite,
   items = [],
+  storage = null,
   totalCount = 0,
   folderCount = 0,
   fileCount = 0,
   currentPage = 1,
   query = "",
   trash = false,
+  busy = false,
   onBack,
   onSearch,
   onUpload,
@@ -80,96 +92,29 @@ export default function MisArchivos({
   const totalPages = Math.max(1, Math.ceil(filtered.length / 10));
   const page = Math.min(currentPage, totalPages);
   const visible = filtered.slice((page - 1) * 10, page * 10);
+  const scoped = Boolean(currentFolder || favoritesMode || trash);
+  const displayedTotal = scoped ? items.length : totalCount;
+  const displayedFolders = scoped ? items.filter(item => item.type === 'carpeta').length : folderCount;
+  const displayedFiles = scoped ? items.filter(item => item.type !== 'carpeta').length : fileCount;
+  const hasFilters = Boolean(query || type || date || size || tab !== 'todos');
+  const clearFilters = () => { setTab('todos'); setType(''); setDate(''); setSize(''); onSearch?.(''); onPageChange?.(1); };
   return (
-    <main className="mf-page">
+    <main className={`mf-page ${trash ? "mf-trash-page" : ""}`}>
       <header className="mf-header">
         <div>
           <h1>{trash ? "Papelera" : favoritesMode ? "Mis favoritos" : "Mis Archivos"}</h1>
-          <p>{favoritesMode ? "Tus archivos destacados, siempre a mano" : "Organiza, busca y administra todos tus archivos"}</p>
+          <p>{trash ? "Recupera lo que necesitas y elige qué dejar atrás." : favoritesMode ? "Tus archivos destacados, siempre a mano" : "Organiza, busca y administra todos tus archivos"}</p>
         </div>
-        {onBack && (
-          <button className="mf-folder-btn mf-back-btn" type="button" onClick={onBack}>
-            <ArrowLeft size={16} />
-            Mis Archivos
-          </button>
-        )}
+        <div className="mf-header-right">{onBack && <button className="mf-folder-btn mf-back-btn" type="button" onClick={onBack}><ArrowLeft size={16} />Mis Archivos</button>}{!trash && !favoritesMode && <><button className="mf-folder-btn" type="button" onClick={onCreateFolder}><FolderPlus size={16} />Crear carpeta</button><button className="mf-upload-btn" type="button" onClick={onUpload}><Upload size={16} />Subir archivo</button></>}{!trash && <button className="mf-folder-btn mf-trash-shortcut" type="button" onClick={onTrash} title="Abrir papelera"><Trash2 size={16} />Papelera</button>}</div>
       </header>
-      <div className="mf-search-actions">
-        <form
-          className="mf-search"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <input
-            type="search"
-            placeholder="Buscar en mis archivos…"
-            value={query}
-            onChange={(event) => {
-              onSearch(event.target.value);
-              onPageChange(1);
-            }}
-            aria-label="Buscar archivos"
-          />
-        </form>
-        <div className="mf-tabs">
-          {[
-            ["todos", "Todos"],
-            ["archivos", "Archivos"],
-            ["carpetas", "Carpetas"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              className={tab === id ? "active" : ""}
-              type="button"
-              onClick={() => {
-                setTab(id);
-                onPageChange(1);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {!trash && !favoritesMode && (
-          <>
-            <button
-              className="mf-folder-btn"
-              type="button"
-              onClick={onCreateFolder}
-            >
-              <FolderPlus size={16} />
-              Crear carpeta
-            </button>
-            <button className="mf-upload-btn" type="button" onClick={onUpload}>
-              <Upload size={16} />
-              Subir archivo
-            </button>
-          </>
-        )}
-        {!trash && (
-          <button className="mf-folder-btn" type="button" onClick={onTrash}>
-            <Trash2 size={16} />
-            Papelera
-          </button>
-        )}
-      </div>
-      {showFavoritesFolder && <button className="mf-favorites-folder" type="button" onClick={onFavorites}><span className="mf-favorites-folder-icon"><FolderHeart size={25} /></span><span><strong>Mis favoritos</strong><small>Archivos que marcaste con una estrella</small></span><Star size={18} fill="currentColor" /></button>}
-      <section className="mf-stats">
-        {[
-          [
-            "Mis archivos",
-            `${totalCount} elementos`,
-            `${folderCount} carpetas y ${fileCount} archivos`,
-          ],
-          ["Carpetas", `${folderCount} carpetas`, "Organiza tus proyectos"],
-          ["Archivos", `${fileCount} archivos`, "Archivos de tu perfil"],
-        ].map(([label, value, sub]) => (
-          <article key={label} className="mf-stat-card">
-            <p className="mf-stat-label">{label}</p>
-            <p className="mf-stat-value">{value}</p>
-            <p className="mf-stat-sub">{sub}</p>
-          </article>
-        ))}
-      </section>
+      {trash && <TrashOverview />}
+      {!trash && !favoritesMode && !currentFolder && <FileLibraryHero storage={storage} onUpload={onUpload} />}
+      {favoritesMode && <div className="mf-library-favorites-banner"><span><FolderHeart size={30} /></span><div><h2>Lo importante, siempre cerca.</h2><p>Tus favoritos son accesos a los archivos originales, sin moverlos ni crear copias.</p></div><Star size={25} /></div>}
+      {currentFolder && !trash && <nav className="mf-library-breadcrumb" aria-label="Carpeta actual"><button type="button" onClick={onBack}><FolderOpen size={15} />Mis Archivos</button><ChevronRight size={14} /><span>{locations.find(location => String(location.id) === String(currentFolder))?.name || 'Carpeta actual'}</span></nav>}
+      <section className={`mf-library-stats ${showFavoritesFolder ? 'with-favorites' : ''}`} aria-label="Resumen de archivos">{[[trash ? Trash2 : Cloud, trash ? 'Elementos en papelera' : scoped ? 'Elementos en esta vista' : 'En tu biblioteca', displayedTotal, trash ? 'Archivos y carpetas de esta vista' : scoped ? 'Contenido de esta ubicación' : 'Archivos y carpetas de tu cuenta', 'todos', 'blue'], [FolderOpen, 'Carpetas', displayedFolders, trash ? 'Carpetas que puedes restaurar' : 'Un lugar para cada proyecto', 'carpetas', 'violet'], [FileText, 'Archivos', displayedFiles, trash ? 'Restaura o elimina permanentemente' : 'Tus ideas, en todos sus formatos', 'archivos', 'cyan']].map(([Icon, label, value, hint, target, tone]) => <button type="button" className="mf-library-stat" key={target} onClick={() => { setTab(target); setType(''); setDate(''); setSize(''); onSearch?.(''); onPageChange?.(1); }}><span className={`mf-library-stat-icon ${tone}`}><Icon size={21} strokeWidth={1.8} /></span><span><span className="mf-library-stat-label">{label}</span><strong>{value}</strong><small>{hint}</small></span></button>)}{showFavoritesFolder && <button className="mf-library-stat mf-library-favorites" type="button" onClick={onFavorites}><span className="mf-library-stat-icon gold"><FolderHeart size={23} /></span><span><span className="mf-library-stat-label">Mis favoritos</span><strong>{favoriteAvailability.files ? favoriteKeys.length : '—'}</strong><small>Tus archivos con una estrella</small></span><ArrowRight size={15} /></button>}</section>
+      {trash && <TrashGuidance />}
+      <div className="mf-library-heading"><div><span className="mf-library-kicker">{trash ? 'DALES UNA SEGUNDA OPORTUNIDAD' : favoritesMode ? 'TUS ACCESOS DESTACADOS' : 'TU BIBLIOTECA, A TU MANERA'}</span><h2>{trash ? 'Elementos en papelera' : favoritesMode ? 'Tus archivos favoritos' : currentFolder ? 'Dentro de esta carpeta' : 'Todo lo que guardas'}</h2><p>{trash ? 'Restaura lo que necesitas o elimina archivos permanentemente.' : favoritesMode ? 'Encuentra y abre lo que más utilizas.' : 'Encuentra, organiza y sigue con lo que estabas creando.'}</p></div><span className="mf-library-count" role="status">{filtered.length} {filtered.length === 1 ? 'elemento' : 'elementos'}</span></div>
+      <div className="mf-search-actions"><div className="mf-tabs" role="group" aria-label="Filtrar archivos y carpetas">{[['todos', 'Todos', Cloud], ['archivos', 'Archivos', FileText], ['carpetas', 'Carpetas', FolderOpen]].map(([id, label, Icon]) => <button key={id} className={tab === id ? 'active' : ''} type="button" aria-pressed={tab === id} onClick={() => { setTab(id); onPageChange(1); }}><Icon size={15} />{label}</button>)}</div><form className="mf-search" onSubmit={event => event.preventDefault()}><Search size={17} className="mf-library-search-icon" /><input type="search" placeholder={trash ? 'Buscar en papelera…' : favoritesMode ? 'Buscar en mis favoritos…' : 'Buscar archivos o carpetas…'} value={query} onChange={event => { onSearch(event.target.value); onPageChange(1); }} aria-label="Buscar archivos" />{query && <button type="button" className="mf-library-search-clear" aria-label="Limpiar búsqueda de archivos" onClick={() => { onSearch(''); onPageChange(1); }}><X size={15} /></button>}</form></div>
       <div className="mf-toolbar">
         <div className="mf-filters">
           <label>
@@ -183,7 +128,7 @@ export default function MisArchivos({
               ))}
             </select>
           </label>
-          <label>
+          {!trash && <label>
             Carpeta{" "}
             <select
               disabled={trash}
@@ -197,9 +142,9 @@ export default function MisArchivos({
                 </option>
               ))}
             </select>
-          </label>
+          </label>}
           <label>
-            Fecha{" "}
+            {trash ? "Modificación" : "Fecha"}{" "}
             <select value={date} onChange={reset(setDate)}>
               <option value="">Todas</option>
               <option value="1">Últimas 24 horas</option>
@@ -218,6 +163,7 @@ export default function MisArchivos({
           </label>
         </div>
         <div className="mf-toolbar-right">
+          {hasFilters && <button className="mf-library-reset" type="button" onClick={clearFilters}>Limpiar<X size={13} /></button>}
           <label>
             Ordenar{" "}
             <select value={sort} onChange={reset(setSort)}>
@@ -251,9 +197,7 @@ export default function MisArchivos({
           </thead>
           <tbody>
             {visible.length === 0 && (
-              <tr>
-                <td colSpan={5}>No hay elementos para mostrar.</td>
-              </tr>
+              <tr className="mf-empty-row"><td colSpan={5}><div className="mf-library-empty"><span>{trash ? <Trash2 size={32} /> : favoritesMode ? <FolderHeart size={32} /> : <FolderOpen size={32} />}</span><h3>{hasFilters ? 'Probemos con otra búsqueda' : trash ? 'Tu papelera está despejada' : favoritesMode ? 'Guarda aquí tus imprescindibles' : 'Un espacio para tus próximas ideas'}</h3><p>No hay elementos para mostrar.{hasFilters ? ' Ajusta los filtros o busca con otro nombre.' : trash ? ' Los elementos que envíes a papelera aparecerán aquí.' : favoritesMode ? ' Marca un archivo con la estrella para encontrarlo aquí.' : ' Sube un archivo o crea una carpeta para empezar.'}</p>{hasFilters ? <button className="mf-folder-btn" type="button" onClick={clearFilters}>Ver todos los elementos</button> : !trash && !favoritesMode && <button className="mf-upload-btn" type="button" onClick={onUpload}><Upload size={15} />Subir mi primer archivo</button>}</div></td></tr>
             )}
             {visible.map((item) => (
               <tr
@@ -289,9 +233,9 @@ export default function MisArchivos({
                 }}
               >
                 <td>
-                  <div className="mf-name-cell">
+                  <div className="mf-name-cell" data-type={item.type}>
                     <FileTypeIcon type={item.type} />
-                    <span>{item.name}</span>
+                    <div className="mf-library-resource">{trash ? <strong>{item.name}</strong> : <button type="button" onClick={() => onOpenItem(item)}>{item.name}</button>}<span>{item.type === 'carpeta' ? 'Carpeta' : item.isShared ? `${item.typeLabel} · Compartido contigo` : `${item.typeLabel} · Archivo`}</span></div>
                   </div>
                 </td>
                 <td className="mf-muted">{item.typeLabel}</td>
@@ -300,14 +244,18 @@ export default function MisArchivos({
                 <td>
                   <div className="mf-actions">
                     {trash ? (
+                      <>
                       <button
                         type="button"
                         className="mf-restore-btn"
+                        disabled={busy}
                         onClick={() => onRestore(item)}
                       >
                         <RotateCcw size={16} />
                         Restaurar
                       </button>
+                      {item.type !== 'carpeta' && <button type="button" className="mf-trash-delete-btn" title="Eliminar permanentemente: no se puede deshacer" aria-label={`Eliminar permanentemente ${item.name}`} disabled={busy} onClick={() => onDelete(item)}><Trash2 size={15} /><span>Eliminar archivo</span></button>}
+                      </>
                     ) : (
                       <>
                         <button

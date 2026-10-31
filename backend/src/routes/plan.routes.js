@@ -5,6 +5,7 @@ const requireAuth = require('../middlewares/auth.middleware');
 const authorizeRole = require('../middlewares/role.middleware');
 
 router.get('/', PlanController.getActivePlans);
+router.get('/admin/all', requireAuth, authorizeRole(['Administrador']), PlanController.getAllPlans);
 router.get('/:id', requireAuth, PlanController.getPlanById);
 
 // Exclusivo Administradores (valida req.user.role === 'Administrador')
