@@ -1,11 +1,11 @@
-import { normalizeApiUrl } from './dashboardService';
+import { normalizeApiUrl, authenticatedFetch } from './dashboardService';
 import { api, query } from './apiClient';
 export const getReport = values => api(`/admin/reports/${values.type}?${query({
   from: values.from,
   to: values.to
 })}`).then(r => r.data);
 export async function exportReport(values) {
-  const response = await fetch(`${normalizeApiUrl(import.meta.env.VITE_API_URL)}/admin/reports/export?${query(values)}`, {
+  const response = await authenticatedFetch(`${normalizeApiUrl(import.meta.env.VITE_API_URL)}/admin/reports/export?${query(values)}`, {
     headers: {
       Authorization: `Bearer ${localStorage.getItem('token')}`
     }

@@ -1,10 +1,10 @@
 import { api, query } from './apiClient';
-import { normalizeApiUrl } from "./dashboardService";
+import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
 
 const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 async function request(path, method = "GET", body) {
-  const response = await fetch(`${API_URL}/admin${path}`, {
+  const response = await authenticatedFetch(`${API_URL}/admin${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -37,7 +37,8 @@ export const mapAdminUser = (user) => ({
   ...user,
   name: [user.nombre, user.apellido].filter(Boolean).join(" "),
   email: user.correo,
-  status: user.estado_usuario?.nombre || "Sin estado",
+  status: user.estado_usuario?.nombre || user.estado || "Sin estado",
+  rol: typeof user.rol === "string" ? { nombre: user.rol } : user.rol,
   registered: user.fecha_registro
     ? new Date(user.fecha_registro).toLocaleDateString("es-GT")
     : "—",
@@ -48,3 +49,8 @@ export const mapAdminUser = (user) => ({
 export const getAdminSubscriptions = filters => api(`/admin/subscriptions?${query(filters)}`);
 export const getStorageOverview = () => api('/admin/storage/overview').then(r => r.data);
 export const getStorageUsers = ({ overQuota, ...page }) => api(`/admin/storage/${overQuota ? 'over-quota' : 'users'}?${query(page)}`);
+
+export const getAdminUsers = filters => api(`/admin/users?${query(filters)}`);
+export const getAdminUser = id => request(`/users/${id}`);
+export const getUserCatalog = () => request('/users/catalog');
+export const getRevenue = filters => request(`/revenue?${query(filters)}`);

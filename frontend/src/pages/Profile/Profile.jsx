@@ -1,3 +1,4 @@
+import AvatarEditor from "./AvatarEditor";
 import { ArrowRight, LifeBuoy, LogOut, Settings2, ShieldAlert, ShieldCheck, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Modal } from "../../components/ModuleUI/ModuleUI";
@@ -19,7 +20,8 @@ import "./Profile.css";
 import "./ProfileRefresh.css";
 
 function UserProfile() {
-  const [sessionToken] = useState(() => localStorage.getItem('token'));
+  const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('token'));
+  useEffect(() => { const sync = () => setSessionToken(localStorage.getItem('token')); window.addEventListener('cloudbox:token-refreshed', sync); return () => window.removeEventListener('cloudbox:token-refreshed', sync); }, []);
   const [params, setParams] = useSearchParams();
   const tab = ['seguridad', 'preferencias'].includes(params.get('tab')) ? params.get('tab') : 'perfil';
   const [preferences, setPreferences] = useState(null);
@@ -100,7 +102,7 @@ function UserProfile() {
       // La cuenta ya está inactiva en la base de datos.
       // Limpiar la sesión local aunque el endpoint de logout
       // rechace el token por el nuevo estado del usuario.
-      if (!clearSession(sessionToken)) return;
+      if (String(JSON.parse(localStorage.getItem('user') || '{}').id) !== String(user.id) || !clearSession(localStorage.getItem('token'))) return;
 
       setDeletePassword("");
       setShowDeleteConfirm(false);
@@ -167,7 +169,7 @@ function UserProfile() {
           <p>Un espacio para tus datos, tu seguridad y tus preferencias.</p>
         </header>
 
-        <ProfileHero user={user} />
+        <ProfileHero user={user} /><AvatarEditor onUpdated={avatarUrl => setUser(previous => ({...previous,avatarUrl}))} />
         <div className="profileContent">
           <aside className="account-sidebar"><nav className="profileTabs" aria-label="Configuración de cuenta"><span className="account-nav-caption">CONFIGURACIÓN</span>{[['perfil', 'Perfil', 'Tu información personal', UserRound], ['seguridad', 'Seguridad', 'Contraseña y sesiones', ShieldCheck], ['preferencias', 'Preferencias', 'Un espacio a tu estilo', Settings2]].map(([id, label, description, Icon]) => <button key={id} className={`profileTab ${tab === id ? 'profileTabActive' : ''}`} onClick={() => setParams(id === 'perfil' ? {} : { tab: id })} aria-pressed={tab === id} aria-label={label} type="button"><span className="account-tab-icon"><Icon size={19} /></span><span>{label}<small>{description}</small></span><ArrowRight size={14} className="account-tab-arrow" /></button>)}</nav><div className="account-sidebar-help"><LifeBuoy size={23} /><h2>Estamos para ayudarte</h2><p>Encuentra respuestas sobre tu cuenta y tu espacio.</p><Link to="/soporte">Ir al centro de ayuda<ArrowRight size={14} /></Link></div></aside>
 

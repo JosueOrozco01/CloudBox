@@ -1,3 +1,4 @@
+import { normalizeApiUrl } from "../../services/dashboardService";
 import Loading from "../../components/Loading/Loading";
 import { persistSession } from "../../services/authService";
 import { useState, useEffect } from "react";
@@ -58,7 +59,7 @@ export default function LoginPage() {
 
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/login",
+        `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth/login`,
         {
           method: "POST",
           headers: {
@@ -306,6 +307,8 @@ export default function LoginPage() {
       <Footer />
 
       {/* Alertas de error y validación */}
+      <Link to="/verificar-correo" className="module-button">Verificar cuenta o reenviar correo</Link>
+      <Link to="/verificar-correo" className="module-button">Verificar cuenta o reenviar correo</Link>
       <AlertModal
         isOpen={alert.isOpen}
         onClose={() => {

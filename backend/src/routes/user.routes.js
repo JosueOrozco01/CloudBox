@@ -15,6 +15,8 @@ router.get('/me/security', settings.security);
 router.patch('/me/password', settings.changePassword);
 router.post('/me/logout-others', settings.logoutOthers);
 
+router.post('/me/avatar', (req,res,next) => require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0 } }).single('avatar')(req,res,error => error ? res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({success:false,message:'Usa una imagen PNG, JPG o WebP de hasta 2 MB.'}) : next()), require('../controllers/integrations.controller').avatar);
+
 // Obtener perfil del usuario autenticado
 router.get('/me', userController.getMyProfile);
 

@@ -21,10 +21,10 @@ const adminController = {
    */
   async getUsers(req, res, next) {
     try {
-      const { q, search, status, limit, offset } = req.query || {};
+      const { q, search, status, limit, offset, plan, days, sort, page } = req.query || {};
 
       const result = await AdminService.getUsersList({
-        q: q || search,
+        q: q || search, plan, days, sort, page,
         status,
         limit,
         offset,

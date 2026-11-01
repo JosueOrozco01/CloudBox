@@ -12,6 +12,9 @@ router.use(requireAuth, authorizeRole(["Administrador"]));
 // Reportes administrativos (Módulo REP)
 router.use("/reports", reportRoutes);
 
+router.get('/notification-reads', require('../controllers/integrations.controller').reads);
+router.patch('/notification-reads', require('../controllers/integrations.controller').markReads);
+
 // Vista general y estadísticas de alto nivel
 router.get("/overview", adminController.getOverview);
 router.get("/stats", adminController.getStats);
@@ -28,6 +31,7 @@ router.get("/storage/users", adminController.getStorageUsers);
 router.get("/storage/over-quota", adminController.getUsersOverQuota);
 
 // Administración de usuarios (Módulo ADM)
+router.get('/users/catalog', require('../controllers/integrations.controller').userCatalog);
 router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUserById);
 router.patch("/users/:id/status", adminController.updateUserStatus);

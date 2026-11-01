@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { useAdminNotificationRead } from "../../hooks/useAdminNotificationRead";
 import Loading from "../Loading/Loading";
 import { activityLabel as label } from "../../utils/activityLabels";
 import { useEffect, useRef, useState } from "react";
@@ -21,15 +23,7 @@ const date = (log) =>
     : "Fecha no disponible";
 
 export default function AdminNotifications({ userId }) {
-  const storageKey = `cloudbox:notifications:read:${userId}`;
-  const [read, setRead] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
-      return Array.isArray(saved) ? saved : [];
-    } catch {
-      return [];
-    }
-  });
+  const { read, markRead, error: readError } = useAdminNotificationRead(userId);
   const [logs, setLogs] = useState([]);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -89,15 +83,6 @@ export default function AdminNotifications({ userId }) {
       document.removeEventListener("keydown", escape);
     };
   }, []);
-  const markRead = (ids) => {
-    const next = [...new Set([...read, ...ids])].slice(-1000);
-    setRead(next);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {
-      /* Se conservan durante la sesión. */
-    }
-  };
   const unread = logs.filter((log) => !read.includes(log.id)).length;
   return (
     <>
@@ -126,7 +111,7 @@ export default function AdminNotifications({ userId }) {
           >
             <header>
               <div>
-                <h2>Actividad reciente</h2>
+                <h2>Notificaciones recientes</h2>
                 <p>
                   {unread
                     ? `${unread} notificaciones sin leer`
@@ -143,9 +128,9 @@ export default function AdminNotifications({ userId }) {
                 <CheckCheck size={20} />
               </button>
             </header>
-            {error && (
+            {(error || readError) && (
               <p className="admin-notification-feedback" role="alert">
-                {error}{" "}
+                {error || readError}{" "}
                 <button
                   type="button"
                   onClick={() => setRevision((value) => value + 1)}
@@ -168,8 +153,8 @@ export default function AdminNotifications({ userId }) {
                   <button
                     type="button"
                     className={!read.includes(log.id) ? "unread" : ""}
-                    onClick={() => {
-                      markRead([log.id]);
+                    onClick={async () => {
+                      if (!await markRead([log.id])) return;
                       setSelected(log);
                       setOpen(false);
                     }}
@@ -190,7 +175,7 @@ export default function AdminNotifications({ userId }) {
                 </li>
               ))}
             </ul>
-            <footer>Últimos 100 eventos · actualización automática</footer>
+            <footer><Link to="/admin/notificaciones" onClick={() => setOpen(false)}>Ver todas las notificaciones</Link><span>Últimos 100 eventos · actualización automática</span></footer>
           </section>
         )}
       </div>

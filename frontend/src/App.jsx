@@ -1,3 +1,5 @@
+import VerifyEmail from "./pages/Register/VerifyEmail";
+import TicketCenter from "./pages/Support/TicketCenter";
 import Product from "./pages/Product/Product";
 import { getPreferences } from "./services/settingsService";
 import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
@@ -32,6 +34,7 @@ import Plans from './pages/Plans/Plans';
 import Payments from './pages/Payments/Payments';
 import Activity from './pages/Activity/Activity';
 import Notifications from './pages/Notifications/Notifications';
+import AdminNotificationInbox from './pages/Notifications/AdminNotificationInbox';
 import Support from './pages/Support/Support';
 import AdminPlans from './pages/AdminPlans/AdminPlans';
 import AdminSubscriptions from './pages/AdminSubscriptions/AdminSubscriptions';
@@ -47,6 +50,8 @@ function AuthenticatedPage({
   const location = useLocation();
 
   const [user, setUser] = useState(null);
+  const [profileRevision,setProfileRevision]=useState(0);
+  useEffect(()=>{const sync=()=>setProfileRevision(value=>value+1);window.addEventListener("profile-changed",sync);return()=>window.removeEventListener("profile-changed",sync);},[]);
   const [isLoading, setIsLoading] = useState(true);
   const [profileError, setProfileError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
@@ -54,7 +59,9 @@ function AuthenticatedPage({
   useEffect(() => {
     let active = true;
 
-    const expectedToken = localStorage.getItem('token');
+    let expectedToken = localStorage.getItem('token');
+    const refreshed = () => { expectedToken = localStorage.getItem('token'); };
+    window.addEventListener('cloudbox:token-refreshed', refreshed);
     const currentSession = () => active && expectedToken === localStorage.getItem('token');
     const loadUser = async () => {
       setIsLoading(true);
@@ -95,8 +102,9 @@ function AuthenticatedPage({
 
     return () => {
       active = false;
+      window.removeEventListener('cloudbox:token-refreshed', refreshed);
     };
-  }, [preloadDashboard]);
+  }, [preloadDashboard, profileRevision]);
 
   if (isLoading) {
     return <Loading text="Cargando..." />;
@@ -164,9 +172,11 @@ function App() {
     const storageChanged = event => {
       if (event.key === null || ['token', 'refreshToken', 'user'].includes(event.key)) synchronize();
     };
+    const refreshed = () => { token = localStorage.getItem('token'); };
+    window.addEventListener('cloudbox:token-refreshed', refreshed);
     window.addEventListener('cloudbox:session-changed', synchronize);
     window.addEventListener('storage', storageChanged);
-    return () => { window.removeEventListener('cloudbox:session-changed', synchronize); window.removeEventListener('storage', storageChanged); };
+    return () => { window.removeEventListener('cloudbox:token-refreshed', refreshed); window.removeEventListener('cloudbox:session-changed', synchronize); window.removeEventListener('storage', storageChanged); };
   }, []);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -182,6 +192,9 @@ function App() {
       <Routes key={sessionVersion}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verificar-correo" element={<VerifyEmail />} />
+        <Route path="/soporte/mis-solicitudes" element={<AuthenticatedPage>{user => <TicketCenter user={user} />}</AuthenticatedPage>} />
+        <Route path="/admin/soporte" element={<AuthenticatedPage requiredPermission="admin_panel">{user => <TicketCenter user={user} />}</AuthenticatedPage>} />
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/recuperar" element={<RecoveryPage />} />
         <Route path="/sobre-nosotros" element={<InformationalPage component={Product} kind="about" />} />
@@ -194,6 +207,7 @@ function App() {
         <Route path="/pagos" element={<AuthenticatedPage clientOnly><Payments /></AuthenticatedPage>} />
         <Route path="/actividad" element={<AuthenticatedPage clientOnly><Activity /></AuthenticatedPage>} />
         <Route path="/notificaciones" element={<AuthenticatedPage clientOnly><Notifications /></AuthenticatedPage>} />
+        <Route path="/admin/notificaciones" element={<AuthenticatedPage requiredPermission="admin_panel">{user => <AdminNotificationInbox user={user} />}</AuthenticatedPage>} />
         <Route path="/admin/planes" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminPlans /></AuthenticatedPage>} />
         <Route path="/admin/suscripciones" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminSubscriptions /></AuthenticatedPage>} />
         <Route path="/admin/almacenamiento" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminStorage /></AuthenticatedPage>} />

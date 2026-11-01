@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import UserManagement from "./UserManagement";
 import Footer from "../../components/FooterSignOut/Footer";
 import {
-  getAdminOverview,
+  getAdminUsers, getAdminUser, getUserCatalog,
   mapAdminUser,
   updateUserRole,
   updateUserStatus,
@@ -16,11 +16,11 @@ export default function ConnectedUserManagement({ user: currentUser }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
+  const [catalog,setCatalog]=useState(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({});
-  const [filterTime] = useState(() => Date.now());
   const [modal, setModal] = useState(null);
   const [busy, setBusy] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -29,9 +29,10 @@ export default function ConnectedUserManagement({ user: currentUser }) {
   const query = params.get("search") || "";
   useEffect(() => {
     let active = true;
-    getAdminOverview()
+    getAdminUsers({page,limit:10,search:query,...filters}).then(result=>({users:result.data,pagination:result.pagination}))
       .then((result) => {
         if (active) {
+          if(page>Math.max(1,result.pagination.totalPages)){setPage(Math.max(1,result.pagination.totalPages));return;}
           setData(result);
           setError("");
         }
@@ -53,9 +54,17 @@ export default function ConnectedUserManagement({ user: currentUser }) {
     return () => {
       active = false;
     };
-  }, [revision, navigate]);
-  if (!data && !error) return <Loading />;
-  if (!data)
+  }, [revision, navigate, page, query, filters]);
+  useEffect(()=>{let active=true;getUserCatalog().then(result=>{if(active)setCatalog(result);}).catch(error=>{if(active)setError(error.message);});return()=>{active=false;};},[revision]);
+  const detailId=params.get('detail');
+  useEffect(()=>{
+    if(!detailId)return;
+    let active=true;
+    getAdminUser(detailId).then(user=>{if(active)setModal({mode:'detail',user:mapAdminUser(user)});}).catch(error=>{if(active)setNotice({type:'error',message:error.message});});
+    return ()=>{active=false;};
+  },[detailId,revision]);
+  if ((!data || !catalog) && !error) return <Loading />;
+  if (!data || !catalog)
     return (
       <div className="um-page" role="alert">
         {error}
@@ -70,50 +79,10 @@ export default function ConnectedUserManagement({ user: currentUser }) {
       </div>
     );
   const users = data.users.map(mapAdminUser);
-  const stats = [
-    { id: "total", label: "Usuarios totales", value: users.length },
-    {
-      id: "active",
-      label: "Usuarios activos",
-      value: users.filter((user) => user.status === "Activo").length,
-    },
-    {
-      id: "pending",
-      label: "Pendientes",
-      value: users.filter((user) => user.status === "Pendiente").length,
-    },
-    {
-      id: "inactive",
-      label: "Inactivos / Suspendidos",
-      value: users.filter((user) =>
-        ["Inactivo", "Suspendido"].includes(user.status),
-      ).length,
-    },
-  ];
-  const filtered = users
-    .filter(
-      (user) =>
-        `${user.name} ${user.email}`
-          .toLowerCase()
-          .includes(query.toLowerCase()) &&
-        (!filters.plan || user.plan === filters.plan) &&
-        (!filters.status || user.status === filters.status) &&
-        (!filters.days ||
-          new Date(user.fecha_registro).getTime() >=
-            filterTime - Number(filters.days) * 86400000),
-    )
-    .sort((a, b) =>
-      filters.sort === "name"
-        ? a.name.localeCompare(b.name)
-        : filters.sort === "storage"
-          ? b.usedBytes - a.usedBytes
-          : new Date(b.fecha_registro) - new Date(a.fecha_registro),
-    );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / 10));
-  const currentPage = Math.min(page, totalPages);
-  const selected =
-    modal?.user ||
-    users.find((user) => String(user.id) === params.get("detail"));
+  const stats = catalog.stats;
+  const totalPages = Math.max(1,data.pagination.totalPages);
+  const currentPage = Math.min(page,totalPages);
+  const selected = modal?.user;
   const mode = modal?.mode || (selected ? "detail" : null);
   const close = () => {
     setModal(null);
@@ -153,13 +122,13 @@ export default function ConnectedUserManagement({ user: currentUser }) {
       )}
       <UserManagement
         stats={stats}
-        users={filtered.slice((currentPage - 1) * 10, currentPage * 10)}
+        users={users}
         currentPage={currentPage}
         totalPages={totalPages}
-        totalCount={filtered.length}
+        totalCount={data.pagination.totalRecords}
         query={query}
         filters={filters}
-        plans={[...new Set(users.map((user) => user.plan))]}
+        plans={catalog.plans}
         onPageChange={setPage}
         onSearch={(value) => {
           setPage(1);
@@ -172,9 +141,9 @@ export default function ConnectedUserManagement({ user: currentUser }) {
           setFilters((previous) => ({ ...previous, [key]: value }));
           setPage(1);
         }}
-        onViewUserDetail={(user) => {
-          setModalError("");
-          setModal({ mode: "detail", user });
+        onViewUserDetail={async (user) => {
+          try { setModalError(''); setModal({mode:'detail',user:mapAdminUser(await getAdminUser(user.id))}); }
+          catch(error) { setNotice({type:'error',message:error.message}); }
         }}
         onEditUser={(user) => {
           if (user.id === currentUser.id) {
@@ -198,9 +167,9 @@ export default function ConnectedUserManagement({ user: currentUser }) {
           }
           const state =
             user.status === "Activo"
-              ? data.states.find((state) => state.nombre === "Suspendido") ||
-                data.states.find((state) => state.nombre === "Inactivo")
-              : data.states.find((state) => state.nombre === "Activo");
+              ? catalog.states.find((state) => state.nombre === "Suspendido") ||
+                catalog.states.find((state) => state.nombre === "Inactivo")
+              : catalog.states.find((state) => state.nombre === "Activo");
           if (!state) {
             setNotice({
               type: "error",
@@ -218,7 +187,7 @@ export default function ConnectedUserManagement({ user: currentUser }) {
           key={`${mode}-${selected?.id || "new"}`}
           mode={mode}
           user={selected}
-          roles={data.roles}
+          roles={catalog.roles}
           busy={busy}
           error={modalError}
           onClose={close}

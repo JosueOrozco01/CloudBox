@@ -1,3 +1,4 @@
+import { normalizeApiUrl } from "../../services/dashboardService";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Register.css";
@@ -69,7 +70,7 @@ export default function Register() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/register",
+        `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth/register`,
         {
           method: "POST",
           headers: {
@@ -377,6 +378,8 @@ export default function Register() {
       )}
 
       {/* Alertas */}
+      <Link to="/verificar-correo" className="module-button">Verificar cuenta o reenviar correo</Link>
+      <Link to="/verificar-correo" className="module-button">Verificar cuenta o reenviar correo</Link>
       <AlertModal
         isOpen={alert.isOpen}
         onClose={handleAlertClose}

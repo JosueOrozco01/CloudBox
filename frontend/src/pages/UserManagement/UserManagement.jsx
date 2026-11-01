@@ -1,4 +1,5 @@
-import { Eye, ShieldCheck, UserRoundX, UserRoundCheck } from "lucide-react";
+import { Eye, ShieldCheck, UserRoundX, UserRoundCheck, UsersRound, SlidersHorizontal, Search } from "lucide-react";
+import UserAvatar from "../../components/UserAvatar/UserAvatar";
 import "./UserManagement.css";
 
 const icon = {
@@ -99,18 +100,40 @@ export default function UserManagement({
   };
 
   return (
-    <div className="um-page">
+    <div className="um-page um-management">
       {/* Encabezado */}
       <div className="um-header">
         <div>
+          <span className="um-eyebrow">CLOUDBOX · ADMINISTRACIÓN</span>
           <h1>Gestión de usuarios</h1>
           <p>
             Administra las cuentas, planes y permisos de los usuarios de
             CloudBox
           </p>
         </div>
+        <div className="um-header-symbol" aria-hidden="true"><UsersRound size={38} strokeWidth={1.4} /></div>
       </div>
 
+      {/* Tarjetas resumen */}
+      <div className="um-stats">
+        {stats.map((stat) => (
+          <article className={`um-stat-card um-stat-${stat.id}`} key={stat.id}>
+            <span className="um-stat-icon">
+              <svg {...icon}>{stat.icon ?? defaultStats.find((item) => item.id === stat.id)?.icon}</svg>
+            </span>
+            <div>
+              <p className="um-stat-label">{stat.label}</p>
+              <p className="um-stat-value">{typeof stat.value === "number" ? stat.value.toLocaleString("es-GT") : stat.value}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <section className="um-directory" aria-labelledby="um-directory-title">
+      <div className="um-directory-head">
+        <div><h2 id="um-directory-title">Directorio de usuarios</h2><p>Encuentra una cuenta y gestiona sus accesos.</p></div>
+        <span className="um-result-count" role="status">{totalCount.toLocaleString("es-GT")} {totalCount === 1 ? "resultado" : "resultados"}</span>
+      </div>
       {/* Buscador */}
       <form className="um-search" onSubmit={handleSearchSubmit}>
         <span className="um-search-icon">
@@ -121,33 +144,17 @@ export default function UserManagement({
         </span>
         <input
           type="search"
+          aria-label="Buscar usuarios por nombre o correo"
           placeholder="Buscar por nombre o correo..."
           value={query}
           onChange={(e) => onSearch?.(e.target.value)}
         />
       </form>
 
-      {/* Tarjetas resumen */}
-      <div className="um-stats">
-        {stats.map((stat) => (
-          <article className="um-stat-card" key={stat.id}>
-            <span className="um-stat-icon">
-              <svg {...icon}>
-                {stat.icon ??
-                  defaultStats.find((item) => item.id === stat.id)?.icon}
-              </svg>
-            </span>
-            <div>
-              <p className="um-stat-label">{stat.label}</p>
-              <p className="um-stat-value">{stat.value}</p>
-            </div>
-          </article>
-        ))}
-      </div>
-
       {/* Filtros */}
       <div className="um-toolbar">
         <div className="um-filters">
+          <span className="um-filter-caption"><SlidersHorizontal size={15} aria-hidden="true" /> Filtrar</span>
           <select
             className="um-filter-btn"
             aria-label="Filtrar por plan"
@@ -210,28 +217,26 @@ export default function UserManagement({
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={6}>No se encontraron usuarios.</td>
+                <td colSpan={6} className="um-empty"><Search size={30} aria-hidden="true" /><strong>No se encontraron usuarios</strong><span>Prueba con otro nombre, correo o combinación de filtros.</span></td>
               </tr>
             )}
             {users.map((user) => (
               <tr key={user.id}>
                 <td>
                   <div className="um-user-cell">
-                    <span className="um-avatar">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
+                    <UserAvatar user={user} className="um-avatar" />
                     <div>
                       <p className="um-user-name">{user.name}</p>
                       <p className="um-user-email">{user.email}</p>
                     </div>
                   </div>
                 </td>
-                <td className="um-muted">{user.plan}</td>
+                <td><span className="um-plan-tag">{user.plan}</span></td>
                 <td>
                   <StatusBadge status={user.status} />
                 </td>
                 <td className="um-muted">{user.registered}</td>
-                <td className="um-muted">{user.storage}</td>
+                <td className="um-muted"><span className="um-storage-value">{user.storage}</span></td>
                 <td>
                   <div className="um-actions">
                     <button
@@ -286,12 +291,12 @@ export default function UserManagement({
           Mostrando{" "}
           <strong>
             {users.length ? (currentPage - 1) * 10 + 1 : 0} a{" "}
-            {(currentPage - 1) * 10 + users.length}
+            {users.length ? (currentPage - 1) * 10 + users.length : 0}
           </strong>{" "}
           de {totalCount.toLocaleString()} usuarios
         </p>
 
-        <div className="um-pagination-controls">
+        <div className="um-pagination-controls" aria-label={`Página ${currentPage} de ${totalPages}`}>
           <button
             type="button"
             className="um-page-arrow"
@@ -304,11 +309,13 @@ export default function UserManagement({
             </svg>
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          {Array.from({ length: Math.min(7,totalPages) }, (_, i) => Math.max(1,Math.min(currentPage-3,totalPages-6))+i).map((page) => (
             <button
               key={page}
               type="button"
               className={`um-page-number ${page === currentPage ? "active" : ""}`}
+              aria-label={`Página ${page}`}
+              aria-current={page === currentPage ? "page" : undefined}
               onClick={() => onPageChange?.(page)}
             >
               {page}
@@ -328,6 +335,7 @@ export default function UserManagement({
           </button>
         </div>
       </div>
+      </section>
     </div>
   );
 }

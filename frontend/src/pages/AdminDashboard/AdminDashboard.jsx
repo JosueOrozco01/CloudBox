@@ -159,20 +159,31 @@ export default function AdminDashboard({
   onViewUserDetail,
   onQuickAction,
 }) {
+  const planTotal = planDistribution.reduce((total, plan) => total + plan.count, 0);
+  let planOffset = 0;
+  const planSegments = planDistribution.map((plan) => {
+    const start = planOffset;
+    planOffset += planTotal ? (plan.count / planTotal) * 100 : 0;
+    return `${plan.color} ${start}% ${planOffset}%`;
+  });
   return (
-    <div className="admin-page">
+    <div className="admin-page admin-overview">
       {/* Encabezado */}
       <div className="admin-header">
         <div>
+          <span className="admin-eyebrow">CLOUDBOX · ADMINISTRACIÓN</span>
           <h1>Panel de administración</h1>
           <p>Supervisa el estado general y la actividad de CloudBox</p>
+          <span className="admin-header-caption">Todo tu espacio de trabajo, en una sola vista.</span>
         </div>
         <button
           type="button"
           className="admin-primary-btn"
           onClick={onManageUsers}
         >
+          <svg {...icon}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M20 8v6m-3-3h6" /></svg>
           Gestionar usuarios
+          <span aria-hidden="true">↗</span>
         </button>
       </div>
 
@@ -197,7 +208,7 @@ export default function AdminDashboard({
       {/* Tarjetas de estadísticas */}
       <div className="admin-stats">
         {stats.map((stat) => (
-          <article className="admin-stat-card" key={stat.id}>
+          <article className={`admin-stat-card admin-stat-${stat.id}`} key={stat.id}>
             <div className="admin-stat-head">
               <span className="admin-stat-icon">
                 <svg {...icon}>
@@ -236,6 +247,7 @@ export default function AdminDashboard({
           <div className="admin-card admin-activity-card">
             <div className="admin-card-head">
               <h2>Actividad reciente</h2>
+              <p>Los últimos movimientos de tu plataforma.</p>
             </div>
 
             <div className="admin-table-wrap">
@@ -251,7 +263,7 @@ export default function AdminDashboard({
                 <tbody>
                   {activity.length === 0 && (
                     <tr>
-                      <td colSpan={4}>No hay actividad registrada.</td>
+                      <td colSpan={4} className="admin-empty">No hay actividad registrada.<span>Los movimientos de la plataforma aparecerán aquí.</span></td>
                     </tr>
                   )}
                   {activity.map((row) => (
@@ -274,6 +286,7 @@ export default function AdminDashboard({
               onClick={onViewAllActivity}
             >
               Ver toda la actividad
+              <span aria-hidden="true"> →</span>
             </button>
           </div>
 
@@ -281,9 +294,11 @@ export default function AdminDashboard({
           <div className="admin-card admin-recent-users">
             <div className="admin-card-head">
               <h2>Usuarios recientes</h2>
+              <p>Conoce a quienes se acaban de unir a CloudBox.</p>
             </div>
 
             <ul className="admin-user-list">
+              {recentUsers.length === 0 && <li className="admin-empty">Todavía no hay usuarios recientes.</li>}
               {recentUsers.map((user) => (
                 <li key={user.id}>
                   <UserAvatar user={user} className="admin-user-avatar" />
@@ -309,9 +324,15 @@ export default function AdminDashboard({
           <div className="admin-card">
             <div className="admin-card-head">
               <h2>Distribución de planes</h2>
+              <p>Una mirada a las suscripciones por plan.</p>
             </div>
-
+            <div className="admin-plan-summary">
+              <div className="admin-plan-donut" role="img" aria-label={`${planTotal.toLocaleString()} suscripciones distribuidas entre ${planDistribution.length} planes`} style={{ background: planTotal ? `conic-gradient(${planSegments.join(", ")})` : undefined }}>
+                <div><strong>{planTotal.toLocaleString()}</strong><span>suscripciones</span></div>
+              </div>
+            </div>
             <ul className="admin-plan-list">
+              {planDistribution.length === 0 && <li className="admin-empty">Aún no hay planes con suscripciones.</li>}
               {planDistribution.map((plan) => (
                 <li key={plan.id}>
                   <div className="admin-plan-row">
@@ -335,9 +356,11 @@ export default function AdminDashboard({
           <div className="admin-card">
             <div className="admin-card-head">
               <h2>Estado de suscripciones</h2>
+              <p>El resumen de tu base de suscriptores.</p>
             </div>
 
             <ul className="admin-sub-status-list">
+              {subscriptionStatus.length === 0 && <li className="admin-empty">No hay suscripciones registradas.</li>}
               {subscriptionStatus.map((item) => (
                 <li key={item.id}>
                   <span className="admin-sub-status-label">
@@ -354,7 +377,7 @@ export default function AdminDashboard({
           </div>
           <div className="admin-card admin-storage-users">
             <div className="admin-card-head">
-              <h2>Usuarios con mayor uso de almacenamiento</h2>
+              <h2>Mayor uso de almacenamiento</h2>
               <p>
                 Hasta cinco usuarios, priorizados por porcentaje de uso y
                 espacio ocupado
@@ -430,7 +453,8 @@ export default function AdminDashboard({
 
       {/* Accesos rápidos */}
       <div>
-        <h2 className="admin-section-title">Accesos rápidos recomendados</h2>
+        <h2 className="admin-section-title">Tu centro de gestión</h2>
+        <p className="admin-section-description">Accede directamente a las herramientas de administración.</p>
         <div className="admin-quick-grid">
           {quickActions.map((action) => (
             <button
@@ -442,6 +466,7 @@ export default function AdminDashboard({
               <span className="admin-quick-icon">
                 <svg {...icon}>{action.icon}</svg>
               </span>
+              <span className="admin-quick-arrow" aria-hidden="true">↗</span>
               <p className="admin-quick-label">{action.label}</p>
               <p className="admin-quick-desc">{action.description}</p>
             </button>

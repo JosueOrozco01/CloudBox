@@ -69,7 +69,11 @@ async function readAvatars() {
         metadata.avatarUrl ||
         metadata.picture ||
         metadata.foto_url;
-      if (typeof url === "string" && /^https?:\/\//i.test(url))
+      if (metadata.avatar_path) {
+        const signed=await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600);
+        if (signed.data?.signedUrl) avatars.set(user.id,signed.data.signedUrl);
+      }
+      if (!avatars.has(user.id) && typeof url === "string" && /^https?:\/\//i.test(url))
         avatars.set(user.id, url);
     }
     if (data.users.length < 1000) return avatars;
@@ -210,44 +214,23 @@ const AdminService = {
   /**
    * Módulo ADM: Listado paginado de usuarios con soporte de búsqueda textual q y filtro por status.
    */
-  async getUsersList({ q, search, status, limit = 20, offset = 0, page } = {}) {
-    const p = Math.max(Number(page) || 0, 0);
-    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-    const parsedOffset = p > 0 ? (p - 1) * parsedLimit : Math.max(0, parseInt(offset, 10) || 0);
+  async getUsersList({ q, search, status, plan, days, sort = 'recent', limit = 20, offset = 0, page } = {}) {
+    if (days && !['7','30'].includes(String(days))) throw createServiceError('Fecha inválida',400,'INVALID_FILTER');
+    if (!['recent','name','storage'].includes(sort)) throw createServiceError('Orden inválido',400,'INVALID_FILTER');
+    const subscriptions = await readAll('suscripcion','id,id_usuario,fecha_inicio,fecha_fin,plan:id_plan(id,nombre,espacio_maximo_gb),estado:id_estado(nombre)');
+    const current = new Map();
+    for (const sub of subscriptions.filter(sub=>['Activa','PorVencer'].includes(sub.estado?.nombre) && isCurrent(sub)).sort((a,b)=>String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)) || a.id-b.id)) current.set(sub.id_usuario,sub);
 
-    let statusId = null;
-    if (status !== undefined && status !== null && String(status).trim() !== "") {
-      const statusNum = Number(status);
-      if (Number.isSafeInteger(statusNum) && statusNum > 0) {
-        statusId = statusNum;
-      } else {
-        const { data: estadoEntry, error: estadoError } = await supabaseAdmin
-          .from("estado_usuario")
-          .select("id")
-          .ilike("nombre", String(status).trim())
-          .maybeSingle();
-
-        if (estadoError) {
-          throw createServiceError(`Error al consultar estado de usuario: ${estadoError.message}`, 500, "DATABASE_ERROR");
-        }
-
-        if (estadoEntry) {
-          statusId = estadoEntry.id;
-        } else {
-          return {
-            users: [],
-            pagination: {
-              limit: parsedLimit,
-              offset: parsedOffset,
-              total: 0,
-              currentPage: p > 0 ? p : 1,
-              pageSize: parsedLimit,
-              totalRecords: 0,
-              totalPages: 0,
-            },
-          };
-        }
-      }
+    const p = page === undefined ? 0 : Number(page);
+    const parsedLimit = Number(limit);
+    const parsedOffset = p > 0 ? (p - 1)*parsedLimit : Number(offset);
+    if (!Number.isSafeInteger(p) || p < 0 || (page !== undefined && p===0) || !Number.isSafeInteger(parsedLimit) || parsedLimit<1 || parsedLimit>100 || !Number.isSafeInteger(parsedOffset) || parsedOffset<0) throw createServiceError('Paginación inválida',400,'INVALID_PAGINATION');
+    let statusId=null;
+    if (status !== undefined && status !== null && String(status).trim() !== '') {
+      const states=await readAll('estado_usuario','id,nombre');
+      const state=states.find(state=>String(state.id)===String(status) || state.nombre.toLowerCase()===String(status).trim().toLowerCase());
+      if(!state)throw createServiceError('Estado inválido',400,'INVALID_USER_STATUS');
+      statusId=state.id;
     }
 
     const buildQuery = (storageCol) => {
@@ -269,14 +252,22 @@ const AdminService = {
 
       const searchTerm = q || search;
       if (searchTerm && typeof searchTerm === "string" && searchTerm.trim() !== "") {
-        const term = searchTerm.trim();
-        query = query.or(`nombre.ilike.%${term}%,apellido.ilike.%${term}%,correo.ilike.%${term}%`);
+        if(searchTerm.length>200)throw createServiceError('Búsqueda demasiado larga',400,'INVALID_FILTER');
+        const terms=searchTerm.trim().replace(/[,%()"\\]/g,' ').split(/\s+/).filter(Boolean).slice(0,8);
+        for(const term of terms)query=query.or(`nombre.ilike.%${term}%,apellido.ilike.%${term}%,correo.ilike.%${term}%`);
       }
 
       if (statusId) {
         query = query.eq("id_estado", statusId);
       }
 
+      if (plan) {
+        if (plan === 'Sin suscripción activa') query=query.not('id','in',`(${[...current.keys()].join(',') || 0})`);
+        else query=query.in('id',[...current].filter(([,sub])=>sub.plan?.nombre===plan).map(([id])=>id));
+      }
+      if (days) query=query.gte('fecha_registro',new Date(Date.now()-Number(days)*86400000).toISOString());
+      if (sort === 'name') query=query.order('nombre',{ascending:true});
+      if (sort === 'storage') query=query.order(storageCol,{ascending:false});
       return query
         .order("fecha_registro", { ascending: false })
         .order("id", { ascending: false })
@@ -296,7 +287,12 @@ const AdminService = {
       throw createServiceError(`Error al listar usuarios: ${error.message}`, 500, "DATABASE_ERROR");
     }
 
-    const users = (data || []).map((u) => ({
+    const users = await Promise.all((data || []).map(async (u) => {
+      const sub=current.get(u.id);
+      const auth = u.auth_user_id ? await supabaseAdmin.auth.admin.getUserById(u.auth_user_id) : {data:{}};
+      const metadata=auth.data?.user?.user_metadata || {};
+      const signed=metadata.avatar_path ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
+      return ({
       id: u.id,
       auth_user_id: u.auth_user_id,
       nombre: u.nombre,
@@ -307,9 +303,13 @@ const AdminService = {
       id_estado: u.id_estado,
       estado: u.estado?.nombre || "Activo",
       estado_usuario: u.estado || { id: u.id_estado, nombre: u.estado?.nombre || "Activo" },
+      usedBytes: Number(u.espacio_usado_bytes || u.espacio_usado_by || 0),
+      plan: sub?.plan?.nombre || 'Sin suscripción activa',
+      maxBytes: sub ? Number(sub.plan?.espacio_maximo_gb || 0)*BYTES_PER_GB : null,
+      avatarUrl: signed?.data?.signedUrl || metadata.avatar_url || metadata.picture || null,
       espacio_usado_bytes: Number(u.espacio_usado_bytes || u.espacio_usado_by || 0),
       fecha_registro: u.fecha_registro,
-    }));
+    }); }));
 
     return {
       users,
@@ -369,41 +369,18 @@ const AdminService = {
       throw createServiceError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
     }
 
-    let subscription = null;
-    let maxBytes = null;
-    let plan = "Sin suscripción activa";
-
-    try {
-      const { data: subData } = await supabaseAdmin
-        .from("suscripcion")
-        .select(`
-          id,
-          fecha_inicio,
-          fecha_fin,
-          id_estado,
-          estado:id_estado(id, nombre),
-          plan:id_plan(id, nombre, espacio_maximo_gb)
-        `)
-        .eq("id_usuario", userId)
-        .order("fecha_inicio", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (subData) {
-        subscription = subData;
-        if (subData.plan?.espacio_maximo_gb) {
-          maxBytes = Number(subData.plan.espacio_maximo_gb) * 1024 ** 3;
-          plan = subData.plan.nombre || plan;
-        }
-      }
-    } catch {
-      // Degrada elegantemente si la tabla suscripcion no está disponible
-    }
-
+    const subscriptions = await readAll('suscripcion','id,id_usuario,fecha_inicio,fecha_fin,plan:id_plan(id,nombre,espacio_maximo_gb),estado:id_estado(nombre)',q=>q.eq('id_usuario',userId));
+    const subscription = subscriptions.filter(sub=>['Activa','PorVencer'].includes(sub.estado?.nombre) && isCurrent(sub)).sort((a,b)=>String(b.fecha_inicio).localeCompare(String(a.fecha_inicio)) || b.id-a.id)[0] || null;
+    const maxBytes = subscription ? Number(subscription.plan?.espacio_maximo_gb || 0)*BYTES_PER_GB : null;
+    const plan = subscription?.plan?.nombre || 'Sin suscripción activa';
+    const auth=user.auth_user_id ? await supabaseAdmin.auth.admin.getUserById(user.auth_user_id) : {data:{}};
+    const metadata=auth.data?.user?.user_metadata || {};
+    const signed=metadata.avatar_path ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
     const usedBytes = Number(user.espacio_usado_bytes || user.espacio_usado_by || 0);
 
     return {
       id: user.id,
+      avatarUrl: signed?.data?.signedUrl || metadata.avatar_url || metadata.picture || null,
       auth_user_id: user.auth_user_id,
       nombre: user.nombre,
       apellido: user.apellido,
@@ -631,6 +608,7 @@ const AdminService = {
       .from("LogAuditoria")
       .select("*", { count: "exact" })
       .order("fecha", { ascending: false })
+      .order("id", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {

@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:3000/api/users";
+import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
+const API_URL = `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/users`;
 
 export const getMyProfile = async () => {
   const token = localStorage.getItem("token");
@@ -9,7 +10,7 @@ export const getMyProfile = async () => {
     throw error;
   }
 
-  const response = await fetch(`${API_URL}/me`, {
+  const response = await authenticatedFetch(`${API_URL}/me`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -39,8 +40,8 @@ export const updateMyProfile = async (nombre, apellido) => {
     throw new Error("No hay una sesión activa");
   }
 
-  const response = await fetch(
-    "http://localhost:3000/api/users/me",
+  const response = await authenticatedFetch(
+    `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/users/me`,
     {
       method: "PATCH",
       headers: {
@@ -67,8 +68,8 @@ export const getMyStorage = async () => {
     throw new Error("No hay una sesión activa");
   }
 
-  const response = await fetch(
-    "http://localhost:3000/api/users/me/storage",
+  const response = await authenticatedFetch(
+    `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/users/me/storage`,
     {
       method: "GET",
       headers: {
@@ -95,8 +96,8 @@ export const deactivateMyAccount = async (password) => {
     throw new Error("No hay una sesión activa");
   }
 
-  const response = await fetch(
-    "http://localhost:3000/api/users/me/deactivate",
+  const response = await authenticatedFetch(
+    `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/users/me/deactivate`,
     {
       method: "PATCH",
       headers: {

@@ -20,7 +20,7 @@ const register = async (req, res) => {
 const verifyEmail = async (req, res) => {
     try {
         // Permit payload from body (POST) or query string (GET)
-        const payload = Object.keys(req.body).length > 0 ? req.body : req.query;
+        const payload = Object.keys(req.body || {}).length > 0 ? req.body : req.query;
         const { token, email, type } = payload;
         
         await verificarCorreo({ token, email, type });

@@ -8,6 +8,7 @@ const userController = {
       const userId = req.user.id;
 
       const user = await UserService.getProfileById(userId, req.supabase);
+      user.avatarUrl = await require('./integrations.controller').avatarUrl(req.authUser);
 
       return res.status(200).json({
         success: true,
@@ -47,6 +48,8 @@ const userController = {
         },
         req.supabase
       );
+
+      user.avatarUrl = await require('./integrations.controller').avatarUrl(req.authUser);
 
       return res.status(200).json({
         success: true,

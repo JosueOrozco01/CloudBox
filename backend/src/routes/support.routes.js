@@ -1,0 +1,10 @@
+const router=require('express').Router();
+const auth=require('../middlewares/auth.middleware');
+const c=require('../controllers/integrations.controller');
+router.use(auth);
+router.get('/',c.tickets);
+router.post('/',c.createTicket);
+router.get('/:id',c.ticketDetail);
+router.post('/:id/messages',c.reply);
+router.patch('/:id/status',c.ticketStatus);
+module.exports=router;

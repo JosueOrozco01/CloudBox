@@ -49,6 +49,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/support', require('./routes/support.routes'));
 app.use('/api/activity', activityRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);

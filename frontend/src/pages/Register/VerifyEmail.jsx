@@ -1,0 +1,9 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ModulePage, Feedback } from '../../components/ModuleUI/ModuleUI';
+import { api } from '../../services/apiClient';
+export default function VerifyEmail(){
+ const [email,setEmail]=useState(''),[token,setToken]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const run=async resend=>{if(busy)return;setBusy(true);setError('');setMessage('');try{const result=await api(`/auth/${resend?'resend-verification':'verify-email'}`,{method:'POST',publicAccess:true,body:resend?{email}:{email,token,type:'signup'}});setMessage(result.message);}catch(error){setError(error.message);}finally{setBusy(false);}};
+ return <ModulePage title="Verifica tu correo" description="Confirma tu cuenta o solicita un nuevo enlace de verificación."><section className="module-panel module-content" style={{maxWidth:560,margin:'0 auto'}}><form className="module-form" onSubmit={event=>{event.preventDefault();run(false);}}><Feedback error={error} message={message}/><label className="module-field">Correo electrónico<input type="email" required maxLength={254} value={email} onChange={event=>setEmail(event.target.value)} /></label><label className="module-field">Código de verificación<input required maxLength={512} value={token} onChange={event=>setToken(event.target.value)} autoComplete="one-time-code" /></label><p className="module-muted">Puedes confirmar tu cuenta con el enlace del correo. Si recibiste un código, ingrésalo aquí.</p><div className="module-actions"><button className="module-button primary" disabled={busy}>Verificar cuenta</button><button type="button" className="module-button" disabled={busy||!email} onClick={()=>run(true)}>Reenviar correo</button><Link className="module-button" to="/login">Iniciar sesión</Link></div></form></section></ModulePage>;
+}

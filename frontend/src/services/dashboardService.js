@@ -6,6 +6,42 @@ export function normalizeApiUrl(url) {
 
 const API_URL = normalizeApiUrl(import.meta.env?.VITE_API_URL);
 
+let refreshPromise;
+let lastRefresh;
+export async function refreshAccessToken(expectedToken = localStorage.getItem('token')) {
+  if (localStorage.getItem('token') !== expectedToken) return lastRefresh?.previous === expectedToken && lastRefresh.next === localStorage.getItem('token') ? lastRefresh.next : null;
+  if (!refreshPromise) {
+    const refreshToken = localStorage.getItem('refreshToken');
+    refreshPromise = (async () => {
+      if (!refreshToken) return null;
+      const response = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }) });
+      const result = await response.json();
+      if (!response.ok) return null;
+      if (localStorage.getItem('token') !== expectedToken || localStorage.getItem('refreshToken') !== refreshToken) return null;
+      lastRefresh = {previous:expectedToken,next:result.token};
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('refreshToken', result.refreshToken);
+      window.dispatchEvent(new Event('cloudbox:token-refreshed'));
+      return result.token;
+    })().finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+export async function authenticatedFetch(url, options = {}) {
+  const headers = new Headers(options.headers);
+  const token = localStorage.getItem('token');
+  if (headers.has('Authorization') && token && headers.get('Authorization') !== `Bearer ${token}`) {
+    if (lastRefresh?.next !== token || headers.get('Authorization') !== `Bearer ${lastRefresh.previous}`) throw new Error('La sesión cambió. Actualiza la página.');
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  let response = await fetch(url, { ...options, headers });
+  if (response.status === 401 && headers.has('Authorization')) {
+    const renewed = await refreshAccessToken(token);
+    if (renewed) { headers.set('Authorization', `Bearer ${renewed}`); response = await fetch(url, { ...options, headers }); }
+  }
+  return response;
+}
+
 export async function request(path, options = {}) {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -13,7 +49,7 @@ export async function request(path, options = {}) {
     error.status = 401;
     throw error;
   }
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authenticatedFetch(`${API_URL}${path}`, {
     ...options,
     headers: { ...options.headers, Authorization: `Bearer ${token}` },
   });
@@ -47,7 +83,10 @@ export const getFolderContent = (folderId = "root") =>
   request(`/folders/${folderId}/content`);
 export const getUserFolders = (folderId = null) =>
   request(folderId ? `/folders/${folderId}/subfolders` : "/folders");
-export const uploadDashboardFile = (file, onProgress, folderId = null) => {
+export const uploadDashboardFile = async (file, onProgress, folderId = null) => {
+  const token=localStorage.getItem('token');
+  try { const claims=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); if(claims.exp*1000 < Date.now()+60000) await refreshAccessToken(token); } catch { /* Normal HTTP authentication handles invalid tokens. */ }
+  if(localStorage.getItem('token') !== token && lastRefresh?.previous !== token) throw new Error('La sesión cambió.');
   const body = new FormData();
   body.append("file", file);
   if (folderId !== null) body.append("folderId", String(folderId));

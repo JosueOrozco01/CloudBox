@@ -17,7 +17,7 @@ export default function ConnectedAdminDashboard() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
   const [revision, setRevision] = useState(0);
-  const [activityLimit, setActivityLimit] = useState(5);
+  const activityLimit = 5;
   const [activityError, setActivityError] = useState("");
   const [logs, setLogs] = useState([]);
   useEffect(() => {
@@ -168,20 +168,7 @@ export default function ConnectedAdminDashboard() {
         onViewUserDetail={(user) =>
           navigate(`/admin/usuarios?detail=${user.id}`)
         }
-        onViewAllActivity={async () => {
-          try {
-            const nextLimit = Math.min(activityLimit + 20, 100);
-            const result = await getAdminActivity(nextLimit);
-            setLogs(result.logs);
-            setActivityLimit(nextLimit);
-            setNotice({
-              type: "info",
-              message: `Se muestran los últimos ${result.logs.length} registros de ${result.total} eventos de auditoría.`,
-            });
-          } catch (error) {
-            setNotice({ type: "error", message: error.message });
-          }
-        }}
+        onViewAllActivity={() => navigate("/admin/notificaciones")}
       />
       <Footer />
       <AlertModal

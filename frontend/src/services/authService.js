@@ -1,6 +1,7 @@
+import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
 import { resetAppearance, restoreCachedPreferences } from "../utils/preferences.js";
 
-const API_URL = "http://localhost:3000/api/auth";
+const API_URL = `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth`;
 
 export function persistSession(data) {
   localStorage.setItem('token', data.token);
@@ -21,7 +22,7 @@ export function clearSession(expectedToken = localStorage.getItem('token')) {
 }
 
 export const login = async (email, password) => {
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await authenticatedFetch(`${API_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,7 +53,7 @@ export const logout = async () => {
     return;
   }
 
-  const response = await fetch(`${API_URL}/logout`, {
+  const response = await authenticatedFetch(`${API_URL}/logout`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

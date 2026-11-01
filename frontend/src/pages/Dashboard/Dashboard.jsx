@@ -467,7 +467,7 @@ export default function Dashboard({ user, initialData = null }) {
                 ? setFolderOpen(true)
                 : id === "shared"
                   ? navigate("/compartidos")
-                  : unavailable()
+                  : id === "plan" ? navigate("/plan") : unavailable()
           }
           onViewAllFiles={() => navigate("/archivos")}
           onViewPlans={() => navigate("/plan")}

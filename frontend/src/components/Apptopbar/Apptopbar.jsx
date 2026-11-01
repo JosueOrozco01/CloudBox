@@ -273,7 +273,8 @@ export default function AppTopbar({ user }) {
                 Mi perfil
               </Link>
               {!isAdmin && <Link to="/actividad" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Mi actividad</Link>}
-              {!isAdmin && <Link to="/notificaciones" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Notificaciones</Link>}
+              {isAdmin && <Link to="/admin/soporte" className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Solicitudes de soporte</Link>}
+              <Link to={isAdmin ? "/admin/notificaciones" : "/notificaciones"} className="app-user-dropdown-item" onClick={() => setMenuOpen(false)}>Notificaciones</Link>
               <button
                 type="button"
                 className="app-user-dropdown-item danger"

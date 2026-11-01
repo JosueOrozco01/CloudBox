@@ -4,6 +4,9 @@ const validateRegistration = require('../middlewares/registration-validation.mid
 
 const router = express.Router();
 
+router.post('/refresh', require('../controllers/auth-extra.controller').refresh);
+router.post('/resend-verification', require('../controllers/auth-extra.controller').resend);
+
 router.post('/register', validateRegistration, authController.register);
 
 // Verify email routes (Supports both POST with manual code and GET for magic links)

@@ -1,4 +1,4 @@
-import { normalizeApiUrl } from './dashboardService';
+import { normalizeApiUrl, authenticatedFetch } from './dashboardService';
 const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 // Keeps the full envelope for endpoints that return pagination outside data.
@@ -9,7 +9,7 @@ export async function api(path, {
   signal
 } = {}) {
   const token = localStorage.getItem('token');
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authenticatedFetch(`${API_URL}${path}`, {
     method,
     signal,
     headers: {

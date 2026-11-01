@@ -1,3 +1,4 @@
+import { normalizeApiUrl } from "../../services/dashboardService";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -59,7 +60,7 @@ export default function ForgotPassword() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/forgot-password",
+        `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth/forgot-password`,
         {
           method: "POST",
           headers: {
@@ -189,7 +190,7 @@ export default function ForgotPassword() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/reset-password",
+        `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth/reset-password`,
         {
           method: "POST",
           headers: {

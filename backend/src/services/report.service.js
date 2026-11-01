@@ -508,7 +508,7 @@ const ReportService = {
   async getStorageReport() {
     const [overview, usersStorage] = await Promise.all([
       AdminStorageService.getStorageOverview(),
-      AdminStorageService.getStorageUsers({ limit: 1000, offset: 0 }),
+      AdminStorageService.getStorageUsers({ all: true }),
     ]);
 
     const users = usersStorage.users || [];
@@ -652,7 +652,7 @@ const ReportService = {
         ]);
         csvContent = generateCsv(headers, rows);
       } else if (reportType === "storage") {
-        const data = await AdminStorageService.getStorageUsers({ limit: 1000, offset: 0 });
+        const data = await AdminStorageService.getStorageUsers({ all: true });
         const headers = ["ID", "Usuario", "Correo", "Espacio Usado (Bytes)", "Cuota Máxima (Bytes)", "Uso (%)", "Archivos", "Carpetas", "Sobre Cuota"];
         const rows = (data.users || []).map(u => [
           u.id_usuario,

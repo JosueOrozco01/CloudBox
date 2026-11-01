@@ -160,7 +160,7 @@ const AdminStorageService = {
    * cantidad de archivos y cantidad de carpetas.
    * Filtro booleano overQuota para identificar usuarios que exceden su cuota.
    */
-  async getStorageUsers({ limit = 20, offset = 0, overQuota = false } = {}) {
+  async getStorageUsers({ limit = 20, offset = 0, overQuota = false, all = false } = {}) {
     const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
     const filterOverQuota = overQuota === true || overQuota === "true" || overQuota === 1 || overQuota === "1";
@@ -272,7 +272,7 @@ const AdminStorageService = {
 
 
     const total = computedUsers.length;
-    const pagedUsers = computedUsers.slice(parsedOffset, parsedOffset + parsedLimit);
+    const pagedUsers = all ? computedUsers : computedUsers.slice(parsedOffset, parsedOffset + parsedLimit);
 
     return {
       users: pagedUsers,
