@@ -391,7 +391,7 @@ const FileService = {
         if(error) throw error;
     },
     async recordFailedUploadCleanup(storagePath) {
-        const {error}=await supabaseAdmin.from('cloudbox_storage_cleanup').upsert({storage_path:storagePath},{onConflict:'storage_path'});
+        const {error}=await supabaseAdmin.from('limpieza_almacenamiento').upsert({storage_path:storagePath},{onConflict:'storage_path'});
         if(error) throw error;
     },
     async isStoragePathReferenced(storagePath) {

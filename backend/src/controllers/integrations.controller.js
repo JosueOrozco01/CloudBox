@@ -7,7 +7,7 @@ const id = value => { const number = Number(value); if (!Number.isSafeInteger(nu
 const text = (value, min, max) => { if (typeof value !== 'string' || value.trim().length < min || value.trim().length > max) throw fail(`El texto debe tener entre ${min} y ${max} caracteres.`); return value.trim(); };
 const isAdmin = req => req.user.role === 'Administrador';
 const ownTicket = async req => {
- const ticket = check(await db.from('support_ticket').select('*').eq('id', id(req.params.id)).maybeSingle());
+ const ticket = check(await db.from('solicitud_soporte').select('*').eq('id', id(req.params.id)).maybeSingle());
  if (!ticket || (!isAdmin(req) && ticket.id_usuario !== req.user.id)) throw fail('Solicitud no encontrada.',404);
  return ticket;
 };
@@ -18,7 +18,7 @@ exports.reads = handler(async (req,res) => {
  if(!Number.isSafeInteger(limit)||limit<1||limit>200||!Number.isSafeInteger(offset)||offset<0)throw fail('Paginación inválida.');
  const logs = check(await db.from('LogAuditoria').select('id').order('fecha',{ascending:false}).order('id',{ascending:false}).range(offset,offset+limit-1));
  const ids = logs.map(log=>log.id);
- const rows = ids.length ? check(await db.from('admin_notification_read').select('id_log').eq('id_usuario',req.user.id).in('id_log',ids)) : [];
+ const rows = ids.length ? check(await db.from('lectura_notificacion_administrador').select('id_log').eq('id_usuario',req.user.id).in('id_log',ids)) : [];
  res.json({success:true,data:rows.map(row=>row.id_log)});
 });
 exports.markReads = handler(async (req,res) => {
@@ -26,13 +26,13 @@ exports.markReads = handler(async (req,res) => {
  if (!Array.isArray(ids) || ids.length > 200 || !ids.length) throw fail('Selecciona entre 1 y 200 eventos.');
  const unique = [...new Set(ids.map(id))];
  const logs = check(await db.from('LogAuditoria').select('id').in('id',unique));
- check(await db.from('admin_notification_read').upsert(logs.map(log=>({id_usuario:req.user.id,id_log:log.id})),{onConflict:'id_usuario,id_log'}));
+ check(await db.from('lectura_notificacion_administrador').upsert(logs.map(log=>({id_usuario:req.user.id,id_log:log.id})),{onConflict:'id_usuario,id_log'}));
  res.json({success:true});
 });
 exports.tickets = handler(async (req,res) => {
  const page = req.query.page === undefined ? 1 : Number(req.query.page), limit=20;
  if(!Number.isSafeInteger(page)||page<1||!Number.isSafeInteger(page*limit))throw fail('Paginación inválida.');
- let query=db.from('support_ticket').select('*,usuario:id_usuario(nombre,apellido,correo)',{count:'exact'});
+ let query=db.from('solicitud_soporte').select('*,usuario:id_usuario(nombre,apellido,correo)',{count:'exact'});
  if (!isAdmin(req)) query=query.eq('id_usuario',req.user.id);
  if (req.query.status) { if (!['open','in_progress','closed'].includes(req.query.status)) throw fail('Estado inválido.'); query=query.eq('status',req.query.status); }
  const result=await query.order('created_at',{ascending:false}).order('id',{ascending:false}).range((page-1)*limit,page*limit-1);
@@ -48,7 +48,7 @@ exports.ticketDetail = handler(async (req,res) => {
  const ticket=await ownTicket(req);
   const before=req.query.before === undefined ? null : id(req.query.before);
  const limit=50;
- let query=db.from('support_message').select('*,usuario:id_usuario(nombre,apellido)',{count:'exact'}).eq('ticket_id',ticket.id);
+ let query=db.from('mensaje_soporte').select('*,usuario:id_usuario(nombre,apellido)',{count:'exact'}).eq('ticket_id',ticket.id);
  if(before !== null) query=query.lt('id',before);
  const result=await query.order('id',{ascending:false}).range(0,limit-1);
  const messages=check(result);
@@ -59,7 +59,7 @@ exports.reply = handler(async (req,res) => {
  const ticket=await ownTicket(req);
  if(ticket.status==='closed') throw fail('La solicitud está cerrada.');
  const message=text(req.body?.message,1,4000);
- const result=await db.from('support_message').insert({ticket_id:ticket.id,id_usuario:req.user.id,message});
+ const result=await db.from('mensaje_soporte').insert({ticket_id:ticket.id,id_usuario:req.user.id,message});
  if(result.error?.message?.includes('CLOUDBOX_TICKET_CLOSED')) throw fail('La solicitud está cerrada.',409);
  check(result);
  res.status(201).json({success:true});
@@ -67,7 +67,7 @@ exports.reply = handler(async (req,res) => {
 exports.ticketStatus = handler(async (req,res) => {
  const ticket=await ownTicket(req), status=req.body?.status;
  if(!['open','in_progress','closed'].includes(status) || (!isAdmin(req) && status!=='closed')) throw fail('Cambio de estado no permitido.',403);
- check(await db.from('support_ticket').update({status,updated_at:new Date().toISOString()}).eq('id',ticket.id));
+ check(await db.from('solicitud_soporte').update({status,updated_at:new Date().toISOString()}).eq('id',ticket.id));
  res.json({success:true});
 });
 exports.avatarUrl = async authUser => {

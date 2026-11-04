@@ -1,6 +1,7 @@
 # Integraciones completadas
 
 Fecha: 31 de octubre de 2026.
+Actualización de nombres y procedimiento de instalación: 4 de noviembre de 2026.
 
 Se implementaron los pendientes de `REVISION-INTEGRACION-BACKEND-FRONTEND.md`. El estado de instalación y las limitaciones de validación se detallan abajo.
 
@@ -30,19 +31,21 @@ El bucket privado `avatars` se creó en el Supabase configurado, con límite de 
 
 Falta ejecutar la migración:
 
-`supabase/migrations/20261031000000_complete_integrations.sql`
+`supabase/migrations/20261103000000_fix_audit_consistency.sql`
 
 Crear tablas por REST no está permitido por la API de datos de Supabase. Las credenciales disponibles corresponden a la API y no hay una conexión SQL ni un proyecto CLI enlazado. La comprobación remota confirmó que las tablas y la función nuevas todavía no están disponibles.
 
 La migración agrega:
 
-- `admin_notification_read` para lecturas por administrador y evento.
-- `support_ticket` y `support_message` para solicitudes y conversaciones.
+- `lectura_notificacion_administrador` para lecturas por administrador y evento.
+- `solicitud_soporte` y `mensaje_soporte` para solicitudes y conversaciones.
+- `limpieza_almacenamiento` para objetos pendientes de limpieza.
 - `cloudbox_create_ticket` para guardar la solicitud y el primer mensaje en una misma transacción.
 - Restricciones de datos, índices y RLS. El acceso directo de `anon` y `authenticated` queda revocado; las operaciones pasan por el backend y sus verificaciones de identidad/permisos.
 - Creación del bucket privado si no existe.
 
 Aplicar el archivo completo en el editor SQL de Supabase, o con el procedimiento habitual de migraciones del proyecto. El SQL usa una transacción y no borra tablas ni registros existentes.
+La migración actual conserva los datos al renombrar las tablas anteriores en inglés, si existen. El archivo del 31 de octubre se conserva como historial; para el esquema actual proporcionado se utiliza el archivo del 3 de noviembre indicado arriba.
 
 Después, reiniciar el backend y comprobar desde la raíz del repositorio:
 

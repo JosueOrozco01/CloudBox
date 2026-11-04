@@ -24,7 +24,7 @@ async function reconcile(apply = false) {
   }
   cursor=0;
   for (;;) {
-    const {data,error}=await db.from('cloudbox_storage_cleanup').select('id,storage_path').gt('id',cursor).order('id').limit(100);
+    const {data,error}=await db.from('limpieza_almacenamiento').select('id,storage_path').gt('id',cursor).order('id').limit(100);
     if(error) throw error;
     if(!data.length) return totals;
     for(const entry of data) {
@@ -34,7 +34,7 @@ async function reconcile(apply = false) {
         const reference=await db.from('archivo').select('id').eq('ruta_storage',entry.storage_path).limit(1).maybeSingle();
         if(reference.error) throw reference.error;
         if(!reference.data) await storage.deleteFile(entry.storage_path);
-        const removed=await db.from('cloudbox_storage_cleanup').delete().eq('id',entry.id);
+        const removed=await db.from('limpieza_almacenamiento').delete().eq('id',entry.id);
         if(removed.error) throw removed.error;
         totals.completed++;
       } catch { totals.failed++; }

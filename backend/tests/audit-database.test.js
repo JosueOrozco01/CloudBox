@@ -5,7 +5,8 @@ const path = require('node:path');
 const { PGlite } = require('@electric-sql/pglite');
 const migration = fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261103000000_fix_audit_consistency.sql'),'utf8');
 
-test('audit migration enforces quota, deletion, ownership, tickets and preferences in PostgreSQL', async t => {
+for (const legacy of [false,true]) {
+test(`audit migration enforces quota, deletion, ownership, tickets and preferences in PostgreSQL (${legacy ? 'legacy English tables' : 'current schema'})`, async t => {
   const db = new PGlite({initialMemory:128*1024*1024,startParams:[...PGlite.defaultStartParams,'-c','shared_buffers=8MB','-c','work_mem=1MB']});
   try {
     await db.exec(`
@@ -30,12 +31,39 @@ test('audit migration enforces quota, deletion, ownership, tickets and preferenc
       INSERT INTO public.estado_suscripcion(id,nombre) OVERRIDING SYSTEM VALUE VALUES(2,'Activa');
     `);
     const preflight=fs.readFileSync(path.join(__dirname,'../../supabase/manual/review/20261103_pre_migration_check.sql'),'utf8');
+    let legacyTicket;
+    if(legacy) {
+      await db.exec(fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261031000000_complete_integrations.sql'),'utf8'));
+      await db.exec(`CREATE TABLE public.cloudbox_storage_cleanup (
+        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        storage_path text NOT NULL UNIQUE,created_at timestamptz NOT NULL DEFAULT now()
+      ); INSERT INTO public.cloudbox_storage_cleanup(storage_path) VALUES('fixture/orphan.txt');`);
+      legacyTicket=(await db.query("SELECT public.cloudbox_create_ticket(1,'Existing request','files','Existing message') AS id")).rows[0].id;
+    }
     await db.exec(preflight);
     await db.exec(migration);
-    await db.exec('GRANT USAGE ON SEQUENCE public.support_ticket_id_seq,public.cloudbox_storage_cleanup_id_seq TO anon;');
+    await db.exec('GRANT USAGE ON SEQUENCE public.solicitud_soporte_id_seq,public.limpieza_almacenamiento_id_seq TO anon;');
     await db.exec(migration); // Repeat safely after partial deployments.
     await db.exec(preflight);
-    assert.equal((await db.query("SELECT has_sequence_privilege('anon','public.support_ticket_id_seq','USAGE') AS allowed")).rows[0].allowed,false);
+    assert.equal((await db.query("SELECT has_sequence_privilege('anon','public.solicitud_soporte_id_seq','USAGE') AS allowed")).rows[0].allowed,false);
+    for(const [oldName,newName] of [
+      ['admin_notification_read','lectura_notificacion_administrador'],
+      ['support_ticket','solicitud_soporte'],['support_message','mensaje_soporte'],
+      ['cloudbox_storage_cleanup','limpieza_almacenamiento']
+    ]) {
+      const {rows}=await db.query('SELECT to_regclass($1) AS old_relation,to_regclass($2) AS new_relation',['public.'+oldName,'public.'+newName]);
+      assert.equal(rows[0].old_relation,null);
+      assert.ok(rows[0].new_relation);
+    }
+    if(legacy) {
+      await db.exec('CREATE TABLE public.support_ticket(id integer);');
+      await assert.rejects(db.exec(migration),/CLOUDBOX_CONFLICTO_NOMBRE_TABLA/);
+      await db.exec('ROLLBACK; DROP TABLE public.support_ticket;');
+      assert.equal((await db.query('SELECT subject FROM public.solicitud_soporte WHERE id=$1',[legacyTicket])).rows[0].subject,'Existing request');
+      assert.equal((await db.query('SELECT message FROM public.mensaje_soporte WHERE ticket_id=$1',[legacyTicket])).rows[0].message,'Existing message');
+      assert.equal((await db.query('SELECT storage_path FROM public.limpieza_almacenamiento')).rows[0].storage_path,'fixture/orphan.txt');
+      await db.query('DELETE FROM public.solicitud_soporte WHERE id=$1',[legacyTicket]);
+    }
 
     await t.test('capacity is serialized, counts trash and unconfirmed deletions, and fails closed without Free', async () => {
       for(let i=0;i<20;i++) await db.query("INSERT INTO public.archivo(id_usuario,nombre,tamano_bytes,id_estado,ruta_storage,id_extension) VALUES(1,$1,52428800,1,$2,1)",['file-'+i,'file-'+i]);
@@ -64,21 +92,22 @@ test('audit migration enforces quota, deletion, ownership, tickets and preferenc
 
     await t.test('ticket creation is atomic and closed tickets cannot receive messages', async () => {
       await assert.rejects(db.query("SELECT public.cloudbox_create_ticket(1,'Valid subject','files','')"));
-      assert.equal((await db.query('SELECT count(*)::integer AS total FROM public.support_ticket')).rows[0].total,0);
+      assert.equal((await db.query('SELECT count(*)::integer AS total FROM public.solicitud_soporte')).rows[0].total,0);
       const id=(await db.query("SELECT public.cloudbox_create_ticket(1,'Valid subject','files','Initial message') AS id")).rows[0].id;
-      await db.query('UPDATE public.support_ticket SET updated_at=now()-interval \'1 day\' WHERE id=$1',[id]);
-      await db.query("INSERT INTO public.support_message(ticket_id,id_usuario,message) VALUES($1,1,'Reply')",[id]);
-      assert.ok((await db.query("SELECT updated_at>now()-interval '1 hour' AS recent FROM public.support_ticket WHERE id=$1",[id])).rows[0].recent);
-      await db.query("UPDATE public.support_ticket SET status='closed' WHERE id=$1",[id]);
-      await assert.rejects(db.query("INSERT INTO public.support_message(ticket_id,id_usuario,message) VALUES($1,1,'Late reply')",[id]),/CLOUDBOX_TICKET_CLOSED/);
+      await db.query('UPDATE public.solicitud_soporte SET updated_at=now()-interval \'1 day\' WHERE id=$1',[id]);
+      await db.query("INSERT INTO public.mensaje_soporte(ticket_id,id_usuario,message) VALUES($1,1,'Reply')",[id]);
+      assert.ok((await db.query("SELECT updated_at>now()-interval '1 hour' AS recent FROM public.solicitud_soporte WHERE id=$1",[id])).rows[0].recent);
+      await db.query("UPDATE public.solicitud_soporte SET status='closed' WHERE id=$1",[id]);
+      await assert.rejects(db.query("INSERT INTO public.mensaje_soporte(ticket_id,id_usuario,message) VALUES($1,1,'Late reply')",[id]),/CLOUDBOX_TICKET_CLOSED/);
     });
 
     await t.test('notification preferences affect database producers and protect other accounts', async () => {
       await db.query("UPDATE auth.users SET raw_user_meta_data=$1::jsonb WHERE id='11111111-1111-4111-8111-111111111111'",[JSON.stringify({cloudbox_preferences:{notifications:[{id:'shared',enabled:false},{id:'activity',enabled:false}]}})]);
       await db.exec("INSERT INTO public.notificacion(id_usuario,tipo,titulo,mensaje) VALUES(1,'FILE_SHARED','Aviso','Mensaje'),(1,'PAYMENT_APPROVED','Aviso','Mensaje'),(2,'FILE_SHARED','Aviso','Mensaje'),(1,'STORAGE_NEAR_LIMIT','Aviso','Mensaje');");
       assert.equal((await db.query('SELECT count(*)::integer AS total FROM public.notificacion')).rows[0].total,2);
-      await assert.rejects(db.exec('SET ROLE anon; SELECT * FROM public.support_ticket;'), /permission denied/);
+      await assert.rejects(db.exec('SET ROLE anon; SELECT * FROM public.solicitud_soporte;'), /permission denied/);
       await db.exec('RESET ROLE;');
     });
   } finally { await db.close(); }
 });
+}

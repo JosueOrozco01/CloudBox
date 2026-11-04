@@ -1,12 +1,46 @@
 BEGIN;
 
+-- Conserva los datos si una instalación anterior creó las tablas en inglés.
+-- Si existen ambos nombres, se interrumpe la transacción para evitar separarlos.
+DO $$
+DECLARE mapeo record; secuencia text;
+BEGIN
+  FOR mapeo IN SELECT * FROM (VALUES
+    ('admin_notification_read','lectura_notificacion_administrador'),
+    ('support_ticket','solicitud_soporte'),
+    ('support_message','mensaje_soporte'),
+    ('cloudbox_storage_cleanup','limpieza_almacenamiento')
+  ) AS nombres(anterior,nuevo) LOOP
+    IF to_regclass(format('public.%I',mapeo.anterior)) IS NULL THEN CONTINUE; END IF;
+    IF to_regclass(format('public.%I',mapeo.nuevo)) IS NOT NULL THEN
+      RAISE EXCEPTION 'CLOUDBOX_CONFLICTO_NOMBRE_TABLA: existen % y %',mapeo.anterior,mapeo.nuevo;
+    END IF;
+    EXECUTE format('ALTER TABLE public.%I RENAME TO %I',mapeo.anterior,mapeo.nuevo);
+    IF mapeo.anterior<>'admin_notification_read' THEN
+      secuencia:=pg_get_serial_sequence(format('public.%I',mapeo.nuevo),'id');
+      IF secuencia IS NOT NULL AND secuencia<>format('public.%I',mapeo.nuevo||'_id_seq') THEN
+        EXECUTE format('ALTER SEQUENCE %s RENAME TO %I',secuencia,mapeo.nuevo||'_id_seq');
+      END IF;
+    END IF;
+  END LOOP;
+  FOR mapeo IN SELECT * FROM (VALUES
+    ('support_ticket_user_date','solicitud_soporte_usuario_fecha'),
+    ('support_message_ticket','mensaje_soporte_solicitud')
+  ) AS nombres(anterior,nuevo) LOOP
+    IF to_regclass(format('public.%I',mapeo.anterior)) IS NOT NULL
+      AND to_regclass(format('public.%I',mapeo.nuevo)) IS NULL THEN
+      EXECUTE format('ALTER INDEX public.%I RENAME TO %I',mapeo.anterior,mapeo.nuevo);
+    END IF;
+  END LOOP;
+END; $$;
+
 -- Reconcile optional integrations even when an older installation omitted them.
-CREATE TABLE IF NOT EXISTS public.admin_notification_read (
+CREATE TABLE IF NOT EXISTS public.lectura_notificacion_administrador (
   id_usuario integer NOT NULL REFERENCES public.usuario(id) ON DELETE CASCADE,
   id_log bigint NOT NULL REFERENCES public."LogAuditoria"(id) ON DELETE CASCADE,
   read_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(id_usuario,id_log)
 );
-CREATE TABLE IF NOT EXISTS public.support_ticket (
+CREATE TABLE IF NOT EXISTS public.solicitud_soporte (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_usuario integer NOT NULL REFERENCES public.usuario(id),
   subject text NOT NULL CHECK(length(btrim(subject)) BETWEEN 3 AND 150),
@@ -14,29 +48,29 @@ CREATE TABLE IF NOT EXISTS public.support_ticket (
   status text NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','closed')),
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE TABLE IF NOT EXISTS public.support_message (
+CREATE TABLE IF NOT EXISTS public.mensaje_soporte (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  ticket_id bigint NOT NULL REFERENCES public.support_ticket(id) ON DELETE CASCADE,
+  ticket_id bigint NOT NULL REFERENCES public.solicitud_soporte(id) ON DELETE CASCADE,
   id_usuario integer NOT NULL REFERENCES public.usuario(id),
   message text NOT NULL CHECK(length(btrim(message)) BETWEEN 1 AND 4000),
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS support_ticket_user_date ON public.support_ticket(id_usuario,created_at DESC);
-CREATE INDEX IF NOT EXISTS support_message_ticket ON public.support_message(ticket_id,id);
-ALTER TABLE public.admin_notification_read ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.support_ticket ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.support_message ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.admin_notification_read,public.support_ticket,public.support_message FROM PUBLIC,anon,authenticated;
-GRANT ALL ON public.admin_notification_read,public.support_ticket,public.support_message TO service_role;
-REVOKE ALL ON SEQUENCE public.support_ticket_id_seq,public.support_message_id_seq FROM PUBLIC,anon,authenticated;
-GRANT USAGE,SELECT ON SEQUENCE public.support_ticket_id_seq,public.support_message_id_seq TO service_role;
+CREATE INDEX IF NOT EXISTS solicitud_soporte_usuario_fecha ON public.solicitud_soporte(id_usuario,created_at DESC);
+CREATE INDEX IF NOT EXISTS mensaje_soporte_solicitud ON public.mensaje_soporte(ticket_id,id);
+ALTER TABLE public.lectura_notificacion_administrador ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.solicitud_soporte ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mensaje_soporte ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.lectura_notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte FROM PUBLIC,anon,authenticated;
+GRANT ALL ON public.lectura_notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte TO service_role;
+REVOKE ALL ON SEQUENCE public.solicitud_soporte_id_seq,public.mensaje_soporte_id_seq FROM PUBLIC,anon,authenticated;
+GRANT USAGE,SELECT ON SEQUENCE public.solicitud_soporte_id_seq,public.mensaje_soporte_id_seq TO service_role;
 
 CREATE OR REPLACE FUNCTION public.cloudbox_create_ticket(p_user integer,p_subject text,p_category text,p_message text)
 RETURNS bigint LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 DECLARE ticket bigint;
 BEGIN
-  INSERT INTO public.support_ticket(id_usuario,subject,category) VALUES(p_user,btrim(p_subject),p_category) RETURNING id INTO ticket;
-  INSERT INTO public.support_message(ticket_id,id_usuario,message) VALUES(ticket,p_user,btrim(p_message));
+  INSERT INTO public.solicitud_soporte(id_usuario,subject,category) VALUES(p_user,btrim(p_subject),p_category) RETURNING id INTO ticket;
+  INSERT INTO public.mensaje_soporte(ticket_id,id_usuario,message) VALUES(ticket,p_user,btrim(p_message));
   RETURN ticket;
 END; $$;
 REVOKE ALL ON FUNCTION public.cloudbox_create_ticket(integer,text,text,text) FROM PUBLIC,anon,authenticated;
@@ -47,29 +81,29 @@ CREATE OR REPLACE FUNCTION public.cloudbox_support_message_guard() RETURNS trigg
 LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 DECLARE ticket_status text;
 BEGIN
-  SELECT status INTO ticket_status FROM public.support_ticket WHERE id=NEW.ticket_id FOR UPDATE;
+  SELECT status INTO ticket_status FROM public.solicitud_soporte WHERE id=NEW.ticket_id FOR UPDATE;
   IF ticket_status='closed' THEN RAISE EXCEPTION 'CLOUDBOX_TICKET_CLOSED'; END IF;
-  UPDATE public.support_ticket SET updated_at=now() WHERE id=NEW.ticket_id;
+  UPDATE public.solicitud_soporte SET updated_at=now() WHERE id=NEW.ticket_id;
   RETURN NEW;
 END; $$;
-DROP TRIGGER IF EXISTS cloudbox_support_message_guard ON public.support_message;
-CREATE TRIGGER cloudbox_support_message_guard BEFORE INSERT ON public.support_message
+DROP TRIGGER IF EXISTS cloudbox_support_message_guard ON public.mensaje_soporte;
+CREATE TRIGGER cloudbox_support_message_guard BEFORE INSERT ON public.mensaje_soporte
 FOR EACH ROW EXECUTE FUNCTION public.cloudbox_support_message_guard();
 REVOKE ALL ON FUNCTION public.cloudbox_support_message_guard() FROM PUBLIC,anon,authenticated;
 
 -- NULL means physical deletion is unconfirmed. Old deleted rows remain retryable
 -- until Storage confirms removal; never assume that an object was deleted.
 ALTER TABLE public.archivo ADD COLUMN IF NOT EXISTS storage_deleted_at timestamptz;
-CREATE TABLE IF NOT EXISTS public.cloudbox_storage_cleanup (
+CREATE TABLE IF NOT EXISTS public.limpieza_almacenamiento (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   storage_path text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE public.cloudbox_storage_cleanup ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.cloudbox_storage_cleanup FROM PUBLIC,anon,authenticated;
-GRANT ALL ON public.cloudbox_storage_cleanup TO service_role;
-REVOKE ALL ON SEQUENCE public.cloudbox_storage_cleanup_id_seq FROM PUBLIC,anon,authenticated;
-GRANT USAGE,SELECT ON SEQUENCE public.cloudbox_storage_cleanup_id_seq TO service_role;
+ALTER TABLE public.limpieza_almacenamiento ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.limpieza_almacenamiento FROM PUBLIC,anon,authenticated;
+GRANT ALL ON public.limpieza_almacenamiento TO service_role;
+REVOKE ALL ON SEQUENCE public.limpieza_almacenamiento_id_seq FROM PUBLIC,anon,authenticated;
+GRANT USAGE,SELECT ON SEQUENCE public.limpieza_almacenamiento_id_seq TO service_role;
 CREATE INDEX IF NOT EXISTS archivo_pending_storage_delete ON public.archivo(id_usuario,id)
 WHERE id_estado=3 AND storage_deleted_at IS NULL;
 

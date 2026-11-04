@@ -6,9 +6,9 @@ Referencia: esquema de 29 tablas proporcionado por la usuaria, antes de ejecutar
 
 ## Resultado
 
-La estructura enviada coincide con los nombres, tipos y relaciones que necesita la migración `20261103000000_fix_audit_consistency.sql`. No se identificó un cambio obligatorio de nombre de tabla, de identificadores de catálogo ni de tipo de columna existente para instalarla.
+La estructura enviada coincide con los nombres, tipos y relaciones que necesita la migración `20261103000000_fix_audit_consistency.sql`. No se identificó un cambio obligatorio en los nombres de las 29 tablas existentes, en los identificadores de catálogo ni en los tipos de sus columnas para instalarla. Las cuatro tablas incorporadas por la migración utilizan nombres en español.
 
-La instalación de la migración se ejecutó dos veces en una base local derivada de las 29 tablas, conservando sus claves foráneas, identidades, restricciones `NOT NULL`, `UNIQUE` y `CHECK`. La prueba automatizada terminó aprobada: 5 resultados correctos y 0 fallos. Comprueba cuota y borrado físico pendiente, integridad de carpetas, creación atómica y cierre de tickets, preferencias de notificaciones y aislamiento de acceso. También ejecuta las consultas de comprobación antes y después de instalar la migración.
+La instalación de la migración se ejecutó dos veces por escenario en una base local derivada de las 29 tablas, conservando sus claves foráneas, identidades, restricciones `NOT NULL`, `UNIQUE` y `CHECK`. Se comprueba la instalación desde el esquema actual y la actualización de una instalación anterior con nombres en inglés. La prueba automatizada terminó aprobada: 10 resultados correctos y 0 fallos. Comprueba cuota y borrado físico pendiente, integridad de carpetas, creación atómica y cierre de tickets, preferencias de notificaciones y aislamiento de acceso. También ejecuta las consultas de comprobación antes y después de instalar la migración.
 
 Esto valida compatibilidad de estructura, pero no permite certificar los datos existentes, los cuerpos de funciones instaladas, los permisos o todos los triggers remotos. Esos elementos no están incluidos en el texto proporcionado.
 
@@ -39,13 +39,15 @@ Estos valores coinciden con las condiciones utilizadas por la migración. Free p
 
 | Elemento | SQL actual | Lo que incorpora la migración |
 | --- | --- | --- |
-| `admin_notification_read` | No aparece; la API consultada tampoco la encuentra. | Lecturas persistentes de notificaciones administrativas. |
-| `support_ticket` | No aparece; la API consultada tampoco la encuentra. | Solicitudes de soporte. |
-| `support_message` | No aparece; la API consultada tampoco la encuentra. | Mensajes y control transaccional de respuestas. |
-| `cloudbox_storage_cleanup` | No aparece; la API consultada tampoco la encuentra. | Limpieza pendiente de objetos de cargas fallidas. |
+| `lectura_notificacion_administrador` | No aparece en el SQL actual. | Lecturas persistentes de notificaciones administrativas. |
+| `solicitud_soporte` | No aparece en el SQL actual. | Solicitudes de soporte. |
+| `mensaje_soporte` | No aparece en el SQL actual. | Mensajes y control transaccional de respuestas. |
+| `limpieza_almacenamiento` | No aparece en el SQL actual. | Limpieza pendiente de objetos de cargas fallidas. |
 | `archivo.storage_deleted_at` | No aparece. | Confirmación del borrado físico de cada archivo. |
 
 La migración añade cuatro tablas y una columna al modelo proporcionado. La cantidad esperada de tablas públicas de este alcance pasa de 29 a 33. También instala funciones, triggers, índices y permisos; esos objetos no se contabilizan como tablas.
+
+Si una instalación anterior contiene `admin_notification_read`, `support_ticket`, `support_message` o `cloudbox_storage_cleanup`, la migración actual las renombra a sus equivalentes en español, conservando registros, claves foráneas e identidades. Se probaron la conservación de una solicitud, su mensaje y una entrada de limpieza, y la creación posterior de nuevos registros. Si existen simultáneamente el nombre antiguo y el nuevo, se interrumpe la transacción para revisar el conflicto; esta protección también se comprobó localmente. El backend, sus scripts y las pruebas consultan los nombres nuevos.
 
 ## Observaciones que conviene conservar
 
@@ -82,4 +84,4 @@ La validación local aprobada se puede repetir desde la raíz del repositorio co
 node --max-old-space-size=256 --max-semi-space-size=4 --wasm-lazy-compilation --liftoff-only --test backend/tests/audit-database.test.js
 ```
 
-No se modificó la migración de correcciones ni se ejecutó sobre Supabase. La activación del código de `fix-problems` sigue requiriendo aplicarla y validar después los flujos en el proyecto de destino.
+Se actualizaron los nombres de las cuatro tablas incorporadas por la migración, sus referencias en el backend y las consultas de comprobación. La batería completa del backend también se repitió: 128 resultados correctos, además de los 10 de PostgreSQL. No se ejecutó la migración sobre Supabase. La activación del código de `fix-problems` sigue requiriendo aplicarla y validar después los flujos en el proyecto de destino.

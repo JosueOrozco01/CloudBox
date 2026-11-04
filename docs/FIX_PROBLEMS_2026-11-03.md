@@ -11,6 +11,8 @@ Las correcciones corresponden a los veinte hallazgos de la auditoría del 1 de n
 
 El código de esta rama requiere la migración `20261103000000_fix_audit_consistency.sql` antes de publicarse. Esa migración fue ejecutada en PostgreSQL embebido de prueba, incluida una segunda ejecución para comprobar su repetición segura. No se instaló en Supabase remoto. Su instalación requiere ejecutar SQL administrativo en el proyecto de destino; no se realiza automáticamente desde la API ni al iniciar el backend.
 
+Actualización del 4 de noviembre: las tablas incorporadas se llaman `lectura_notificacion_administrador`, `solicitud_soporte`, `mensaje_soporte` y `limpieza_almacenamiento`. El backend, los scripts y las pruebas utilizan esos nombres. La migración también contempla la actualización de instalaciones anteriores con nombres en inglés, conservando sus registros, relaciones e identidades.
+
 La comprobación remota de lectura sigue indicando que faltan las tablas complementarias y la función de creación de tickets en la API consultada. La nueva columna `archivo.storage_deleted_at` tampoco está instalada. Por tanto, las correcciones que dependen de SQL están preparadas y probadas localmente; su activación en la nube queda pendiente de instalar la migración en el proyecto utilizado por el despliegue.
 
 ## Relación con la auditoría
@@ -44,7 +46,7 @@ Supabase Auth combina las claves de metadatos enviadas sin reemplazar las claves
 
 | Comprobación | Resultado |
 | --- | --- |
-| Backend | 128 unidades de servicios, controladores y rutas, más 5 de PostgreSQL; las 133 aprueban sin fallos. |
+| Backend | Revalidación del 4 de noviembre: 128 unidades de servicios, controladores y rutas, más 10 de PostgreSQL; las 138 aprueban sin fallos. |
 | Frontend | Las 12 pruebas de sesión y aislamiento de preferencias aprueban. |
 | Navegador | Recorrido aprobado de 23 rutas con 396 solicitudes a una API simulada. |
 | ESLint | Sin errores. |
@@ -54,7 +56,7 @@ Supabase Auth combina las claves de metadatos enviadas sin reemplazar las claves
 
 Los registros de trabajo están en `tmp/fix-problems-*.log` y no contienen credenciales reales de pruebas. La ejecución de SQL se separó de las demás pruebas y utiliza compilación WebAssembly de menor consumo para evitar el pico de memoria observado en este equipo.
 
-Las pruebas de SQL utilizan PGlite, un PostgreSQL embebido, con esquemas temporales de prueba. Cubren límites de cuota, solicitudes simultáneas en esa instancia, permanencia de bytes pendientes, fallo sin Free, ciclos y restauración de carpetas, atomicidad del primer mensaje, rechazo de respuestas a tickets cerrados y preferencias de notificación. No equivalen a una prueba de carga de varias conexiones contra Supabase remoto.
+Las pruebas de SQL utilizan PGlite, un PostgreSQL embebido, con esquemas temporales derivados de las 29 tablas proporcionadas. Cubren instalación sobre el esquema actual, actualización de tablas anteriores en inglés, conservación de registros, detección de nombres en conflicto, límites de cuota, solicitudes simultáneas en esa instancia, permanencia de bytes pendientes, fallo sin Free, ciclos y restauración de carpetas, atomicidad del primer mensaje, rechazo de respuestas a tickets cerrados y preferencias de notificación. No equivalen a una prueba de carga de varias conexiones contra Supabase remoto.
 
 Las pruebas visuales compilan la aplicación y usan un navegador con perfil temporal propio y una API simulada. Comprueban navegación, formularios, pagos simulados, administración, exportaciones, aislamiento de preferencias y tamaños de pantalla. No ejecutan operaciones sobre cuentas reales.
 
@@ -74,7 +76,7 @@ node --env-file=backend/.env backend/scripts/check-integrations.js
 
 La nueva columna no supone que los objetos antiguos marcados como eliminados fueron borrados físicamente. Se consideran pendientes hasta confirmarlo. Algunos archivos históricos pueden reaparecer como pendientes y volver a contabilizarse hasta completar la reconciliación; es un comportamiento deliberado para no dar por borrado un objeto desconocido.
 
-El modelo incorpora `archivo.storage_deleted_at` y la tabla privada `cloudbox_storage_cleanup`. Actualizar el diccionario de datos de la entrega final con esas estructuras. La cola de limpieza verifica que un objeto no esté referenciado por un archivo antes de eliminarlo, para conservar escrituras cuyo resultado pudo perderse por un fallo de comunicación.
+El modelo incorpora `archivo.storage_deleted_at` y la tabla privada `limpieza_almacenamiento`. Actualizar el diccionario de datos de la entrega final con esas estructuras. La cola de limpieza verifica que un objeto no esté referenciado por un archivo antes de eliminarlo, para conservar escrituras cuyo resultado pudo perderse por un fallo de comunicación.
 
 Inspeccionar pendientes desde `backend` con `node scripts/reconcile-storage-deletions.js`. Procesarlos explícitamente con `node scripts/reconcile-storage-deletions.js --apply`. El proceso vuelve a intentar únicamente eliminaciones previamente marcadas y objetos registrados en la cola de limpieza; no selecciona archivos activos. Sus totales no imprimen nombres de archivos ni tokens.
 
