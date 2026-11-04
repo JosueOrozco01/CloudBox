@@ -1,10 +1,11 @@
+const validation = require('../services/input-validation');
 const SessionHistory = require('../services/session-history.service');
 const { createClient } = require('@supabase/supabase-js');
 const UserService = require('../services/user.service');
 const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const defaults = { theme: 'claro', language: 'Español (América Latina)', showKB: true };
 const notificationIds = ['storage', 'renewal', 'shared', 'activity'];
-const notifications = saved => notificationIds.map(id => ({ id, enabled: Array.isArray(saved) && saved.some(item => item?.id === id && item.enabled === true) }));
+const notifications = saved => notificationIds.map(id => ({ id, enabled: !Array.isArray(saved) || !saved.some(item => item?.id === id && item.enabled === false) }));
 const token = req => req.headers.authorization.slice(7);
 module.exports = {
   async getPreferences(req, res) {
@@ -17,7 +18,7 @@ module.exports = {
       if (!['claro', 'oscuro', 'sistema'].includes(theme) || language !== defaults.language || typeof showKB !== 'boolean') return res.status(400).json({ success: false, message: 'Las preferencias no son válidas' });
       if (req.body.notifications !== undefined && (!Array.isArray(req.body.notifications) || req.body.notifications.some(item => !item || !notificationIds.includes(item.id) || typeof item.enabled !== 'boolean'))) return res.status(400).json({ success: false, message: 'Las opciones de notificación no son válidas' });
       const preferences = { theme, language, showKB, notifications: notifications(req.body.notifications ?? req.authUser.user_metadata?.cloudbox_preferences?.notifications) };
-      const { error } = await admin.auth.admin.updateUserById(req.authUser.id, { user_metadata: { ...req.authUser.user_metadata, cloudbox_preferences: preferences } });
+      const { error } = await admin.auth.admin.updateUserById(req.authUser.id, { user_metadata: { cloudbox_preferences: preferences } });
       if (error) throw error;
       res.json({ success: true, data: preferences });
     } catch (error) { next(error); }
@@ -25,7 +26,8 @@ module.exports = {
   async changePassword(req, res, next) {
     try {
       const { currentPassword, newPassword } = req.body || {};
-      if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9\s]/.test(newPassword)) return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener entre 8 y 128 caracteres, una mayúscula, un número y un símbolo' });
+      if (typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > 4096) throw validation.invalid('Ingresa tu contraseña actual.');
+      validation.password(newPassword);
       if (currentPassword === newPassword) return res.status(400).json({ success: false, message: 'La nueva contraseña debe ser diferente de la actual' });
       if (!await UserService.verifyCurrentPassword(req.authUser, currentPassword)) return res.status(400).json({ success: false, message: 'La contraseña actual es incorrecta' });
       const { error } = await admin.auth.admin.updateUserById(req.authUser.id, { password: newPassword });

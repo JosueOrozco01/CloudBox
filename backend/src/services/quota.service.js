@@ -21,7 +21,7 @@ const supabaseAdmin = createClient(
 );
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
-const DEFAULT_FREE_QUOTA_GB = 1;
+
 
 function createServiceError(message, status, code) {
   const error = new Error(message);
@@ -128,65 +128,10 @@ const QuotaService = {
   /**
    * Obtiene el plan gratuito.
    * Utiliza la política comercial centralizada.
-   * Si no está disponible, conserva el fallback
-   * de 1 GB utilizado en la rama feature.
+   * Si no está disponible, bloquea nuevas cargas explícitamente.
    */
   async getDefaultFreePlan() {
-    try {
-      const plan = await freePlan(supabaseAdmin);
-
-      if (plan) {
-        return {
-          ...plan,
-          espacio_maximo_gb: Number(
-            plan.espacio_maximo_gb ??
-              DEFAULT_FREE_QUOTA_GB
-          ),
-        };
-      }
-    } catch {
-      // Se intenta recuperar el plan desde la tabla.
-    }
-
-    try {
-      const { data, error } = await supabaseAdmin
-        .from("plan")
-        .select(`
-          id,
-          nombre,
-          precio,
-          espacio_maximo_gb,
-          vigencia_dias,
-          id_estado
-        `)
-        .eq("id_estado", 1)
-        .order("espacio_maximo_gb", {
-          ascending: true,
-        })
-        .limit(1)
-        .maybeSingle();
-
-      if (!error && data) {
-        return {
-          ...data,
-          espacio_maximo_gb: Number(
-            data.espacio_maximo_gb ??
-              DEFAULT_FREE_QUOTA_GB
-          ),
-        };
-      }
-    } catch {
-      // Fallback en memoria si la consulta falla.
-    }
-
-    return {
-      id: 1,
-      nombre: "Plan Básico Gratuito",
-      precio: 0,
-      espacio_maximo_gb: DEFAULT_FREE_QUOTA_GB,
-      vigencia_dias: null,
-      id_estado: 1,
-    };
+    return freePlan(supabaseAdmin);
   },
 
   /**
@@ -223,7 +168,7 @@ const QuotaService = {
 
   /**
    * Calcula el almacenamiento utilizado.
-   * Incluye archivos activos y en papelera.
+   * Incluye archivos activos, en papelera y con borrado físico pendiente.
    */
   async calculateUsedStorage(userId) {
     const { data: fileStates, error: statesError } =
@@ -262,13 +207,13 @@ const QuotaService = {
     const files = await readPages(() =>
       supabaseAdmin
         .from("archivo")
-        .select("id,tamano_bytes")
+        .select("id,tamano_bytes,id_estado,storage_deleted_at")
         .eq("id_usuario", userId)
-        .in("id_estado", countedStateIds)
+        .in("id_estado", [...new Set([...countedStateIds, 3])])
         .order("id")
     );
 
-    const used = files.reduce(
+    const used = files.filter(file => file.id_estado !== 3 || file.storage_deleted_at === null).reduce(
       (total, file) =>
         total + Number(file.tamano_bytes || 0),
       0

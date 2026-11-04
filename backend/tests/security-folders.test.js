@@ -112,7 +112,7 @@ test('legacy folder handlers sanitize every internal failure through the existin
       await controller[method](req,res,error=>{forwarded=error;sanitized(error,req,res,()=>{});});
       assert.equal(forwarded,failure,method);
       assert.equal(res.code,status||500,method);
-      assert.equal(res.body.message,'An unexpected error occurred',method);
+      assert.equal(res.body.message,'No se pudo completar la operación. Inténtalo nuevamente.',method);
       assert.equal(JSON.stringify(res.body).includes('INTERNAL_FOLDER_QUERY_SENTINEL'),false,method);
     }
   }

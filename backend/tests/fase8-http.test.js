@@ -17,7 +17,7 @@ test('HTTP routes use real auth/roles with local Supabase doubles', async () => 
  const app=express(); app.use('/api/notifications',routes);
  const roles=require('../src/middlewares/role.middleware');
  const adminController = Object.fromEntries(['getOverview','getAllUsers','updateUserStatus','updateUserRole','getAuditLogs','getStats','getUsers','getStorageMetrics','getSubscriptions','getRevenue'].map(name=>[name,(req,res)=>res.json({success:true})]));
- const adminRoutes=load('routes/admin.routes.js',{'express':express,'../controllers/admin.controller':adminController,'../middlewares/auth.middleware':auth,'../middlewares/role.middleware':roles});
+ const adminRoutes=load('routes/admin.routes.js',{'express':express,'./report.routes':express.Router(),'../controllers/integrations.controller':Object.fromEntries(['reads','markReads','userCatalog'].map(name=>[name,(_,res)=>res.json({success:true,data:[]})])),'../controllers/admin.controller':{...adminController,...Object.fromEntries(['getStorageOverview','getStorageUsers','getUsersOverQuota','getUserById'].map(name=>[name,(_,res)=>res.json({success:true})]))},'../middlewares/auth.middleware':auth,'../middlewares/role.middleware':roles});
  app.use('/api/admin',adminRoutes);
  const activityService=load('services/activity.service.js',{'@supabase/supabase-js':{createClient:()=>db},'./history-validation':validation});
  const activity=load('controllers/activity.controller.js',{'../services/activity.service':activityService});

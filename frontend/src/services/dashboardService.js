@@ -1,4 +1,4 @@
-import { formatFileSize } from "../utils/preferences";
+import { formatFileSize } from "../utils/preferences.js";
 export function normalizeApiUrl(url) {
   const base = (url || "http://localhost:3000").replace(/\/+$/, "");
   return base.endsWith("/api") ? base : `${base}/api`;
@@ -60,6 +60,7 @@ export async function request(path, options = {}) {
     );
     error.status = response.status;
     error.code = result.code;
+    error.data = result.data;
     throw error;
   }
   return result.data;
@@ -161,22 +162,7 @@ export const moveItem = (item, destination) =>
     : jsonMutation(`/files/${item.rawId}/move`, "PATCH", {
         folderId: destination,
       });
-export async function getFolderLocations() {
-  const locations = [];
-  const visited = new Set();
-  async function visit(parent = null, prefix = "") {
-    const folders = await getUserFolders(parent);
-    for (const folder of folders) {
-      if (visited.has(folder.id)) continue;
-      visited.add(folder.id);
-      const name = prefix + folder.nombre;
-      locations.push({ id: folder.id, name });
-      await visit(folder.id, `${name} / `);
-    }
-  }
-  await visit();
-  return locations;
-}
+export const getFolderLocations = () => request('/folders/locations');
 
 export function toDashboardProps(data) {
   const metrics = data.storage;

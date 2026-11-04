@@ -1,7 +1,7 @@
-import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
+import { normalizeApiUrl, authenticatedFetch } from "./dashboardService.js";
 import { resetAppearance, restoreCachedPreferences } from "../utils/preferences.js";
 
-const API_URL = `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/auth`;
+const API_URL = `${normalizeApiUrl(import.meta.env?.VITE_API_URL)}/auth`;
 
 export function persistSession(data) {
   localStorage.setItem('token', data.token);
@@ -53,26 +53,19 @@ export const logout = async () => {
     return;
   }
 
-  const response = await authenticatedFetch(`${API_URL}/logout`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      accessToken,
-      refreshToken,
-    }),
-  });
-
-  const data = await response.json();
-
+  let result;
+  let remoteLogoutPending;
+  try {
+    const response = await authenticatedFetch(API_URL + '/logout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessToken, refreshToken })
+    });
+    result = await response.json();
+    remoteLogoutPending = !response.ok;
+  } catch { remoteLogoutPending = true; }
   if (!clearSession(accessToken)) return { sessionChanged: true };
+  return { ...result, remoteLogoutPending };
 
-  if (!response.ok) {
-    throw new Error(data.message || "Error al cerrar sesión");
-  }
-
-  return data;
 };
 
 export const getCurrentUser = () => {

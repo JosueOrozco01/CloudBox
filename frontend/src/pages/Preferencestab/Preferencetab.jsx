@@ -24,8 +24,8 @@ const defaultNotifications = [
   },
   {
     id: "activity",
-    label: "Actividad de la cuenta",
-    description: "Alertas de inicio de sesión desde nuevos dispositivos o ubicaciones",
+    label: "Pagos aprobados",
+    description: "Avisos cuando un pago simulado se aprueba",
     enabled: false,
   },
 ];
@@ -82,7 +82,7 @@ export default function PreferencesTab({
       {/* Notificaciones */}
       <section className="pref-card">
         <h2><Bell size={20} />Tus avisos</h2>
-        <p className="pref-subtitle">Puedes guardar qué avisos deseas recibir. El envío de correos todavía no está habilitado.</p>
+        <p className="pref-subtitle">Estas opciones controlan los nuevos avisos de tu bandeja de notificaciones. Los avisos anteriores se conservan.</p>
 
         <ul className="pref-toggle-list">
           {notifications.map((item) => { const Icon = preferenceIcons[item.id] || Bell; return (

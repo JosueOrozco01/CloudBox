@@ -51,16 +51,16 @@ test('post-commit notification failure does not undo business result',async()=>{
  const {service,db}=setup(); db.fail({message:'offline'});
  assert.equal(await service.notifyAfterCommit({recipientUserId:1,type:'PAYMENT_APPROVED',title:'Pago',message:'Confirmado'}),null);
 });
-test('administrative audit runs once after confirmation and never on failure',async()=>{
+test('admin controller delegates actor context to the service that owns post-commit audit',async()=>{
  const order=[];
  const controller=load('controllers/admin.controller.js',{
-  '../services/admin.service':{updateUserStatus:async()=>{order.push('commit');return {id:2};},updateUserRole:async()=>{throw new Error('failed');}},
+  '../services/admin.service':{updateUserStatus:async(id,status,context)=>{order.push('commit');assert.equal(context.currentUserId,1);assert.equal(context.ip_origen,'127.0.0.1');return {id:2};},updateUserRole:async()=>{throw new Error('failed');}},
   '../services/audit.service':{recordLog:async event=>{order.push(event.accion);assert.equal(event.id_usuario,1);}}
  });
  const res=()=>({status(){return this;},json(){return this;}});
- const req={params:{id:'2'},user:{id:1},body:{id_estado:2,id_rol:2},headers:{},socket:{remoteAddress:'127.0.0.1'}};
- await controller.updateUserStatus(req,res()); assert.deepEqual(order,['commit','CAMBIO_ESTADO_USUARIO']);
- await controller.updateUserRole(req,res(),()=>{}); assert.equal(order.length,2);
+ const req={params:{id:'2'},user:{id:1},body:{id_estado:2,id_rol:2},headers:{'x-forwarded-for':'198.51.100.7'},socket:{remoteAddress:'127.0.0.1'}};
+ await controller.updateUserStatus(req,res()); assert.deepEqual(order,['commit']);
+ await controller.updateUserRole(req,res(),()=>{}); assert.equal(order.length,1);
 });
 test('admin controller delegates internal errors to the existing sanitized handler',async()=>{
  const controller=load('controllers/admin.controller.js',{'../services/admin.service':{getOverview:async()=>{throw new Error('INTERNAL_SENTINEL');}},'../services/audit.service':{}});

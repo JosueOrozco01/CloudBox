@@ -51,7 +51,7 @@ const tables = {
     { id: 5, nombre: 'Cancelada' }
   ],
   plan: [
-    { id: 1, nombre: 'Plan Básico Gratuito', precio: 0, espacio_maximo_gb: 1, vigencia_dias: null, id_estado: 1 },
+    { id: 1, nombre: 'Free', precio: 0, espacio_maximo_gb: 1, vigencia_dias: null, id_estado: 1 },
     { id: 2, nombre: 'Plan Básico', precio: 5, espacio_maximo_gb: 5, vigencia_dias: 30, id_estado: 1 },
     { id: 3, nombre: 'Plan Pro', precio: 15, espacio_maximo_gb: 50, vigencia_dias: 30, id_estado: 1 }
   ],
@@ -203,7 +203,7 @@ function loadModuleWithMock(filePath, customRequires = {}) {
     require: (name) => {
       if (name.includes('supabase')) return { createClient: () => mockDb };
       if (customRequires[name]) return customRequires[name];
-      return require(name);
+      return require('node:module').createRequire(path.join(__dirname,'../src/services/admin.service.js'))(name);
     },
     process: { env: {} },
     module: { exports: {} },

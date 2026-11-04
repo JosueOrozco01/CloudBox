@@ -23,15 +23,10 @@ const getAuthToken = async () => {
         throw new Error('Authentication session was not created');
     }
 
-    console.log('Authentication successful');
-
-    console.log('\nAccess token:\n');
-    console.log(data.session.access_token);
-
-    console.log('\nRefresh token:\n');
-    console.log(data.session.refresh_token);
+    console.log('Autenticación de prueba correcta. Los tokens no se muestran.');
 };
 
-getAuthToken().catch((error) => {
-    console.error('Authentication failed:', error.message);
+getAuthToken().catch(() => {
+    console.error('No se pudo autenticar la cuenta de prueba.');
+    process.exitCode = 1;
 });

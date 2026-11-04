@@ -1,3 +1,4 @@
+import { isValidPassword } from '../../utils/passwordPolicy.js';
 import { KeyRound, LogOut, Monitor, ShieldCheck, Smartphone } from "lucide-react";
 import { useMemo, useState } from "react";
 import "./Securitytab.css";
@@ -25,8 +26,9 @@ function EyeIcon({ crossed }) {
 }
 
 const requirementsList = [
-  { id: "length", label: "Mínimo 8 caracteres", test: (pw) => pw.length >= 8 },
+  { id: "length", label: "Entre 8 y 128 caracteres", test: (pw) => pw.length >= 8 && pw.length <= 128 },
   { id: "uppercase", label: "Al menos una letra mayúscula", test: (pw) => /[A-Z]/.test(pw) },
+  { id: "lowercase", label: "Al menos una letra minúscula", test: (pw) => /[a-z]/.test(pw) },
   { id: "number", label: "Al menos un número", test: (pw) => /[0-9]/.test(pw) },
   { id: "special", label: "Al menos un carácter especial (!@#$%)", test: (pw) => /[^a-zA-Z0-9\s]/.test(pw) },
 ];
@@ -55,7 +57,7 @@ export default function SecurityTab({
   const allRequirementsMet = requirementsStatus.every((r) => r.met);
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
   const canSubmit =
-    currentPassword.length > 0 && allRequirementsMet && passwordsMatch && !isUpdatingPassword;
+    currentPassword.length > 0 && isValidPassword(newPassword) && allRequirementsMet && passwordsMatch && !isUpdatingPassword;
 
   const handleSubmit = (e) => {
     e.preventDefault();

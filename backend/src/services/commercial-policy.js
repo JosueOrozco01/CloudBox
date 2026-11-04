@@ -11,11 +11,15 @@ const isFree = plan => String(plan?.nombre).trim().toLowerCase() === 'free' &&
 // Rebuild every page; advance by returned rows to respect a lower server max_rows.
 async function readPages(build) {
   const rows = [];
+  let previousPage;
   for (;;) {
     const {data,error} = await build().range(rows.length, rows.length + 999);
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error('Respuesta de consulta incompleta');
     if (!data.length) return rows;
+    const page = JSON.stringify([data[0]?.id, data.at(-1)?.id, data.length]);
+    if (previousPage === page && data[0]?.id !== undefined) throw new Error('La paginación de la consulta no avanzó.');
+    previousPage = page;
     rows.push(...data);
   }
 }

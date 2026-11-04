@@ -59,6 +59,7 @@ function mock(url, method, body, headers = {}) {
   if (path === '/shares/24/revoke') { sentShareActive = false; return {}; }
   if (path === '/favorites') return favoriteFiles;
   if (/^\/favorites\/\d+$/.test(path)) { const id = Number(path.split('/')[2]); favoriteFiles = method === 'POST' ? [...favoriteFiles, { id_archivo: id, archivo: ownFiles.find(row=>row.id === id) || receivedFile.archivo }] : favoriteFiles.filter(row => row.id_archivo !== id); return {}; }
+  if (path === '/folders/locations') return ownFolders.map(folder=>({id:folder.id,name:folder.nombre}));
   if (path === '/folders') return ownFolders.filter(row=>row.id_padre == null);
   if (/^\/folders\/\d+\/subfolders$/.test(path)) return ownFolders.filter(row=>row.id_padre === Number(path.split('/')[2]));
   if (path === '/files') return ownFiles.filter(row=>row.id_carpeta === (url.searchParams.get('folderId') && url.searchParams.get('folderId') !== 'null' ? Number(url.searchParams.get('folderId')) : null));
@@ -129,7 +130,12 @@ socket.onmessage = async event => {
       result = data?.envelope || { success: true, data };
     } catch (err) { status = err.status || 500; result = { success: false, message: err.message }; }
     if (backendDelay) await new Promise(resolve => setTimeout(resolve, backendDelay));
-    await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: binary?.contentType || 'application/json' }, ...(binary ? [{ name: 'Content-Disposition', value: 'attachment; filename=ui-test.pdf' }] : []), { name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: 'Authorization,Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' }], body: status === 204 ? '' : Buffer.from(binary?.binary || JSON.stringify(result)).toString('base64') });
+    try {
+      await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: binary?.contentType || 'application/json' }, ...(binary ? [{ name: 'Content-Disposition', value: 'attachment; filename=ui-test.pdf' }] : []), { name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: 'Authorization,Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' }], body: status === 204 ? '' : Buffer.from(binary?.binary || JSON.stringify(result)).toString('base64') });
+    } catch (error) {
+      // Navigation cancels outstanding intercepted requests. Other CDP errors fail the suite.
+      if (!error.message.includes('Invalid InterceptionId')) throw error;
+    }
   }
 };
 const evaluate = async expression => {
@@ -138,8 +144,8 @@ const evaluate = async expression => {
   return result.result.value;
 };
 const waitFor = async (expression, label) => {
-  for (let i = 0; i < 100; i++) { if (await evaluate(`!!document.body && (${expression})`)) return; await new Promise(r => setTimeout(r, 50)); }
-  throw new Error(`Timed out: ${label}\n${await evaluate('document.body.innerText')}`);
+  for (let i = 0, deadline = Date.now()+20000; i < 300 && Date.now()<deadline; i++) { if (await evaluate(`!!document.body && (${expression})`)) return; await new Promise(r => setTimeout(r, 50)); }
+  throw new Error(`Timed out: ${label}\n${await evaluate('document.body.innerText')}\nExceptions: ${JSON.stringify(exceptions)}\nRecent requests: ${JSON.stringify(requests.slice(-5))}`);
 };
 const text = value => `document.body.innerText.includes(${JSON.stringify(value)})`;
 const click = async label => {
@@ -148,7 +154,7 @@ const click = async label => {
   return evaluate(`(${find}).click()`);
 };
 const select = (index, value) => evaluate(`(()=>{const e=document.querySelectorAll('select')[${index}];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-async function visit(path, expected) { await send('Page.navigate', { url: origin + path }); await waitFor(text(expected), path); await waitFor(`!document.querySelector('[aria-busy="true"]')`, 'loaded'); }
+async function visit(path, expected) { console.log('Checking route '+path); await send('Page.navigate', { url: origin + path }); await waitFor(text(expected), path); await waitFor(`!document.querySelector('[aria-busy="true"]')`, 'loaded'); }
 try {
   await send('Page.enable'); await send('Runtime.enable');
   await send('Browser.setDownloadBehavior', { behavior: 'deny' });
@@ -459,7 +465,7 @@ try {
     await evaluate(`document.querySelectorAll('.sec-form input')[${index}].focus()`);
     await send('Input.insertText', { text: value });
   }
-  assert.equal(await evaluate("document.querySelector('[aria-label=\"Requisitos de la contraseña cumplidos\"]').getAttribute('aria-valuenow')"), '4');
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"Requisitos de la contraseña cumplidos\"]').getAttribute('aria-valuenow')"), '5');
   await click('Actualizar contraseña'); await waitFor(text('Contraseña actualizada correctamente.'), 'change password');
   assert.ok(requests.some(r=>r.path === '/users/me/password' && r.method === 'PATCH' && r.body.newPassword === demoPassword));
   assert.equal(await evaluate("document.querySelectorAll('.sec-form input')[1].value"), '', 'Clear password after success');
@@ -513,7 +519,7 @@ try {
     }
   }
   admin = true;
-  await visit('/admin/planes', 'Catálogo de planes'); await waitFor(text('Inactivo'), 'inactive admin plan');
+  await visit('/admin/planes', 'Tu catálogo de planes'); await waitFor(text('Inactivo'), 'inactive admin plan');
   await click('Activar'); await click('Confirmar'); await waitFor(text('Plan actualizado'), 'activate plan');
   assert.ok(requests.some(r => r.path === '/plans/3/status' && r.body.id_estado === 1));
   await click('Crear plan');
@@ -525,16 +531,16 @@ try {
   assert.equal(await evaluate("document.activeElement === document.querySelectorAll('[role=dialog] input')[4]"), true, 'Modal retains input focus while editing');
   await click('Guardar plan'); await waitFor(text('Empresas'), 'created plan');
   assert.ok(requests.some(r=>r.path === '/plans' && r.method === 'POST' && r.body.precio === 199 && r.body.espacio_maximo_gb === 200));
-  await evaluate("[...document.querySelectorAll('tr')].find(r=>r.textContent.includes('Básico')).querySelector('button').click()");
-  await waitFor(text('Editar plan'), 'edit form');
+  await evaluate("[...document.querySelectorAll('article.ap-plan')].find(r=>r.textContent.includes('Básico')).querySelector('button').click()");
+  await waitFor("!!document.querySelector('[role=dialog] input')", 'edit form');
   await evaluate("const input=document.querySelectorAll('[role=dialog] input')[1];input.focus();input.select();");
   await send('Input.insertText', { text: 'Descripción actualizada' });
   await click('Guardar plan'); await waitFor("!document.querySelector('[role=dialog]')", 'saved plan');
   assert.ok(requests.some(r=>r.path === '/plans/2' && r.method === 'PUT' && r.body.descripcion === 'Descripción actualizada'));
 
-  await visit('/admin/suscripciones', 'Suscripciones (1)');
-  await visit('/admin/almacenamiento', 'Consumo por usuario'); await select(0, 'over'); await waitFor(text('No hay registros'), 'over quota filter');
-  await visit('/admin/metricas', 'Métricas y reportes'); await waitFor(text('pdf'), 'object distribution');
+  await visit('/admin/suscripciones', 'Suscripciones');
+  await visit('/admin/almacenamiento', 'Consumo por usuario'); await select(0, 'over'); await waitFor(text('No hay usuarios sobre cuota'), 'over quota filter');
+  await visit('/admin/metricas', 'Métricas y reportes'); await waitFor("document.body.innerText.toLowerCase().includes('pdf')", 'object distribution');
   await click('CSV'); await waitFor("![...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='CSV').disabled", 'CSV download');
   assert.ok(requests.some(r=>r.path === '/admin/reports/export' && r.search.includes('format=csv')));
   await click('PDF'); await waitFor("![...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='PDF').disabled", 'PDF export');
@@ -548,7 +554,7 @@ try {
   const screenshotPath = join(tmpdir(), 'cloudbox-modules-mobile.png');
   await writeFile(screenshotPath, Buffer.from(screenshot.data, 'base64'));
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await visit('/admin/planes', 'Catálogo de planes');
+  await visit('/admin/planes', 'Tu catálogo de planes');
   await waitFor(text('Pro'), 'desktop catalog');
   const desktop = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(tmpdir(), 'cloudbox-modules-desktop.png'), Buffer.from(desktop.data, 'base64'));

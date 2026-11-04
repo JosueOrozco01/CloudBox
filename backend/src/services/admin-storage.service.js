@@ -1,3 +1,5 @@
+const { countsTowardStorage } = require('./storage-policy');
+const { readPages } = require('./commercial-policy');
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseAdmin = createClient(
@@ -25,27 +27,11 @@ function normalizeDateStr(val) {
 }
 
 async function readAll(table, columns) {
-  const rows = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await supabaseAdmin
-      .from(table)
-      .select(columns)
-      .order("id")
-      .range(offset, offset + 999);
-    if (error) {
-      throw createServiceError(`No se pudo consultar ${table}: ${error.message}`, 500, "DATABASE_ERROR");
-    }
-    rows.push(...(data || []));
-    if (!data || data.length < 1000) return rows;
-  }
+  return readPages(() => supabaseAdmin.from(table).select(columns).order('id'));
 }
 
 async function readAllSafe(table, columns) {
-  try {
-    return await readAll(table, columns);
-  } catch {
-    return [];
-  }
+  return readAll(table, columns);
 }
 
 const AdminStorageService = {
@@ -56,17 +42,13 @@ const AdminStorageService = {
    */
   async getStorageOverview() {
     const [files, folders, fileStates] = await Promise.all([
-      readAllSafe("archivo", "id,nombre,tamano_bytes,id_usuario,id_estado,estado:id_estado(id,nombre)"),
+      readAllSafe("archivo", "id,nombre,tamano_bytes,id_usuario,id_estado,storage_deleted_at,estado:id_estado(id,nombre)"),
       readAllSafe("carpeta", "id,nombre,id_usuario,id_estado"),
       readAllSafe("estado_archivo", "id,nombre"),
     ]);
 
     // Excluir eliminados lógicos: id_estado != 3, eliminado != true y estado != 'Eliminado'
-    const nonDeletedFiles = files.filter(f =>
-      f.id_estado !== 3 &&
-      f.eliminado !== true &&
-      f.estado?.nombre !== "Eliminado"
-    );
+    const nonDeletedFiles = files.filter(countsTowardStorage);
 
     const nonDeletedFolders = folders.filter(f =>
       f.id_estado !== 3 &&
@@ -123,7 +105,7 @@ const AdminStorageService = {
     });
 
     nonDeletedFiles.forEach(file => {
-      const stateName = file.estado?.nombre || (file.id_estado === 2 ? "En papelera" : "Activo");
+      const stateName = file.id_estado === 3 ? "Borrado físico pendiente" : file.estado?.nombre || (file.id_estado === 2 ? "En papelera" : "Activo");
       const bytes = Number(file.tamano_bytes || 0);
 
       if (!statusMap.has(stateName)) {
@@ -178,7 +160,7 @@ const AdminStorageService = {
 
     const [subscriptions, files, folders] = await Promise.all([
       readAllSafe("suscripcion", "id,id_usuario,fecha_inicio,fecha_fin,plan:id_plan(id,nombre,espacio_maximo_gb),estado:id_estado(nombre)"),
-      readAllSafe("archivo", "id,id_usuario,tamano_bytes,id_estado"),
+      readAllSafe("archivo", "id,id_usuario,tamano_bytes,id_estado,storage_deleted_at"),
       readAllSafe("carpeta", "id,id_usuario,id_estado"),
     ]);
 
@@ -196,7 +178,7 @@ const AdminStorageService = {
     });
 
     // Mapeo por usuario de archivos y carpetas no eliminados (id_estado != 3)
-    const nonDeletedFiles = files.filter(f => f.id_estado !== 3 && f.eliminado !== true);
+    const nonDeletedFiles = files.filter(countsTowardStorage);
     const nonDeletedFolders = folders.filter(f => f.id_estado !== 3 && f.eliminado !== true);
 
     const userFileCounts = new Map();
@@ -229,7 +211,7 @@ const AdminStorageService = {
 
       const recordedBytes = Number(user.espacio_usado_by ?? user.espacio_usado_bytes ?? 0);
       const calculatedBytes = userFileBytes.get(user.id) || 0;
-      const espacioConsumido = Math.max(calculatedBytes, recordedBytes);
+      const espacioConsumido = calculatedBytes;
 
       const percentageUsed = maxBytes > 0
         ? Number(((espacioConsumido / maxBytes) * 100).toFixed(2))
@@ -249,6 +231,8 @@ const AdminStorageService = {
         espacio_usado_bytes: espacioConsumido,
         espacio_usado_by: espacioConsumido,
         usedBytes: espacioConsumido,
+        recordedBytes,
+        storageSyncPending: recordedBytes !== calculatedBytes,
         maxBytes,
         porcentaje_uso: percentageUsed,
         percentageUsed,

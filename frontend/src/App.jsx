@@ -1,11 +1,11 @@
-import VerifyEmail from "./pages/Register/VerifyEmail";
-import TicketCenter from "./pages/Support/TicketCenter";
-import Product from "./pages/Product/Product";
+
+
+
 import { getPreferences } from "./services/settingsService";
 import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
-import SharedPage from "./pages/Compratidoconmigo/ConnectedCompartidos";
-import UserManagement from "./pages/UserManagement/ConnectedUserManagement";
-import { useEffect, useState } from "react";
+
+
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -13,33 +13,62 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import LoginPage from "./pages/Login/LoginPage";
-import RegisterPage from "./pages/Register/Register";
-import ForgotPassword from "./pages/RecoverPassword/Recover";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Papelera from "./pages/Papelera/Papelera";
-import FilesPage from "./pages/Misarchivos/Misarchivos";
-import AdminDashboard from "./pages/AdminDashboard/ConnectedAdminDashboard";
+
+
+
+
+
+
+
 import OfflineBanner from "./components/OfflineBanner/Offline";
-import LandingPage from "./pages/LandingPage/LandingPage";
-import UserProfile from "./pages/Profile/Profile";
-import Terms from "./pages/Terms/Terms";
-import Privacy from "./pages/Privacy/Privacy";
-import Cookies from "./pages/Cookies/Cookies";
+
+
+
+
+
 import AppTopbar from "./components/Apptopbar/Apptopbar";
 import Loading from "./components/Loading/Loading";
+import PageBoundary from './components/PageBoundary';
 import { getMyProfile } from "./services/profileService";
 import { getDashboard } from "./services/dashboardService";
-import Plans from './pages/Plans/Plans';
-import Payments from './pages/Payments/Payments';
-import Activity from './pages/Activity/Activity';
-import Notifications from './pages/Notifications/Notifications';
-import AdminNotificationInbox from './pages/Notifications/AdminNotificationInbox';
-import Support from './pages/Support/Support';
-import AdminPlans from './pages/AdminPlans/AdminPlans';
-import AdminSubscriptions from './pages/AdminSubscriptions/AdminSubscriptions';
-import AdminStorage from './pages/AdminStorage/AdminStorage';
-import AdminReports from './pages/AdminReports/AdminReports';
+
+
+
+
+
+
+
+
+
+
+
+const VerifyEmail = lazy(() => import('./pages/Register/VerifyEmail'));
+const TicketCenter = lazy(() => import('./pages/Support/TicketCenter'));
+const Product = lazy(() => import('./pages/Product/Product'));
+const SharedPage = lazy(() => import('./pages/Compratidoconmigo/ConnectedCompartidos'));
+const UserManagement = lazy(() => import('./pages/UserManagement/ConnectedUserManagement'));
+const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/Register/Register'));
+const ForgotPassword = lazy(() => import('./pages/RecoverPassword/Recover'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
+const Papelera = lazy(() => import('./pages/Papelera/Papelera'));
+const FilesPage = lazy(() => import('./pages/Misarchivos/Misarchivos'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard/ConnectedAdminDashboard'));
+const LandingPage = lazy(() => import('./pages/LandingPage/LandingPage'));
+const UserProfile = lazy(() => import('./pages/Profile/Profile'));
+const Terms = lazy(() => import('./pages/Terms/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy/Privacy'));
+const Cookies = lazy(() => import('./pages/Cookies/Cookies'));
+const Plans = lazy(() => import('./pages/Plans/Plans'));
+const Payments = lazy(() => import('./pages/Payments/Payments'));
+const Activity = lazy(() => import('./pages/Activity/Activity'));
+const Notifications = lazy(() => import('./pages/Notifications/Notifications'));
+const AdminNotificationInbox = lazy(() => import('./pages/Notifications/AdminNotificationInbox'));
+const Support = lazy(() => import('./pages/Support/Support'));
+const AdminPlans = lazy(() => import('./pages/AdminPlans/AdminPlans'));
+const AdminSubscriptions = lazy(() => import('./pages/AdminSubscriptions/AdminSubscriptions'));
+const AdminStorage = lazy(() => import('./pages/AdminStorage/AdminStorage'));
+const AdminReports = lazy(() => import('./pages/AdminReports/AdminReports'));
 
 function AuthenticatedPage({
   children,
@@ -188,6 +217,8 @@ function App() {
   }, []);
   return (
     <BrowserRouter>
+      <PageBoundary>
+      <Suspense fallback={<Loading text="Cargando página..." />}>
       <OfflineBanner />
       <Routes key={sessionVersion}>
         <Route path="/" element={<LandingPage />} />
@@ -270,7 +301,10 @@ function App() {
         <Route path="/terminos" element={<InformationalPage component={Terms} />} />
         <Route path="/privacidad" element={<InformationalPage component={Privacy} />} />
         <Route path="/cookies" element={<InformationalPage component={Cookies} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </Suspense>
+      </PageBoundary>
     </BrowserRouter>
   );
 }

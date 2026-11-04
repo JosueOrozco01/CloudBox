@@ -129,11 +129,12 @@ const auditService = {
   }
 };
 
+db.auth={admin:{getUserById:async id=>({data:{user:{id,user_metadata:{}}},error:null})}};
 const serviceContext = {
   require: (name) => {
     if (name.includes('supabase')) return { createClient: () => db };
     if (name.includes('audit.service')) return auditService;
-    return require(name);
+    return require('node:module').createRequire(path.join(__dirname,'../src/services/admin.service.js'))(name);
   },
   process: { env: {} },
   module: { exports: {} },

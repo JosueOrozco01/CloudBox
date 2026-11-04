@@ -1,3 +1,4 @@
+import { isValidPassword, passwordMessage } from '../../utils/passwordPolicy.js';
 import { normalizeApiUrl } from "../../services/dashboardService";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -50,6 +51,11 @@ export default function Register() {
         message:
           "Las contraseñas no coinciden. Verifica que ambas sean iguales.",
       });
+      return;
+    }
+
+    if (!isValidPassword(form.password)) {
+      setAlert({isOpen:true,type:'error',title:'Contraseña no válida',message:passwordMessage});
       return;
     }
 
