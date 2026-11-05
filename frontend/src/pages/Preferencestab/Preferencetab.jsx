@@ -135,7 +135,7 @@ export default function PreferencesTab({
           </div>
         </div>
 
-        <p className="pref-subtitle">El tema se muestra al seleccionarlo. Guarda las preferencias para conservarlo.</p>
+        <p className="pref-subtitle">El tema se muestra al seleccionarlo. Guarda las preferencias para aplicarlo a todas las pantallas de tu cuenta, sin cambiar el tema de otras cuentas.</p>
         <div className="pref-field">
           <span className="pref-field-label">Idioma predeterminado</span>
           <div className="pref-select-wrap">

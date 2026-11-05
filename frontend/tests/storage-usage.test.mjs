@@ -23,3 +23,8 @@ test('missing and invalid storage values do not fabricate sizes or infinite perc
   assert.equal(storagePercentage(undefined, undefined, 12.5), 12.5);
   assert.equal(storagePercentage(1, 0, Infinity), 0);
 });
+test('rounded available capacity uses the next unit instead of displaying 1024 MB', () => {
+  assert.equal(formatStorageBytes(1024 ** 3 - 914), '1 GB');
+  assert.equal(formatStorageBytes(1024 ** 2 - 1), '1 MB');
+  assert.equal(formatStorageBytes(1024 ** 3 - 1024 * 1024), '1,023 MB');
+});

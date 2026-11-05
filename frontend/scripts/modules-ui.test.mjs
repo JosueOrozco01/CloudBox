@@ -155,6 +155,30 @@ const click = async label => {
 };
 const select = (index, value) => evaluate(`(()=>{const e=document.querySelectorAll('select')[${index}];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
 async function visit(path, expected) { console.log('Checking route '+path); await send('Page.navigate', { url: origin + path }); await waitFor(text(expected), path); await waitFor(`!document.querySelector('[aria-busy="true"]')`, 'loaded'); }
+async function assertAccountNavigationTheme(expectedTheme) {
+  for (const path of ['/dashboard','/archivos','/compartidos','/plan','/pagos','/soporte']) {
+    await evaluate(`document.querySelector('.app-topbar-links a[href="${path}"]').click()`);
+    await waitFor(`location.pathname === '${path}' && !!document.querySelector('.app-user-name') && !document.querySelector('[aria-busy="true"]')`, 'account navigation '+path);
+    assert.equal(await evaluate('document.documentElement.dataset.theme'),expectedTheme,`Saved theme follows the account to ${path}`);
+  }
+  await visit('/perfil?tab=preferencias', 'Interfaz y región');
+  assert.equal(await evaluate('document.documentElement.dataset.theme'),expectedTheme,'Saved theme also survives a full page navigation');
+}
+async function assertFileControlsFit() {
+  await evaluate('document.fonts.ready');
+  for (const theme of ['light','dark']) for (const width of [390,1024]) for (const font of [16,24]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+    await evaluate(`document.documentElement.dataset.theme='${theme}';document.documentElement.style.fontSize='${font}px'`);
+    const clipped = await evaluate(`([...document.querySelectorAll('.mf-header-right button,.mf-search-actions .mf-tabs button')].filter(button=>{
+      const box=button.getBoundingClientRect(),style=getComputedStyle(button),range=document.createRange();range.selectNodeContents(button);const content=range.getBoundingClientRect();
+      return content.left<box.left+parseFloat(style.paddingLeft)-1.5||content.right>box.right-parseFloat(style.paddingRight)+1.5||content.top<box.top+parseFloat(style.paddingTop)-1.5||content.bottom>box.bottom-parseFloat(style.paddingBottom)+1.5;
+    }).map(button=>button.innerText))`);
+    assert.deepEqual(clipped,[],`File controls must retain space around their labels: ${theme}, ${width}px, ${font}px text`);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Enlarged text cannot widen the page');
+  }
+  await evaluate("document.documentElement.style.removeProperty('font-size');document.documentElement.dataset.theme='light'");
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+}
 try {
   await send('Page.enable'); await send('Runtime.enable');
   await send('Browser.setDownloadBehavior', { behavior: 'deny' });
@@ -354,6 +378,7 @@ try {
   Object.assign(current, { price: 29, planId: 2, planName: 'Básico' });
   await visit('/archivos', 'Mis Archivos');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'file library');
+  await assertFileControlsFit();
   assert.ok(await evaluate("!!document.querySelector('.mf-library-storage-track[role=progressbar]')"));
   const tinyUsage = await evaluate("(()=>{const bar=document.querySelector('.mf-library-storage-track');return {value:Number(bar.getAttribute('aria-valuenow')),fill:bar.firstElementChild.getBoundingClientRect().width,text:bar.getAttribute('aria-valuetext')};})()");
   assert.ok(tinyUsage.value > 0 && tinyUsage.value < 0.1, 'Tiny usage must retain a nonzero actual ratio');
@@ -403,6 +428,7 @@ try {
   await waitFor("!document.querySelector('.upload-modal')",'Escape closes upload');
   await visit('/papelera', 'documento.pdf');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'trash contents');
+  await assertFileControlsFit();
   assert.equal(await evaluate("[...document.querySelectorAll('.mf-table tbody tr')].find(row=>row.textContent.includes('Recuerdos')).querySelector('.mf-trash-delete-btn') === null"), true, 'Folders have restore but no permanent delete action');
   const trashDesktop = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(tmpdir(), 'cloudbox-trash-desktop.png'), Buffer.from(trashDesktop.data, 'base64'));
@@ -575,6 +601,7 @@ try {
   await visit('/perfil?tab=preferencias', 'Interfaz y región');
   await click('Oscuro'); await click('Guardar preferencias');
   await waitFor("document.documentElement.dataset.theme === 'dark' && JSON.parse(localStorage.getItem('cloudbox:preferences:1')).theme === 'oscuro'", 'save dark for account A');
+  await assertAccountNavigationTheme('dark');
   await click('Cerrar sesión');
   await waitFor("location.pathname === '/login' && !!document.querySelector('#email')", 'logout from preferences');
   await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
@@ -597,6 +624,7 @@ try {
   await click('Claro'); await click('Guardar preferencias');
   await waitFor("JSON.parse(localStorage.getItem('cloudbox:preferences:2'))?.theme === 'claro'", 'save light for account B');
   assert.equal(await evaluate("JSON.parse(localStorage.getItem('cloudbox:preferences:1')).theme"), 'oscuro', 'Saving B does not modify A');
+  await assertAccountNavigationTheme('light');
   await click('Cerrar sesión'); await waitFor("location.pathname === '/login' && !!document.querySelector('#email')", 'logout B');
   await loginAs('a@example.invalid');
   await waitFor("document.documentElement.dataset.theme === 'dark'", 'return to A dark theme');

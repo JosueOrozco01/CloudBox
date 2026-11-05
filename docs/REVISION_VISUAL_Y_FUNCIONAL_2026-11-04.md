@@ -59,7 +59,26 @@ El componente común `StorageBar` y las funciones de `storageUsage.js` centraliz
 
 Las capturas y los resultados de la inspección visual se guardaron localmente en `output/design-review/`. Los registros de ejecución están en `tmp/design-*.log`. Las pruebas de navegador usan datos ficticios y un navegador aislado; las consultas a Supabase de esta etapa fueron de lectura.
 
-La validación previa del backend, detallada en `docs/FIX_PROBLEMS_2026-11-03.md`, registró 128 pruebas de servicios, controladores y rutas, más 10 de PostgreSQL, todas correctas. Esta etapa no modificó el backend ni las migraciones y no requiere nuevo SQL.
+La validación previa del backend, detallada en `docs/FIX_PROBLEMS_2026-11-03.md`, registró 128 pruebas de servicios, controladores y rutas, más 10 de PostgreSQL, todas correctas. Las 138 pruebas se repitieron correctamente en la revisión adicional descrita a continuación. Esta etapa no modificó el backend ni las migraciones y no requiere nuevo SQL.
+
+## Revisión adicional de controles y preferencias por cuenta
+
+Se atendió la captura donde las etiquetas de “Crear carpeta”, “Subir archivo” y “Papelera” quedaban pegadas al borde de los botones. El problema procedía de anchuras fijas que no dejaban espacio suficiente para el texto y el icono. Los controles ahora ajustan su anchura al contenido, conservan su espacio interior y pasan a otra fila cuando es necesario. También se eliminaron restricciones equivalentes en las pestañas de archivos y en las acciones de papelera, permitiendo que su altura crezca con el texto.
+
+El formato del espacio disponible también considera los límites de redondeo entre unidades. Por ejemplo, una capacidad disponible de 1 GB menos 914 B se presenta como 1 GB, en lugar de 1,024 MB. El cálculo de uso y la proporción del indicador siguen basándose en los bytes originales.
+
+La preferencia de tema corresponde a toda la cuenta: se guarda en los metadatos del usuario autenticado y se conserva localmente con una clave que incluye su identificador. No modifica una configuración general del sitio. Las comprobaciones existentes cubren cuentas con preferencias distintas, cierre de sesión, respuestas tardías de una cuenta anterior, caché inválida y cambios de cuenta entre pestañas. Se aclaró el texto de la pantalla de preferencias para indicar que la elección se aplica a todas las pantallas de esa cuenta y no cambia el tema de otras cuentas.
+
+| Comprobación adicional | Resultado |
+| --- | --- |
+| Pruebas del frontend | 16 correctas, 0 fallos; incluyen aislamiento de preferencias y redondeo entre unidades. |
+| Pruebas del backend | 128 pruebas de servicios, controladores y rutas y 10 de PostgreSQL; 138 correctas, 0 fallos. |
+| Navegación y preferencias | 23 rutas y 481 solicitudes a una API simulada; aprobado. Incluye navegación por Inicio, Mis Archivos, Compartidos, Mi Plan, Pagos y Soporte con una cuenta en modo oscuro y otra en modo claro, además de recarga y cambio de sesión. |
+| ESLint y compilación | Sin errores; compilación de producción correcta mediante el ejecutor de pruebas de navegador. |
+| Controles con texto ampliado | 13 vistas, 2 temas, 5 anchuras (320, 390, 667, 1024 y 1440 píxeles) y 3 tamaños de fuente base (16, 20 y 24 píxeles): 390 configuraciones sin recortes en los controles inspeccionados, desbordamientos de página ni excepciones de ejecución. |
+| Supabase, solo lectura | Comprobación de instalación y consultas administrativas correctas. La inspección de limpieza volvió a informar 22 pendientes, 0 procesados y 0 fallos. |
+
+La revisión de controles comprueba los límites interiores del botón y no solamente el ancho total de la página. Se incorporó esta comprobación al recorrido de navegador de archivos y papelera. Las evidencias adicionales se guardaron localmente en `output/button-review/after/`; los registros de esta etapa están en `tmp/button-*.log`.
 
 ## Pendientes del funcionamiento general
 
