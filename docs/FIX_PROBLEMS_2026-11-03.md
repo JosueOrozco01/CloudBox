@@ -7,6 +7,8 @@ Se descargó la referencia de develop y se comprobó que no existían commits nu
 
 ## Alcance y estado
 
+Estado remoto confirmado el 4 de noviembre: la usuaria aplicó la migración completa en Supabase. Las comprobaciones de lectura posteriores encontraron las tablas nuevas, la columna de confirmación de borrado y la función de soporte. También pasaron las consultas administrativas y el reporte de almacenamiento. Se contabilizaron 22 elementos de limpieza pendientes, sin procesarlos. Queda pendiente probar los flujos desde la interfaz con cuentas de cliente y administrador. Las referencias a instalación pendiente que siguen describen el estado previo a esta confirmación.
+
 Las correcciones corresponden a los veinte hallazgos de la auditoría del 1 de noviembre. También se corrigieron problemas descubiertos al ejecutar la batería completa: resolución de módulos en pruebas antiguas, fechas dependientes de zona horaria, selectores visuales desactualizados y consultas administrativas que ocultaban errores o terminaban prematuramente al recibir páginas pequeñas.
 
 El código de esta rama requiere la migración `20261103000000_fix_audit_consistency.sql` antes de publicarse. Esa migración fue ejecutada en PostgreSQL embebido de prueba, incluida una segunda ejecución para comprobar su repetición segura. No se instaló en Supabase remoto. Su instalación requiere ejecutar SQL administrativo en el proyecto de destino; no se realiza automáticamente desde la API ni al iniciar el backend.

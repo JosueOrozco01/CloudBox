@@ -6,6 +6,8 @@ Referencia: esquema de 29 tablas proporcionado por la usuaria, antes de ejecutar
 
 ## Resultado
 
+Confirmación remota del 4 de noviembre: la usuaria informó que ejecutó la migración completa en Supabase. La comprobación posterior detectó `notificacion_administrador`, `solicitud_soporte`, `mensaje_soporte`, `archivo.storage_deleted_at`, el bucket `avatars` y la función `cloudbox_create_ticket`. La lectura de `limpieza_almacenamiento` también terminó correctamente. Pasaron las consultas de listado paginado, detalle y filtros de usuarios, y el reporte completo de almacenamiento. La inspección de limpieza contabilizó 22 elementos pendientes; no se ejecutó con `--apply` ni se borraron objetos. Queda pendiente la validación funcional desde la interfaz con cuentas de prueba.
+
 La estructura enviada coincide con los nombres, tipos y relaciones que necesita la migración `20261103000000_fix_audit_consistency.sql`. No se identificó un cambio obligatorio en los nombres de las 29 tablas existentes, en los identificadores de catálogo ni en los tipos de sus columnas para instalarla. Las cuatro tablas incorporadas por la migración utilizan nombres en español.
 
 La instalación de la migración se ejecutó dos veces por escenario en una base local derivada de las 29 tablas, conservando sus claves foráneas, identidades, restricciones `NOT NULL`, `UNIQUE` y `CHECK`. Se comprueba la instalación desde el esquema actual y la actualización de una instalación anterior con nombres en inglés. La prueba automatizada terminó aprobada: 10 resultados correctos y 0 fallos. Comprueba cuota y borrado físico pendiente, integridad de carpetas, creación atómica y cierre de tickets, preferencias de notificaciones y aislamiento de acceso. También ejecuta las consultas de comprobación antes y después de instalar la migración.
@@ -84,4 +86,4 @@ La validación local aprobada se puede repetir desde la raíz del repositorio co
 node --max-old-space-size=256 --max-semi-space-size=4 --wasm-lazy-compilation --liftoff-only --test backend/tests/audit-database.test.js
 ```
 
-Se actualizaron los nombres de las cuatro tablas incorporadas por la migración, sus referencias en el backend y las consultas de comprobación. La batería completa del backend también se repitió: 128 resultados correctos, además de los 10 de PostgreSQL. No se ejecutó la migración sobre Supabase. La activación del código de `fix-problems` sigue requiriendo aplicarla y validar después los flujos en el proyecto de destino.
+Se actualizaron los nombres de las cuatro tablas incorporadas por la migración, sus referencias en el backend y las consultas de comprobación. La batería completa del backend también se repitió: 128 resultados correctos, además de los 10 de PostgreSQL. La usuaria ejecutó la migración sobre Supabase y su disponibilidad se comprobó después por lectura. El siguiente paso es ejecutar el código de `fix-problems` y validar los flujos desde la interfaz en el proyecto de destino.
