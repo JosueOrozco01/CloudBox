@@ -1,3 +1,6 @@
+import StorageBar from '../StorageBar/StorageBar';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { formatStorageBytes, formatStoragePercent, storagePercentage } from '../../utils/storageUsage';
 import { RefreshCw as LoadingArrows } from "lucide-react";
 import "../Loading/Loading.css";
 import { useRef, useState } from "react";
@@ -22,7 +25,7 @@ function formatBytes(mb) {
 export default function UploadModal({
   isOpen,
   onClose,
-  storage = { usedGB: 18, totalGB: 50 },
+  storage = { usedGB: 0, totalGB: 0 },
   files = [],
   errors = [],
   isUploading = false,
@@ -36,14 +39,12 @@ export default function UploadModal({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
+  const dialogRef = useDialogFocus(isOpen, isUploading, onClose);
 
   if (!isOpen) return null;
 
-  const availableGB = Math.max(0, storage.totalGB - storage.usedGB).toFixed(2);
-  const usedPercent =
-    storage.totalGB > 0
-      ? Math.min(100, Math.round((storage.usedGB / storage.totalGB) * 100))
-      : 0;
+  const availableBytes = Math.max(0, storage.totalGB - storage.usedGB) * 1024 ** 3;
+  const usedPercent = storagePercentage(storage.usedGB * 1024 ** 3, storage.totalGB * 1024 ** 3);
 
   const totalSelectedMB = files.reduce((sum, f) => sum + (f.sizeMB ?? 0), 0);
 
@@ -83,6 +84,8 @@ export default function UploadModal({
     <div className="upload-backdrop" onClick={handleBackdropClick}>
       <div
         className="upload-modal"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Subir archivos"
@@ -102,10 +105,12 @@ export default function UploadModal({
           <button
             type="button"
             className="upload-star"
-            aria-label="Marcar como favorito"
+            aria-label="Cerrar ventana de subida"
+            disabled={isUploading}
+            onClick={onClose}
           >
             <svg {...icon}>
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              <path d="m6 6 12 12M18 6 6 18" />
             </svg>
           </button>
         </div>
@@ -170,17 +175,12 @@ export default function UploadModal({
             <div className="upload-storage-head">
               <span>Almacenamiento disponible</span>
               <span>
-                {availableGB} GB disponibles de {storage.totalGB} GB
+                {formatStorageBytes(availableBytes)} disponibles de {formatStorageBytes(storage.totalGB * 1024 ** 3)}
               </span>
             </div>
-            <div className="upload-storage-bar">
-              <div
-                className="upload-storage-fill"
-                style={{ width: `${usedPercent}%` }}
-              />
-            </div>
+            <StorageBar className="upload-storage-bar" fillClassName="upload-storage-fill" usedBytes={storage.usedGB * 1024 ** 3} totalBytes={storage.totalGB * 1024 ** 3} />
             <p className="upload-storage-sub">
-              {storage.usedGB.toFixed(2)} GB utilizados ({usedPercent}% del
+              {formatStorageBytes(storage.usedGB * 1024 ** 3)} utilizados ({formatStoragePercent(usedPercent)} del
               total)
             </p>
           </div>

@@ -1,3 +1,4 @@
+import { formatStorageBytes } from '../../utils/storageUsage';
 import { activityLabel } from "../../utils/activityLabels";
 import Footer from "../../components/FooterSignOut/Footer";
 import { useEffect, useState } from "react";
@@ -75,9 +76,7 @@ export default function ConnectedAdminDashboard() {
       </div>
     );
   const metrics = data.metrics;
-  const usedGB = metrics.usedBytes / 1024 ** 3;
-  const allocatedGB = metrics.allocatedBytes / 1024 ** 3;
-  const percent = allocatedGB
+  const percent = metrics.allocatedBytes
     ? (metrics.usedBytes / metrics.allocatedBytes) * 100
     : 0;
   const users = data.users.map(mapAdminUser);
@@ -107,9 +106,11 @@ export default function ConnectedAdminDashboard() {
     {
       id: "storage",
       label: "Almacenamiento utilizado",
-      value: `${usedGB.toFixed(2)} GB`,
+      value: formatStorageBytes(metrics.usedBytes),
+      usedBytes: metrics.usedBytes,
+      totalBytes: metrics.allocatedBytes,
       progress: Math.min(100, percent),
-      progressLabel: `${usedGB.toFixed(2)} GB utilizados de ${allocatedGB.toFixed(2)} GB asignados en planes`,
+      progressLabel: `${formatStorageBytes(metrics.usedBytes)} utilizados de ${formatStorageBytes(metrics.allocatedBytes)} asignados en planes`,
     },
     {
       id: "files",
@@ -141,7 +142,7 @@ export default function ConnectedAdminDashboard() {
           percent: metrics.activeSubscriptions
             ? (plan.count / metrics.activeSubscriptions) * 100
             : 0,
-          color: ["#93c5fd", "#2563ff", "#0b1a2e"][index % 3],
+          color: ["#93c5fd", "#2563ff", "var(--plan-chart-third, #0b1a2e)"][index % 3],
         }))}
         subscriptionStatus={metrics.subscriptionStatus}
         topStorageUsers={users

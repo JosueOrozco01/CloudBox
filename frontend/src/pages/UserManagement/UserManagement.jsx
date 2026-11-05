@@ -15,14 +15,14 @@ const icon = {
 };
 
 const statusStyles = {
-  Activo: { bg: "#dcfce7", color: "#16a34a" },
-  Pendiente: { bg: "#fef3c7", color: "#b98900" },
-  Inactivo: { bg: "#fee2e2", color: "#dc2626" },
-  Suspendido: { bg: "#fee2e2", color: "#dc2626" },
+  Activo: { bg: "var(--status-success-bg, #dcfce7)", color: "var(--status-success-color, #166534)" },
+  Pendiente: { bg: "var(--status-warning-bg, #fef3c7)", color: "var(--status-warning-color, #854d0e)" },
+  Inactivo: { bg: "var(--status-danger-bg, #fee2e2)", color: "var(--status-danger-color, #991b1b)" },
+  Suspendido: { bg: "var(--status-danger-bg, #fee2e2)", color: "var(--status-danger-color, #991b1b)" },
 };
 
 function StatusBadge({ status }) {
-  const style = statusStyles[status] ?? { bg: "#f1f5f9", color: "#64748b" };
+  const style = statusStyles[status] ?? { bg: "var(--status-neutral-bg, #f1f5f9)", color: "var(--status-neutral-color, #475569)" };
   return (
     <span
       className="um-badge"

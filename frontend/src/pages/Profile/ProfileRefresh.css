@@ -79,6 +79,11 @@
 .account-storage-bottom > span { display: flex; align-items: center; gap: 5px; font-size: .64rem; color: var(--textSecondary); }
 .account-storage-bottom a { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 700; color: var(--account-accent); text-decoration: none; }
 .account-storage-message { font-size: .76rem; color: var(--textSecondary); line-height: 1.8; }
+.account-avatar-editor { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 16px 0 24px; padding: 16px 20px; border: 1px solid var(--borderColor); border-radius: 12px; background: var(--surfaceColor); }
+.account-avatar-editor strong { font-size: .78rem; }
+.account-avatar-editor p { color: var(--textSecondary); font-size: .7rem; line-height: 1.7; margin-top: 4px; }
+.account-avatar-editor input[hidden] { display: none; }
+.account-avatar-editor .module-feedback { flex-basis: 100%; margin-bottom: 0; }
 .account-storage-message button { margin-top: 12px; }
 .profilePage .pref-toggle-list li { gap: 14px; padding: 17px 0; }
 .account-preference-icon { display: inline-flex; padding: 10px; background: var(--account-tint); color: var(--account-accent); border-radius: 11px; flex-shrink: 0; }

@@ -355,6 +355,10 @@ try {
   await visit('/archivos', 'Mis Archivos');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'file library');
   assert.ok(await evaluate("!!document.querySelector('.mf-library-storage-track[role=progressbar]')"));
+  const tinyUsage = await evaluate("(()=>{const bar=document.querySelector('.mf-library-storage-track');return {value:Number(bar.getAttribute('aria-valuenow')),fill:bar.firstElementChild.getBoundingClientRect().width,text:bar.getAttribute('aria-valuetext')};})()");
+  assert.ok(tinyUsage.value > 0 && tinyUsage.value < 0.1, 'Tiny usage must retain a nonzero actual ratio');
+  assert.ok(tinyUsage.fill >= 1.9 && tinyUsage.fill <= 3, 'Tiny usage is visible without suggesting substantial storage');
+  assert.ok(tinyUsage.text.includes('<0.1 %'));
   await click('Carpetas'); await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 1", 'file folder tab');
   await click('Todos'); await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'all files');
   await evaluate("document.querySelector('[aria-label=\"Buscar archivos\"]').focus()"); await send('Input.insertText', { text: 'Informe' });
@@ -389,7 +393,14 @@ try {
   assert.ok(requests.some(r=>r.path === '/files/52/rename' && r.body.name === 'Informe final.pdf'));
   await click('Crear carpeta'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Crear carpeta\"]')", 'create folder dialog');
   await click('Cancelar');
-  await click('Subir archivo'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Subir archivos\"]')", 'upload modal'); await click('Cancelar');
+  await click('Subir archivo'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Subir archivos\"]')", 'upload modal');
+  assert.equal(await evaluate("document.activeElement.closest('[role=dialog]')!==null"),true,'Upload captures keyboard focus');
+  await evaluate("document.querySelector('[aria-label=\"Cerrar ventana de subida\"]').click()");
+  await waitFor("!document.querySelector('.upload-modal')",'Upload close button');
+  await click('Subir archivo');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await waitFor("!document.querySelector('.upload-modal')",'Escape closes upload');
   await visit('/papelera', 'documento.pdf');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'trash contents');
   assert.equal(await evaluate("[...document.querySelectorAll('.mf-table tbody tr')].find(row=>row.textContent.includes('Recuerdos')).querySelector('.mf-trash-delete-btn') === null"), true, 'Folders have restore but no permanent delete action');

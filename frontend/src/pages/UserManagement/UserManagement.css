@@ -488,7 +488,7 @@ html[data-theme='dark'] .um-management { --um-surface: var(--dark-surface); --um
 html[data-theme='dark'] .um-management .um-header { background: radial-gradient(ellipse at 95% 10%, #284c7c, transparent 65%), #152b48; border-color: #365072; }
 html[data-theme='dark'] .um-management .um-header h1 { color: #fff; }
 html[data-theme='dark'] .um-management :is(.um-stat-icon, .um-avatar) { background: var(--dark-selected); color: var(--dark-accent); }
-html[data-theme='dark'] .um-management .um-filter-btn { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b6ca' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+html[data-theme='dark'] .um-management .um-filter-btn { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b6ca' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
 html[data-theme='dark'] .um-management .um-page-number.active { background: #2563eb; border-color: #2563eb; color: #fff; }
 html[data-theme='dark'] .um-management .um-icon-btn.danger { color: #ffadb6; }
 html[data-theme='dark'] .um-management .um-icon-btn.success { color: #83d9af; }

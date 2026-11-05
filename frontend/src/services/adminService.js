@@ -1,3 +1,4 @@
+import { formatStorageBytes } from '../utils/storageUsage';
 import { api, query } from './apiClient';
 import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
 
@@ -42,7 +43,7 @@ export const mapAdminUser = (user) => ({
   registered: user.fecha_registro
     ? new Date(user.fecha_registro).toLocaleDateString("es-GT")
     : "—",
-  storage: `${(user.usedBytes / 1024 ** 3).toFixed(2)} GB`,
+  storage: formatStorageBytes(user.usedBytes),
 });
 
 // Paginated administration APIs keep metadata alongside data.
