@@ -6,7 +6,7 @@ DO $$
 DECLARE mapeo record; secuencia text;
 BEGIN
   FOR mapeo IN SELECT * FROM (VALUES
-    ('admin_notification_read','lectura_notificacion_administrador'),
+    ('admin_notification_read','notificacion_administrador'),
     ('support_ticket','solicitud_soporte'),
     ('support_message','mensaje_soporte'),
     ('cloudbox_storage_cleanup','limpieza_almacenamiento')
@@ -35,7 +35,7 @@ BEGIN
 END; $$;
 
 -- Reconcile optional integrations even when an older installation omitted them.
-CREATE TABLE IF NOT EXISTS public.lectura_notificacion_administrador (
+CREATE TABLE IF NOT EXISTS public.notificacion_administrador (
   id_usuario integer NOT NULL REFERENCES public.usuario(id) ON DELETE CASCADE,
   id_log bigint NOT NULL REFERENCES public."LogAuditoria"(id) ON DELETE CASCADE,
   read_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(id_usuario,id_log)
@@ -57,11 +57,11 @@ CREATE TABLE IF NOT EXISTS public.mensaje_soporte (
 );
 CREATE INDEX IF NOT EXISTS solicitud_soporte_usuario_fecha ON public.solicitud_soporte(id_usuario,created_at DESC);
 CREATE INDEX IF NOT EXISTS mensaje_soporte_solicitud ON public.mensaje_soporte(ticket_id,id);
-ALTER TABLE public.lectura_notificacion_administrador ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificacion_administrador ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.solicitud_soporte ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mensaje_soporte ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.lectura_notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte FROM PUBLIC,anon,authenticated;
-GRANT ALL ON public.lectura_notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte TO service_role;
+REVOKE ALL ON public.notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte FROM PUBLIC,anon,authenticated;
+GRANT ALL ON public.notificacion_administrador,public.solicitud_soporte,public.mensaje_soporte TO service_role;
 REVOKE ALL ON SEQUENCE public.solicitud_soporte_id_seq,public.mensaje_soporte_id_seq FROM PUBLIC,anon,authenticated;
 GRANT USAGE,SELECT ON SEQUENCE public.solicitud_soporte_id_seq,public.mensaje_soporte_id_seq TO service_role;
 

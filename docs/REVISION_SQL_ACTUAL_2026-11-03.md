@@ -39,7 +39,7 @@ Estos valores coinciden con las condiciones utilizadas por la migración. Free p
 
 | Elemento | SQL actual | Lo que incorpora la migración |
 | --- | --- | --- |
-| `lectura_notificacion_administrador` | No aparece en el SQL actual. | Lecturas persistentes de notificaciones administrativas. |
+| `notificacion_administrador` | No aparece en el SQL actual. | Lecturas persistentes de notificaciones administrativas. |
 | `solicitud_soporte` | No aparece en el SQL actual. | Solicitudes de soporte. |
 | `mensaje_soporte` | No aparece en el SQL actual. | Mensajes y control transaccional de respuestas. |
 | `limpieza_almacenamiento` | No aparece en el SQL actual. | Limpieza pendiente de objetos de cargas fallidas. |

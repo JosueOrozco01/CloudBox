@@ -4,7 +4,7 @@
 -- 1. Physical names and expected additions.
 SELECT name, to_regclass(name) AS relation
 FROM (VALUES ('public."LogAuditoria"'),('public.usuario'),('public.archivo'),
-  ('public.lectura_notificacion_administrador'),('public.solicitud_soporte'),
+  ('public.notificacion_administrador'),('public.solicitud_soporte'),
   ('public.mensaje_soporte'),('public.limpieza_almacenamiento'),
   -- Nombres anteriores: se renombran al instalar la migración actual.
   ('public.admin_notification_read'),('public.support_ticket'),

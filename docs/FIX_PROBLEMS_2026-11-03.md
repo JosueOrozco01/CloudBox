@@ -11,7 +11,7 @@ Las correcciones corresponden a los veinte hallazgos de la auditoría del 1 de n
 
 El código de esta rama requiere la migración `20261103000000_fix_audit_consistency.sql` antes de publicarse. Esa migración fue ejecutada en PostgreSQL embebido de prueba, incluida una segunda ejecución para comprobar su repetición segura. No se instaló en Supabase remoto. Su instalación requiere ejecutar SQL administrativo en el proyecto de destino; no se realiza automáticamente desde la API ni al iniciar el backend.
 
-Actualización del 4 de noviembre: las tablas incorporadas se llaman `lectura_notificacion_administrador`, `solicitud_soporte`, `mensaje_soporte` y `limpieza_almacenamiento`. El backend, los scripts y las pruebas utilizan esos nombres. La migración también contempla la actualización de instalaciones anteriores con nombres en inglés, conservando sus registros, relaciones e identidades.
+Actualización del 4 de noviembre: las tablas incorporadas se llaman `notificacion_administrador`, `solicitud_soporte`, `mensaje_soporte` y `limpieza_almacenamiento`. El backend, los scripts y las pruebas utilizan esos nombres. La migración también contempla la actualización de instalaciones anteriores con nombres en inglés, conservando sus registros, relaciones e identidades.
 
 La comprobación remota de lectura sigue indicando que faltan las tablas complementarias y la función de creación de tickets en la API consultada. La nueva columna `archivo.storage_deleted_at` tampoco está instalada. Por tanto, las correcciones que dependen de SQL están preparadas y probadas localmente; su activación en la nube queda pendiente de instalar la migración en el proyecto utilizado por el despliegue.
 

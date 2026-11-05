@@ -18,7 +18,7 @@ exports.reads = handler(async (req,res) => {
  if(!Number.isSafeInteger(limit)||limit<1||limit>200||!Number.isSafeInteger(offset)||offset<0)throw fail('Paginación inválida.');
  const logs = check(await db.from('LogAuditoria').select('id').order('fecha',{ascending:false}).order('id',{ascending:false}).range(offset,offset+limit-1));
  const ids = logs.map(log=>log.id);
- const rows = ids.length ? check(await db.from('lectura_notificacion_administrador').select('id_log').eq('id_usuario',req.user.id).in('id_log',ids)) : [];
+ const rows = ids.length ? check(await db.from('notificacion_administrador').select('id_log').eq('id_usuario',req.user.id).in('id_log',ids)) : [];
  res.json({success:true,data:rows.map(row=>row.id_log)});
 });
 exports.markReads = handler(async (req,res) => {
@@ -26,7 +26,7 @@ exports.markReads = handler(async (req,res) => {
  if (!Array.isArray(ids) || ids.length > 200 || !ids.length) throw fail('Selecciona entre 1 y 200 eventos.');
  const unique = [...new Set(ids.map(id))];
  const logs = check(await db.from('LogAuditoria').select('id').in('id',unique));
- check(await db.from('lectura_notificacion_administrador').upsert(logs.map(log=>({id_usuario:req.user.id,id_log:log.id})),{onConflict:'id_usuario,id_log'}));
+ check(await db.from('notificacion_administrador').upsert(logs.map(log=>({id_usuario:req.user.id,id_log:log.id})),{onConflict:'id_usuario,id_log'}));
  res.json({success:true});
 });
 exports.tickets = handler(async (req,res) => {

@@ -37,7 +37,7 @@ Crear tablas por REST no está permitido por la API de datos de Supabase. Las cr
 
 La migración agrega:
 
-- `lectura_notificacion_administrador` para lecturas por administrador y evento.
+- `notificacion_administrador` para lecturas por administrador y evento.
 - `solicitud_soporte` y `mensaje_soporte` para solicitudes y conversaciones.
 - `limpieza_almacenamiento` para objetos pendientes de limpieza.
 - `cloudbox_create_ticket` para guardar la solicitud y el primer mensaje en una misma transacción.

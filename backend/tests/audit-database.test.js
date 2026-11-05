@@ -47,7 +47,7 @@ test(`audit migration enforces quota, deletion, ownership, tickets and preferenc
     await db.exec(preflight);
     assert.equal((await db.query("SELECT has_sequence_privilege('anon','public.solicitud_soporte_id_seq','USAGE') AS allowed")).rows[0].allowed,false);
     for(const [oldName,newName] of [
-      ['admin_notification_read','lectura_notificacion_administrador'],
+      ['admin_notification_read','notificacion_administrador'],
       ['support_ticket','solicitud_soporte'],['support_message','mensaje_soporte'],
       ['cloudbox_storage_cleanup','limpieza_almacenamiento']
     ]) {
