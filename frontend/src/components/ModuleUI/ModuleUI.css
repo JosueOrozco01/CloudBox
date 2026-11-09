@@ -432,11 +432,16 @@ html[data-theme="dark"] .module-table tbody tr:hover { background: #202b3a; }
 .module-dialog .module-form { gap: 14px; }
 
 .module-badge { padding: 3px 10px; font-size: .7rem; font-weight: 700; }
-.module-badge.success { background: #dcfce7; color: #16a34a; }
-.module-badge.warning { background: #fef3c7; color: #b98900; }
-.module-badge.danger { background: #fee2e2; color: #dc2626; }
+.module-badge.success { background: #dcfce7; color: #166534; }
+.module-badge.warning { background: #fef3c7; color: #854d0e; }
+.module-badge.danger { background: #fee2e2; color: #991b1b; }
 html[data-theme="dark"] .module-badge.success { background: #173c30; color: #86efac; }
 html[data-theme="dark"] .module-badge.warning { background: #3a301d; color: #f7cb69; }
 html[data-theme="dark"] .module-badge.danger { background: #3b242e; color: #ffb4b9; }
 
 .module-dialog:focus { outline: none; }
+.module-heading > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.module-dialog .cf-header-text { min-width: 0; overflow-wrap: anywhere; }
+.support-tickets .module-table { min-width: 640px; }
+.module-pager { flex-wrap: wrap; }
+.module-field { min-width: min(145px, 100%); }

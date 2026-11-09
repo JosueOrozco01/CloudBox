@@ -1,3 +1,4 @@
+import { isValidPassword, passwordMessage } from '../../utils/passwordPolicy.js';
 import { normalizeApiUrl } from "../../services/dashboardService";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -171,16 +172,13 @@ export default function ForgotPassword() {
       return;
     }
 
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
-
-    if (!passwordRegex.test(password)) {
+    if (!isValidPassword(password)) {
       setAlert({
         isOpen: true,
         type: "warning",
         title: "Contraseña no válida",
         message:
-          "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo.",
+          passwordMessage,
       });
 
       return;

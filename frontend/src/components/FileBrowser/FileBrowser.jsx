@@ -102,10 +102,11 @@ export default function FileBrowser({ user, trash = false }) {
           ...files.map((file) => ({
             id: `file-${file.id}`,
             rawId: file.id,
+            deletionPending: file.id_estado === 3,
             isShared: Number(file.id_usuario) !== Number(user?.id),
             name: file.nombre,
             type: file.nombre.split(".").pop().toLowerCase(),
-            typeLabel: file.nombre.split(".").pop().toUpperCase(),
+            typeLabel: file.id_estado === 3 ? 'Borrado pendiente' : file.nombre.split(".").pop().toUpperCase(),
             bytes: Number(file.tamano_bytes),
             size: formatFileSize(file.tamano_bytes),
             modified: date(file.fecha_modificacion || file.fecha_subida),
@@ -216,6 +217,10 @@ export default function FileBrowser({ user, trash = false }) {
     }
   };
   const openAction = (kind, item) => {
+    if (item.deletionPending && kind !== 'permanent') {
+      setNotice({ type: 'warning', message: 'El borrado físico está pendiente. Reintenta la eliminación definitiva.' });
+      return;
+    }
     setAction({ kind, item });
     setName(item.name);
     setDestination(folderId || "");
@@ -233,10 +238,11 @@ export default function FileBrowser({ user, trash = false }) {
       refresh();
     } catch (error) {
       setActionError(error.message);
+      if (error.code === 'STORAGE_DELETE_PENDING') refresh();
       setNotice({
         type: "error",
         message:
-          "No se pudo guardar el cambio. Revisa los datos e inténtalo nuevamente.",
+          error.message || "No se pudo guardar el cambio. Inténtalo nuevamente.",
       });
     } finally {
       setBusy(false);
@@ -335,7 +341,7 @@ export default function FileBrowser({ user, trash = false }) {
             onDelete={(item) => openAction(trash ? 'permanent' : 'delete', item)}
             onMove={(item) => openAction("move", item)}
             onRestore={(item) =>
-              run(
+              item.deletionPending ? setNotice({type:'warning',message:'El borrado físico está pendiente. Reintenta la eliminación definitiva.'}) : run(
                 () => restoreItem(item),
                 `«${item.name}» restaurado correctamente.`,
               )

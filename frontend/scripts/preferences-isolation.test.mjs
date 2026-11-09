@@ -21,6 +21,18 @@ beforeEach(() => {
 });
 afterEach(() => { globalThis.fetch = originalFetch; });
 
+test('offline and invalid JSON logout still clear this device', async () => {
+  for (const failingFetch of [async () => { throw new TypeError('offline'); }, async () => new Response('unavailable',{status:503})]) {
+    persistSession(accountA);
+    globalThis.fetch=failingFetch;
+    const result=await logout();
+    assert.equal(result.remoteLogoutPending,true);
+    assert.equal(localStorage.getItem('token'),null);
+    assert.equal(localStorage.getItem('refreshToken'),null);
+    assert.equal(theme(),'light');
+  }
+});
+
 test('a dark account cannot color a new account without saved preferences', () => {
   persistSession(accountA);
   assert.equal(applyPreferences(1, dark, accountA.token), true);

@@ -1,3 +1,4 @@
+const { readPages } = require('./commercial-policy');
 
 const { createClient } = require('@supabase/supabase-js');
 const FolderService = require('./folder.service');
@@ -38,30 +39,11 @@ function duplicateFileError() {
 
 const FileService = {
     async getUserFiles(userId, folderId = null) {
-        let query = supabaseAdmin
-            .from('archivo')
-            .select(FILE_SELECT)
-            .eq('id_usuario', userId)
-            .eq('id_estado', ACTIVE_FILE_STATUS);
-
-        if (folderId === null) {
-            query = query.is('id_carpeta', null);
-        } else {
-            query = query.eq('id_carpeta', folderId);
-        }
-
-        const { data, error } = await query.order(
-            'fecha_subida',
-            { ascending: false }
-        );
-
-        if (error) {
-            throw new Error(
-                `Error al obtener los archivos: ${error.message}`
-            );
-        }
-
-        return data;
+        return readPages(() => {
+            let query=supabaseAdmin.from('archivo').select(FILE_SELECT).eq('id_usuario',userId).eq('id_estado',ACTIVE_FILE_STATUS);
+            query=folderId === null ? query.is('id_carpeta',null) : query.eq('id_carpeta',folderId);
+            return query.order('fecha_subida',{ascending:false}).order('id');
+        });
     },
 
     // Integration contract with the folder module.
@@ -399,20 +381,23 @@ const FileService = {
     },
 
     async getTrashFiles(userId) {
-        const { data, error } = await supabaseAdmin
-            .from('archivo')
-            .select(FILE_SELECT)
-            .eq('id_usuario', userId)
-            .eq('id_estado', TRASH_FILE_STATUS)
-            .order('fecha_modificacion', { ascending: false });
-
-        if (error) {
-            throw new Error(
-                `Error al obtener los archivos de la papelera: ${error.message}`
-            );
-        }
-
-        return data;
+        return readPages(() => supabaseAdmin.from('archivo').select(FILE_SELECT).eq('id_usuario',userId)
+          .or('id_estado.eq.2,and(id_estado.eq.3,storage_deleted_at.is.null)')
+          .order('fecha_modificacion',{ascending:false}).order('id'));
+    },
+    async confirmStorageDeletion(fileId,userId) {
+        const {error}=await supabaseAdmin.from('archivo').update({storage_deleted_at:new Date().toISOString()})
+          .eq('id',fileId).eq('id_usuario',userId).eq('id_estado',DELETED_FILE_STATUS);
+        if(error) throw error;
+    },
+    async recordFailedUploadCleanup(storagePath) {
+        const {error}=await supabaseAdmin.from('limpieza_almacenamiento').upsert({storage_path:storagePath},{onConflict:'storage_path'});
+        if(error) throw error;
+    },
+    async isStoragePathReferenced(storagePath) {
+        const {data,error}=await supabaseAdmin.from('archivo').select('id').eq('ruta_storage',storagePath).limit(1).maybeSingle();
+        if(error) throw error;
+        return Boolean(data);
     },
 
     async fileNameExists(
@@ -543,21 +528,10 @@ const FileService = {
     },
 
     async getActiveFilesByFolder(folderId) {
-        const { data, error } = await supabaseAdmin
-            .from('archivo')
-            .select(FILE_SELECT)
-            .eq('id_carpeta', folderId)
-            .eq('id_estado', ACTIVE_FILE_STATUS)
-            .order('fecha_subida', { ascending: false });
-
-        if (error) {
-            throw new Error(
-                `Error al obtener archivos compartidos: ${error.message}`
-            );
-        }
-
-        return data || [];
+        return readPages(() => supabaseAdmin.from('archivo').select(FILE_SELECT).eq('id_carpeta',folderId)
+          .eq('id_estado',ACTIVE_FILE_STATUS).order('fecha_subida',{ascending:false}).order('id'));
     },
+
 
 };
 

@@ -109,10 +109,7 @@ const adminController = {
         });
       }
 
-      const ip_origen =
-        req.headers["x-forwarded-for"] ||
-        req.socket?.remoteAddress ||
-        req.ip;
+      const ip_origen = req.ip || req.socket?.remoteAddress;
 
       const updatedUser = await AdminService.updateUserStatus(
         targetUserId,
@@ -165,10 +162,7 @@ const adminController = {
         });
       }
 
-      const ip_origen =
-        req.headers["x-forwarded-for"] ||
-        req.socket?.remoteAddress ||
-        req.ip;
+      const ip_origen = req.ip || req.socket?.remoteAddress;
 
       const updatedUser = await AdminService.updateUserRole(
         targetUserId,

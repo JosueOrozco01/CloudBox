@@ -1,3 +1,5 @@
+import StorageBar from '../../components/StorageBar/StorageBar';
+import { formatStorageBytes, formatStoragePercent } from '../../utils/storageUsage';
 import UserAvatar from "../../components/UserAvatar/UserAvatar";
 import "./AdminDashboard.css";
 
@@ -14,14 +16,14 @@ const icon = {
 };
 
 const statusStyles = {
-  Completado: { bg: "#dcfce7", color: "#16a34a" },
-  Pendiente: { bg: "#fef3c7", color: "#b98900" },
-  Activo: { bg: "#dcfce7", color: "#16a34a" },
-  Inactivo: { bg: "#fee2e2", color: "#dc2626" },
+  Completado: { bg: "var(--status-success-bg, #dcfce7)", color: "var(--status-success-color, #166534)" },
+  Pendiente: { bg: "var(--status-warning-bg, #fef3c7)", color: "var(--status-warning-color, #854d0e)" },
+  Activo: { bg: "var(--status-success-bg, #dcfce7)", color: "var(--status-success-color, #166534)" },
+  Inactivo: { bg: "var(--status-danger-bg, #fee2e2)", color: "var(--status-danger-color, #991b1b)" },
 };
 
 function StatusBadge({ status }) {
-  const style = statusStyles[status] ?? { bg: "#f1f5f9", color: "#64748b" };
+  const style = statusStyles[status] ?? { bg: "var(--status-neutral-bg, #f1f5f9)", color: "var(--status-neutral-color, #475569)" };
   return (
     <span
       className="admin-badge"
@@ -222,12 +224,7 @@ export default function AdminDashboard({
 
             {stat.progress !== undefined ? (
               <>
-                <div className="admin-stat-progress">
-                  <div
-                    className="admin-stat-progress-fill"
-                    style={{ width: `${stat.progress}%` }}
-                  />
-                </div>
+                <StorageBar className="admin-stat-progress" fillClassName="admin-stat-progress-fill" usedBytes={stat.usedBytes} totalBytes={stat.totalBytes} percentage={stat.progress} />
                 <p className="admin-stat-sub">{stat.progressLabel}</p>
               </>
             ) : (
@@ -405,38 +402,17 @@ export default function AdminDashboard({
                   </div>
                   <div className="admin-storage-usage">
                     <span>
-                      {(user.usedBytes / 1024 ** 3).toFixed(2)} GB utilizados
+                      {formatStorageBytes(user.usedBytes)} utilizados
                       {user.maxBytes > 0
-                        ? ` de ${(user.maxBytes / 1024 ** 3).toFixed(2)} GB`
+                        ? ` de ${formatStorageBytes(user.maxBytes)}`
                         : ""}
                     </span>
                     {user.storagePercent !== null && (
-                      <strong>{Number(user.storagePercent.toFixed(1))}%</strong>
+                      <strong>{formatStoragePercent(user.storagePercent)}</strong>
                     )}
                   </div>
                   {user.storagePercent !== null ? (
-                    <div
-                      className="admin-plan-bar"
-                      role="progressbar"
-                      aria-label={`Almacenamiento de ${user.name}`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.min(100, user.storagePercent)}
-                      aria-valuetext={`${Number(user.storagePercent.toFixed(1))}% utilizado`}
-                    >
-                      <div
-                        className="admin-plan-bar-fill"
-                        style={{
-                          width: `${Math.min(100, user.storagePercent)}%`,
-                          background:
-                            user.storagePercent >= 100
-                              ? "#dc2626"
-                              : user.storagePercent >= 90
-                                ? "#f59e0b"
-                                : "#2563ff",
-                        }}
-                      />
-                    </div>
+                    <StorageBar className="admin-plan-bar" fillClassName="admin-plan-bar-fill" label={`Almacenamiento de ${user.name}`} usedBytes={user.usedBytes} totalBytes={user.maxBytes} percentage={user.storagePercent} fillStyle={{ background: user.storagePercent >= 100 ? "#dc2626" : user.storagePercent >= 90 ? "#f59e0b" : "#2563ff" }} />
                   ) : (
                     <p className="admin-storage-note">
                       {user.maxBytes === undefined

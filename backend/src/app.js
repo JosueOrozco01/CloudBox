@@ -30,7 +30,19 @@ const errorHandler = require('./middlewares/error-handler.middleware');
 const app = express();
 
 // Global middleware
-app.use(cors());
+app.disable('x-powered-by');
+if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:5178').split(',').map(origin => origin.trim()).filter(Boolean);
+app.use(cors({ origin(origin, callback) {
+  if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+  callback(Object.assign(new Error('Origen no permitido.'), {status:403,code:'ORIGIN_NOT_ALLOWED'}));
+}}));
+app.use((req,res,next) => {
+  res.set('X-Content-Type-Options','nosniff');
+  res.set('Referrer-Policy','strict-origin-when-cross-origin');
+  res.set('X-Frame-Options','DENY');
+  next();
+});
 
 // The email hook must receive the raw request body
 app.use('/api/hooks', emailHookRoutes);

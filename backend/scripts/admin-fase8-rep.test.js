@@ -168,7 +168,7 @@ function loadModuleWithMock(filePath, customRequires = {}) {
     require: (name) => {
       if (name.includes('supabase')) return { createClient: () => mockDb };
       if (customRequires[name]) return customRequires[name];
-      return require(name);
+      return require('node:module').createRequire(path.join(__dirname,'../src/services/admin.service.js'))(name);
     },
     process: { env: {} },
     module: { exports: {} },

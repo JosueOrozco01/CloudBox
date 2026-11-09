@@ -118,18 +118,18 @@
 }
 
 .alert-btn-primary.alert-btn-success {
-  background: var(--successColor);
+  background: #15803d;
   color: #ffffff;
 }
 
 .alert-btn-primary.alert-btn-error {
-  background: var(--dangerColor);
+  background: #dc2626;
   color: #ffffff;
 }
 
 .alert-btn-primary.alert-btn-warning {
   background: var(--warningColor);
-  color: #ffffff;
+  color: #422006;
 }
 
 .alert-btn-primary.alert-btn-info {

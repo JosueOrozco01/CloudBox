@@ -1,3 +1,5 @@
+const { readPages } = require('./commercial-policy');
+const validation = require('./input-validation');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -6,14 +8,21 @@ const supabaseAdmin = createClient(
 );
 
 const FolderService = {
+  async getLocations(userId) {
+    const folders=await readPages(() => supabaseAdmin.from('carpeta').select('id,nombre,id_padre').eq('id_usuario',userId).eq('id_estado',1).order('id'));
+    const byId=new Map(folders.map(folder=>[folder.id,folder]));
+    return folders.map(folder=>{
+      const names=[folder.nombre],seen=new Set([folder.id]);let parent=byId.get(folder.id_padre);
+      while(parent) { if(seen.has(parent.id)) throw validation.invalid('La jerarquía de carpetas contiene un ciclo.'); seen.add(parent.id);names.unshift(parent.nombre);parent=byId.get(parent.id_padre); }
+      return {id:folder.id,name:names.join(' / ')};
+    });
+  },
   async getTrashFolders(userId) {
-    const { data, error } = await supabaseAdmin.from('carpeta').select('*')
-      .eq('id_usuario', userId).eq('id_estado', 2).order('fecha_modificacion', { ascending: false });
-    if (error) throw error;
-    return data;
+    return readPages(() => supabaseAdmin.from('carpeta').select('*').eq('id_usuario',userId).eq('id_estado',2).order('nombre').order('id'));
   },
   async createFolder({ nombre, id_usuario, id_padre = null }) {
-    const nombreLimpio = nombre ? nombre.trim() : '';
+    const nombreLimpio = validation.text(nombre, 'El nombre de la carpeta', 255);
+    if (/[\\/\x00-\x1f]/.test(nombreLimpio)) throw validation.invalid('El nombre de la carpeta no es válido.');
 
     if (!nombreLimpio) throw new Error('El nombre de la carpeta no puede estar vacío.');
 
@@ -79,33 +88,14 @@ const FolderService = {
   },
 
   async getUserRootFolders(userId) {
-    const { data, error } = await supabaseAdmin
-      .from('carpeta')
-      .select('*')
-      .eq('id_usuario', userId)
-      .is('id_padre', null)
-      .eq('id_estado', 1)
-      .order('nombre', { ascending: true });
-
-    if (error) throw new Error(`Error al obtener carpetas raíz: ${error.message}`);
-    return data;
+    return readPages(() => supabaseAdmin.from('carpeta').select('*').eq('id_usuario',userId).is('id_padre',null).eq('id_estado',1).order('nombre').order('id'));
   },
-
   async getSubfolders(parentId, userId) {
-    const { data, error } = await supabaseAdmin
-      .from('carpeta')
-      .select('*')
-      .eq('id_usuario', userId)
-      .eq('id_padre', parentId)
-      .eq('id_estado', 1)
-      .order('nombre', { ascending: true });
-
-    if (error) throw new Error(`Error al obtener subcarpetas: ${error.message}`);
-    return data;
+    return readPages(() => supabaseAdmin.from('carpeta').select('*').eq('id_usuario',userId).eq('id_padre',parentId).eq('id_estado',1).order('nombre').order('id'));
   },
-
   async updateFolderName(folderId, userId, newName) {
-    const nombreLimpio = newName ? newName.trim() : '';
+    const nombreLimpio = validation.text(newName, 'El nombre de la carpeta', 255);
+    if (/[\\/\x00-\x1f]/.test(nombreLimpio)) throw validation.invalid('El nombre de la carpeta no es válido.');
     if (!nombreLimpio) throw new Error('El nuevo nombre no puede estar vacío.');
 
     const currentFolder = await this.getFolderById(folderId, userId);
@@ -146,6 +136,8 @@ const FolderService = {
   async _isDescendant(folderId, potentialParentId, userId) {
     let currentId = potentialParentId;
     while (currentId !== null) {
+      if(visited.has(currentId)) throw validation.invalid("La jerarquía de carpetas contiene un ciclo.");
+      visited.add(currentId);
       if (currentId === folderId) {
         return true;
       }
@@ -271,20 +263,7 @@ const FolderService = {
   },
 
   async getActiveSubfolders(parentId) {
-    const { data, error } = await supabaseAdmin
-      .from('carpeta')
-      .select('*')
-      .eq('id_padre', parentId)
-      .eq('id_estado', 1)
-      .order('nombre', { ascending: true });
-
-    if (error) {
-      throw new Error(
-        `Error al obtener subcarpetas compartidas: ${error.message}`
-      );
-    }
-
-    return data || [];
+    return readPages(() => supabaseAdmin.from('carpeta').select('*').eq('id_padre',parentId).eq('id_estado',1).order('nombre').order('id'));
   },
 
 };

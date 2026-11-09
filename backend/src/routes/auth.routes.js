@@ -3,6 +3,7 @@ const authController = require('../controllers/authController');
 const validateRegistration = require('../middlewares/registration-validation.middleware');
 
 const router = express.Router();
+router.use(require('../middlewares/auth-rate-limit.middleware'));
 
 router.post('/refresh', require('../controllers/auth-extra.controller').refresh);
 router.post('/resend-verification', require('../controllers/auth-extra.controller').resend);

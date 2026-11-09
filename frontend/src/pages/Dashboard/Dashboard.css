@@ -138,6 +138,8 @@
   color: var(--text-dark);
   outline: none;
 }
+.dash-search-field { position: relative; display: block; max-width: 100%; }
+.dash-search-field .dash-search-icon { top: 21px; }
 
 .dash-search input::placeholder {
   color: #94a3b8;
@@ -448,6 +450,7 @@
 }
 
 .quick-action {
+  font: inherit;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -490,6 +493,7 @@
 
 /* ---------- CTA de más espacio ---------- */
 .dash-more-space {
+  font: inherit;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -553,6 +557,7 @@
   .dash-search input {
     width: 100%;
   }
+  .dash-search-field { width: 100%; }
 }
 .dashboard-content {
   flex: 1;
@@ -572,3 +577,4 @@
 .dashboard-content p {
   color: #6b7a90;
 }
+.dash-home :is(button,a,input):focus-visible { outline: 3px solid #79aaff; outline-offset: 3px; }

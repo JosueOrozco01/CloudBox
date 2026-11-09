@@ -1,18 +1,18 @@
-const supabase = require('../config/supabase');
+const validation = require('./input-validation');
 const createSessionSupabaseClient = require('../config/session-supabase');
 const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
 const requestPasswordRecovery = async (email) => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = validation.email(email);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
+    const { error } = await createSessionSupabaseClient().auth.resetPasswordForEmail(
         normalizedEmail,
         {
             redirectTo:
@@ -55,9 +55,9 @@ const requestPasswordRecovery = async (email) => {
 };
 
 const resendEmailConfirmation = async (email) => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = validation.email(email);
 
-    const { error } = await supabase.auth.resend({
+    const { error } = await createSessionSupabaseClient().auth.resend({
         type: 'signup',
         email: normalizedEmail,
         options: {
@@ -104,7 +104,7 @@ const signOutUser = async (
     accessToken,
     refreshToken
 ) => {
-    if (!accessToken || !refreshToken) {
+    if (typeof accessToken !== 'string' || typeof refreshToken !== 'string' || !accessToken || !refreshToken || accessToken.length > 8192 || refreshToken.length > 4096) {
         const sessionError =
             new Error(
                 'Access token and refresh token are required'
@@ -166,94 +166,37 @@ const signOutUser = async (
 };
 
 const registrarUsuario = async (dto) => {
-    const {
-        firstName,
-        lastName,
-        email,
-        password
-    } = dto;
-
-    const normalizedEmail =
-        email.trim().toLowerCase();
-
-    // Validate duplicate email before calling Supabase Auth
-    const { data: usuarioExistente } =
-        await supabaseAdmin
-            .from('usuario')
-            .select('id')
-            .eq('correo', normalizedEmail)
-            .maybeSingle();
-
-    if (usuarioExistente) {
-        const err =
-            new Error(
-                'El correo electrónico ya se encuentra registrado'
-            );
-
-        err.status = 409;
-
-        throw err;
-    }
-
-    // Register user in Supabase Auth
-    const {
-        data: authData,
-        error: authError
-    } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password,
-        options: {
-            emailRedirectTo:
-                process.env.EMAIL_CONFIRMATION_REDIRECT_URL
-        }
+    const firstName = validation.text(dto.firstName, 'El nombre');
+    const lastName = validation.text(dto.lastName, 'El apellido');
+    const email = validation.email(dto.email);
+    const password = validation.password(dto.password);
+    const existing = await supabaseAdmin.from('usuario').select('id').eq('correo', email).maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) throw Object.assign(new Error('El correo electrónico ya se encuentra registrado.'), {status:409});
+    const [role, state] = await Promise.all([
+      supabaseAdmin.from('rol').select('id').eq('nombre','Cliente').single(),
+      supabaseAdmin.from('estado_usuario').select('id').eq('nombre','Activo').single()
+    ]);
+    if (role.error || state.error || !role.data || !state.data) throw Object.assign(new Error('El catálogo de registro no está disponible.'),{status:503,code:'REGISTRATION_CATALOG_UNAVAILABLE'});
+    const {data, error} = await createSessionSupabaseClient().auth.signUp({email,password,options:{emailRedirectTo:process.env.EMAIL_CONFIRMATION_REDIRECT_URL,data:{nombre:firstName,apellido:lastName}}});
+    if (error) throw error;
+    if (!data?.user?.id || data.user.identities?.length === 0) throw Object.assign(new Error('La cuenta ya existe. Verifica tu correo o recupera el acceso.'), {status:409});
+    const inserted = await supabaseAdmin.from('usuario').insert({
+      nombre:firstName,apellido:lastName,correo:email,espacio_usado_by:0,
+      fecha_registro:new Date().toISOString().slice(0,10),id_rol:role.data.id,
+      id_estado:state.data.id,auth_user_id:data.user.id
     });
-
-    if (authError) {
-        throw authError;
+    if (inserted.error) {
+      // A database trigger or an identical retry may already have created this profile.
+      // Never replace another identity just because its email matches.
+      const profile = await supabaseAdmin.from('usuario').select('id,correo,auth_user_id').eq('auth_user_id',data.user.id).maybeSingle();
+      if (profile.error || !profile.data || profile.data.correo.toLowerCase() !== email) {
+        const failure = new Error('No se pudo completar el perfil. Reintenta el registro con el mismo correo.');
+        failure.status=503;failure.code='REGISTRATION_PROFILE_PENDING';failure.cause=inserted.error;
+        throw failure;
+      }
     }
-
-    // Persist record in physical usuario table
-    const { error: insertError } =
-        await supabaseAdmin
-            .from('usuario')
-            .insert({
-                nombre: firstName,
-                apellido: lastName,
-                correo: normalizedEmail,
-                espacio_usado_by: 0,
-                fecha_registro:
-                    new Date()
-                        .toISOString()
-                        .split('T')[0],
-                id_rol: 1,
-                id_estado: 1,
-                auth_user_id:
-                    authData.user?.id
-            });
-
-    if (insertError) {
-        if (insertError.code === '23505') {
-            await supabaseAdmin
-                .from('usuario')
-                .update({
-                    nombre: firstName,
-                    apellido: lastName,
-                    auth_user_id:
-                        authData.user?.id
-                })
-                .eq(
-                    'correo',
-                    normalizedEmail
-                );
-        } else {
-            throw insertError;
-        }
-    }
-
-    return {
-        message:
-            'Revisa tu correo para verificar tu cuenta'
-    };
+    return {message:'Revisa tu correo para verificar tu cuenta'};
 };
 
 const verificarCorreo = async ({
@@ -261,6 +204,9 @@ const verificarCorreo = async ({
     email,
     type = 'signup'
 }) => {
+    if (typeof token !== 'string' || !token || token.length > 4096 || !['signup', 'email'].includes(type)) {
+        throw validation.invalid('El código de verificación no es válido.');
+    }
     let verifyOptions = {
         type
     };
@@ -272,16 +218,13 @@ const verificarCorreo = async ({
         verifyOptions.token =
             token;
 
-        verifyOptions.email =
-            email
-                ?.trim()
-                .toLowerCase();
+        verifyOptions.email = validation.email(email);
     }
 
     const {
         data,
         error
-    } = await supabase.auth.verifyOtp(
+    } = await createSessionSupabaseClient().auth.verifyOtp(
         verifyOptions
     );
 
@@ -306,15 +249,14 @@ const iniciarSesion = async ({
     email,
     password
 }) => {
-    const normalizedEmail =
-        email.trim().toLowerCase();
+    const normalizedEmail = validation.email(email);
 
     // Validate credentials against Supabase Auth
     const {
         data: authData,
         error: authError
     } =
-        await supabase.auth.signInWithPassword({
+        await createSessionSupabaseClient().auth.signInWithPassword({
             email: normalizedEmail,
             password
         });
@@ -331,20 +273,39 @@ const iniciarSesion = async ({
     }
 
     // Fetch user profile from physical database
-    const {
+    let {
         data: userData,
         error: dbError
     } =
         await supabaseAdmin
             .from('usuario')
             .select(
-                'id, nombre, apellido, correo, id_rol, id_estado'
+                'id, nombre, apellido, correo, id_rol, id_estado, estado:id_estado(nombre)'
             )
             .eq(
                 'auth_user_id',
                 authData.user.id
             )
             .single();
+
+    if ((!userData && !dbError) || dbError?.code === 'PGRST116') {
+        // A verified login can finish this identity's interrupted registration.
+        const metadata=authData.user.user_metadata || {};
+        if (typeof metadata.nombre !== 'string' || typeof metadata.apellido !== 'string') {
+            throw Object.assign(new Error('El perfil de esta cuenta requiere completar el registro.'),{status:503,code:'REGISTRATION_PROFILE_PENDING'});
+        }
+        const firstName=validation.text(metadata.nombre,'El nombre');
+        const lastName=validation.text(metadata.apellido,'El apellido');
+        const [role,state]=await Promise.all([
+            supabaseAdmin.from('rol').select('id').eq('nombre','Cliente').single(),
+            supabaseAdmin.from('estado_usuario').select('id').eq('nombre','Activo').single()
+        ]);
+        if(role.error || state.error || !role.data || !state.data) throw Object.assign(new Error('No se pudo completar el perfil.'),{status:503,code:'REGISTRATION_PROFILE_PENDING'});
+        const inserted=await supabaseAdmin.from('usuario').insert({nombre:firstName,apellido:lastName,correo:normalizedEmail,auth_user_id:authData.user.id,id_rol:role.data.id,id_estado:state.data.id,espacio_usado_by:0,fecha_registro:new Date().toISOString().slice(0,10)});
+        if(inserted.error && inserted.error.code !== '23505') throw Object.assign(new Error('No se pudo completar el perfil.'),{status:503,code:'REGISTRATION_PROFILE_PENDING'});
+        const profile=await supabaseAdmin.from('usuario').select('id,nombre,apellido,correo,id_rol,id_estado,estado:id_estado(nombre)').eq('auth_user_id',authData.user.id).single();
+        userData=profile.data;dbError=profile.error;
+    }
 
     if (dbError || !userData) {
         const err =
@@ -357,7 +318,7 @@ const iniciarSesion = async ({
         throw err;
     }
 
-    if (userData.id_estado !== 1) {
+    if (userData.estado?.nombre !== 'Activo') {
         const err =
             new Error(
                 'Cuenta inactiva'
@@ -390,20 +351,9 @@ const resetPassword = async ({
     token,
     newPassword
 }) => {
-    // Validate minimum password requirements
-    const passwordRegex =
-        /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-
-    if (!passwordRegex.test(newPassword)) {
-        const err =
-            new Error(
-                'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo'
-            );
-
-        err.status = 400;
-
-        throw err;
-    }
+    validation.password(newPassword);
+    validation.email(email);
+    if (typeof token !== 'string' || !token || token.length > 4096) throw validation.invalid('El código de recuperación no es válido.');
 
     let verifyOptions = {
         type: 'recovery'
@@ -416,17 +366,14 @@ const resetPassword = async ({
         verifyOptions.token =
             token;
 
-        verifyOptions.email =
-            email
-                ?.trim()
-                .toLowerCase();
+        verifyOptions.email = validation.email(email);
     }
 
     const {
         data: verifyData,
         error: verifyError
     } =
-        await supabase.auth.verifyOtp(
+        await createSessionSupabaseClient().auth.verifyOtp(
             verifyOptions
         );
 

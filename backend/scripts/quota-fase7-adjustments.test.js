@@ -21,12 +21,7 @@ const BYTES_PER_GB = 1024 * 1024 * 1024;
 
 // Helper para generar fechas calendario locales YYYY-MM-DD
 function toDateStr(offsetDays = 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
 const today = toDateStr(0);

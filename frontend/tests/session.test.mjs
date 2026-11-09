@@ -1,13 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 let sequence=0;
 async function setup(){
  const data=new Map([['token','old'],['refreshToken','refresh-old']]);
  globalThis.localStorage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};
  globalThis.window=new EventTarget();
- const source=(await readFile(new URL('../src/services/dashboardService.js',import.meta.url),'utf8')).replace('import { formatFileSize } from "../utils/preferences";','const formatFileSize = String;').replaceAll('import.meta.env?.VITE_API_URL','undefined');
- const module=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${sequence++}`);
+ const module=await import(new URL(`../src/services/dashboardService.js?test=${sequence++}`,import.meta.url));
  return {module,data};
 }
 test('two expired requests share one renewal and retry using the new token',async()=>{

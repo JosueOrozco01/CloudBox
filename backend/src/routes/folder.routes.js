@@ -5,6 +5,7 @@ const folderController = require('../controllers/folder.controller');
 const requireAuth = require('../middlewares/auth.middleware');
 
 router.use(requireAuth);
+router.get('/locations', folderController.getLocations);
 
 router.get('/', folderController.getUserFolders);
 router.get('/trash', folderController.getTrashFolders);
