@@ -678,7 +678,7 @@ try {
   backendDelay = 400;
   for (const route of ['/dashboard','/archivos','/compartidos','/papelera','/perfil','/plan','/pagos','/actividad','/notificaciones']) {
     await send('Page.navigate',{url:origin+route});
-    await waitFor("!!document.querySelector('.loading-arrows')",`${route} shows shared arrow loading`);
+    await waitFor("!!document.querySelector('.loading-page .loading-symbol')",`${route} shows shared CloudBox loading`);
     assert.equal(await evaluate("document.querySelectorAll('.loading-spinner,.cf-spinner,.upload-spinner').length"),0,'Old loaders removed');
     await waitFor("!document.querySelector('[aria-busy=\"true\"]')",`${route} finishes when backend settles`);
   }
