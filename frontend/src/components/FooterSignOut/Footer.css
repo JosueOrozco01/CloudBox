@@ -155,3 +155,5 @@
     gap: 18px;
   }
 }
+/* Reserva espacio para la guía dentro del footer, sin dejar una franja fuera de la página. */
+@media (max-width: 600px) { .footer { padding-bottom: 72px; } }

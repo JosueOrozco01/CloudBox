@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { buildFolderLocations } = require('./folder-locations');
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -6,6 +7,20 @@ const supabaseAdmin = createClient(
 );
 
 const FolderService = {
+  async getFolderLocations(userId) {
+    const folders = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabaseAdmin.from('carpeta')
+        .select('id,nombre,id_padre')
+        .eq('id_usuario', userId).eq('id_estado', 1)
+        .order('id', { ascending: true }).range(offset, offset + pageSize - 1);
+      if (error) throw new Error(`Error al obtener ubicaciones: ${error.message}`);
+      folders.push(...data);
+      if (data.length < pageSize) break;
+    }
+    return buildFolderLocations(folders);
+  },
   async getTrashFolders(userId) {
     const { data, error } = await supabaseAdmin.from('carpeta').select('*')
       .eq('id_usuario', userId).eq('id_estado', 2).order('fecha_modificacion', { ascending: false });

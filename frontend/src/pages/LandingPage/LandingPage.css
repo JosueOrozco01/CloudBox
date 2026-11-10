@@ -180,8 +180,17 @@
 }
 .feat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
+}
+.feat-card { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .feat-grid { grid-template-columns: minmax(0, 1fr); }
+  .landing-introduction { padding: 56px 20px; min-height: 420px; }
+  .landing-introduction h1 { font-size: clamp(28px, 8vw, 42px); }
+  .landing-introduction-actions { flex-wrap: wrap; }
+  .features { padding: 44px 20px; }
+  .cta-banner { margin: 0 16px 40px; padding: 30px 20px; }
 }
 .feat-card {
   background: var(--surfaceColor);

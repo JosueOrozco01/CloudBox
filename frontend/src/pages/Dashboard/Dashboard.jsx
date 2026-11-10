@@ -1,3 +1,4 @@
+import { invalidateReadCache } from "../../services/readCache";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -436,6 +437,7 @@ export default function Dashboard({ user, initialData = null }) {
   };
 
   const refresh = () => {
+    invalidateReadCache();
     setLoading(true);
     setRevision((value) => value + 1);
   };

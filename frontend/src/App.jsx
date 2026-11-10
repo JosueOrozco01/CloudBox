@@ -1,11 +1,8 @@
-import VerifyEmail from "./pages/Register/VerifyEmail";
-import TicketCenter from "./pages/Support/TicketCenter";
-import Product from "./pages/Product/Product";
+import { pageLoaders, installRoutePreload } from "./routes/pageLoaders";
 import { getPreferences } from "./services/settingsService";
 import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
-import SharedPage from "./pages/Compratidoconmigo/ConnectedCompartidos";
-import UserManagement from "./pages/UserManagement/ConnectedUserManagement";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import PageGuide from "./components/PageGuide/PageGuide";
 import {
   BrowserRouter,
   Routes,
@@ -13,48 +10,51 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import LoginPage from "./pages/Login/LoginPage";
-import RegisterPage from "./pages/Register/Register";
-import ForgotPassword from "./pages/RecoverPassword/Recover";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Papelera from "./pages/Papelera/Papelera";
-import FilesPage from "./pages/Misarchivos/Misarchivos";
-import AdminDashboard from "./pages/AdminDashboard/ConnectedAdminDashboard";
 import OfflineBanner from "./components/OfflineBanner/Offline";
-import LandingPage from "./pages/LandingPage/LandingPage";
-import UserProfile from "./pages/Profile/Profile";
-import Terms from "./pages/Terms/Terms";
-import Privacy from "./pages/Privacy/Privacy";
-import Cookies from "./pages/Cookies/Cookies";
 import AppTopbar from "./components/Apptopbar/Apptopbar";
 import Loading from "./components/Loading/Loading";
-import { getMyProfile } from "./services/profileService";
-import { getDashboard } from "./services/dashboardService";
-import Plans from './pages/Plans/Plans';
-import Payments from './pages/Payments/Payments';
-import Activity from './pages/Activity/Activity';
-import Notifications from './pages/Notifications/Notifications';
-import AdminNotificationInbox from './pages/Notifications/AdminNotificationInbox';
-import Support from './pages/Support/Support';
-import AdminPlans from './pages/AdminPlans/AdminPlans';
-import AdminSubscriptions from './pages/AdminSubscriptions/AdminSubscriptions';
-import AdminStorage from './pages/AdminStorage/AdminStorage';
-import AdminReports from './pages/AdminReports/AdminReports';
+import { getMyProfile, getCachedProfile } from "./services/profileService";
+
+const VerifyEmail = lazy(pageLoaders.VerifyEmail);
+const TicketCenter = lazy(pageLoaders.TicketCenter);
+const Product = lazy(pageLoaders.Product);
+const SharedPage = lazy(pageLoaders.SharedPage);
+const UserManagement = lazy(pageLoaders.UserManagement);
+const LoginPage = lazy(pageLoaders.LoginPage);
+const RegisterPage = lazy(pageLoaders.RegisterPage);
+const ForgotPassword = lazy(pageLoaders.ForgotPassword);
+const Dashboard = lazy(pageLoaders.Dashboard);
+const Papelera = lazy(pageLoaders.Papelera);
+const FilesPage = lazy(pageLoaders.FilesPage);
+const AdminDashboard = lazy(pageLoaders.AdminDashboard);
+const LandingPage = lazy(pageLoaders.LandingPage);
+const UserProfile = lazy(pageLoaders.UserProfile);
+const Terms = lazy(pageLoaders.Terms);
+const Privacy = lazy(pageLoaders.Privacy);
+const Cookies = lazy(pageLoaders.Cookies);
+const Plans = lazy(pageLoaders.Plans);
+const Payments = lazy(pageLoaders.Payments);
+const Activity = lazy(pageLoaders.Activity);
+const Notifications = lazy(pageLoaders.Notifications);
+const AdminNotificationInbox = lazy(pageLoaders.AdminNotificationInbox);
+const Support = lazy(pageLoaders.Support);
+const AdminPlans = lazy(pageLoaders.AdminPlans);
+const AdminSubscriptions = lazy(pageLoaders.AdminSubscriptions);
+const AdminStorage = lazy(pageLoaders.AdminStorage);
+const AdminReports = lazy(pageLoaders.AdminReports);
 
 function AuthenticatedPage({
   children,
   requiredPermission = null,
   clientOnly = false,
-  preloadDashboard = false,
 }) {
   const location = useLocation();
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getCachedProfile);
   const [profileRevision,setProfileRevision]=useState(0);
   useEffect(()=>{const sync=()=>setProfileRevision(value=>value+1);window.addEventListener("profile-changed",sync);return()=>window.removeEventListener("profile-changed",sync);},[]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !getCachedProfile());
   const [profileError, setProfileError] = useState(null);
-  const [dashboardData, setDashboardData] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -64,26 +64,20 @@ function AuthenticatedPage({
     window.addEventListener('cloudbox:token-refreshed', refreshed);
     const currentSession = () => active && expectedToken === localStorage.getItem('token');
     const loadUser = async () => {
-      setIsLoading(true);
+      setIsLoading(!getCachedProfile());
       setProfileError(null);
 
       try {
-        const profile = await getMyProfile();
+        const preferenceRequest = getPreferences().catch(() => null);
+        const profile = await getMyProfile({ force: profileRevision > 0 });
         if (!currentSession()) return;
         localStorage.setItem('user', JSON.stringify(profile));
         beginAccountAppearance(profile.id, expectedToken);
-        const preferences = await getPreferences().catch(() => null);
-        if (!currentSession()) return;
-        if (preferences) applyPreferences(profile.id, preferences, expectedToken);
-        const summary =
-          preloadDashboard && !profile.permissions?.includes("admin_panel")
-            ? await getDashboard().catch(() => null)
-            : null;
-
-        if (currentSession()) {
-          setUser(profile);
-          setDashboardData(summary);
-        }
+        setUser(profile);
+        // Preferences do not delay the page's own data requests.
+        preferenceRequest.then(preferences => {
+          if (currentSession() && preferences) applyPreferences(profile.id, preferences, expectedToken);
+        });
       } catch (error) {
         console.error("Error al obtener usuario:", error);
 
@@ -104,10 +98,10 @@ function AuthenticatedPage({
       active = false;
       window.removeEventListener('cloudbox:token-refreshed', refreshed);
     };
-  }, [preloadDashboard, profileRevision]);
+  }, [profileRevision]);
 
   if (isLoading) {
-    return <Loading text="Cargando..." />;
+    return <Loading />;
   }
 
   if (!user) {
@@ -145,9 +139,9 @@ function AuthenticatedPage({
   return (
     <>
       <AppTopbar user={user} />
-      {typeof children === "function"
-        ? children(user, dashboardData)
-        : children}
+      <div className="authenticated-content">{typeof children === "function"
+        ? children(user)
+        : children}</div>
     </>
   );
 }
@@ -162,6 +156,7 @@ function RecoveryPage() {
 }
 
 function App() {
+  useEffect(installRoutePreload, []);
   const [sessionVersion, setSessionVersion] = useState(0);
   useEffect(() => {
     let token = localStorage.getItem('token');
@@ -189,6 +184,8 @@ function App() {
   return (
     <BrowserRouter>
       <OfflineBanner />
+      <PageGuide />
+      <Suspense fallback={<Loading />}>
       <Routes key={sessionVersion}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -216,9 +213,9 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <AuthenticatedPage key="dashboard" clientOnly preloadDashboard>
-              {(user, initialData) => (
-                <Dashboard user={user} initialData={initialData} />
+            <AuthenticatedPage key="dashboard" clientOnly>
+              {(user) => (
+                <Dashboard user={user} />
               )}
             </AuthenticatedPage>
           }
@@ -271,6 +268,7 @@ function App() {
         <Route path="/privacidad" element={<InformationalPage component={Privacy} />} />
         <Route path="/cookies" element={<InformationalPage component={Cookies} />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,0 +1,15 @@
+.file-preview .module-dialog { max-width: 1100px; width: 100%; }
+.file-preview .cf-header-text { min-width: 0; overflow-wrap: anywhere; }
+.file-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.file-preview-content { min-width: 0; overflow: auto; max-height: 70dvh; }
+.file-preview-content > img { display: block; max-width: 100%; max-height: 65dvh; object-fit: contain; margin: auto; }
+.file-preview-content :is(video, audio) { display: block; width: 100%; max-height: 65dvh; }
+.file-preview-content object { display: block; width: 100%; height: 65dvh; border: 0; }
+.file-preview-content pre { padding: 20px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--backgroundColor); color: var(--textPrimary); font: 13px/1.7 monospace; }
+.file-preview-message { display: grid; gap: 12px; padding: 24px; color: var(--textPrimary); line-height: 1.7; }
+.file-preview-sheet { max-width: 100%; overflow: auto; }
+.file-preview-sheet table { border-collapse: collapse; font-size: 13px; }
+.file-preview-sheet :is(td, th) { border: 1px solid var(--borderColor); padding: 8px 12px; white-space: pre-wrap; min-width: 75px; max-width: 350px; overflow-wrap: anywhere; color: var(--textPrimary); }
+.file-preview-document .docx-wrapper { padding: 12px 0; }
+.file-preview-document .docx { max-width: 100%; }
+@media (max-width: 600px) { .file-preview .cf-header, .file-preview .cf-body { padding-left: 14px; padding-right: 14px; } .file-preview .cf-backdrop { padding: 8px; } .file-preview-content pre { padding: 12px; } }

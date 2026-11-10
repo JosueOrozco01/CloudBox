@@ -904,7 +904,7 @@ const ShareService = {
 
     const { data, error } = await supabaseAdmin
       .from('archivo')
-      .select('nombre, ruta_storage')
+      .select('nombre, ruta_storage, fecha_modificacion, fecha_subida, tamano_bytes')
       .eq('id', parsedFileId)
       .eq('id_estado', FILE_STATUS.ACTIVE)
       .maybeSingle();
@@ -927,6 +927,8 @@ const ShareService = {
     return {
       url,
       name: data.nombre,
+      modifiedAt: data.fecha_modificacion || data.fecha_subida,
+      size: data.tamano_bytes,
       expiresIn: 60
     };
   },

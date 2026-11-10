@@ -8,6 +8,7 @@ router.use(requireAuth);
 
 router.get('/', folderController.getUserFolders);
 router.get('/trash', folderController.getTrashFolders);
+router.get('/locations', folderController.getFolderLocations);
 router.post('/', activity({ action: 'CREAR_CARPETA', entity: 'carpeta', description: 'Carpeta creada correctamente.' }), folderController.createFolder);
 router.get('/:id', folderController.getFolderById);
 router.put('/:id', folderController.updateFolderName);

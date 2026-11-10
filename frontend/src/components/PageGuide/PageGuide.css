@@ -1,0 +1,42 @@
+.page-guide-button { position: fixed; right: 22px; bottom: 22px; z-index: 80; display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 11px 17px; border: 1px solid #bdd2f0; border-radius: 30px; background: var(--surfaceColor, #fff); color: #245da9; font: 600 12px "Manrope", system-ui, sans-serif; cursor: pointer; box-shadow: 0 5px 20px #15274016; transition: transform .18s, box-shadow .18s; }
+.page-guide-button:hover { transform: translateY(-2px); box-shadow: 0 7px 24px #1565c025; }
+.page-guide-button:focus-visible { outline: 3px solid #2563eb; outline-offset: 4px; }
+.tour-overlay { --tour-surface: #fff; --tour-text: #142a45; --tour-muted: #65788f; --tour-border: #e6edf7; position: fixed; inset: 0; z-index: 12000; font-family: "Manrope", system-ui, sans-serif; isolation: isolate; }
+.tour-shield { position: absolute; inset: 0; z-index: 0; }
+.tour-veil { position: absolute; z-index: 1; background: #06172f80; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.tour-spotlight { position: absolute; z-index: 2; border: 2px solid #fff; border-radius: 13px; pointer-events: none; box-shadow: 0 0 0 5px #a8cfff50, 0 0 30px #65a3ff30; }
+.tour-spotlight > span { position: absolute; top: -6px; right: -6px; width: 11px; height: 11px; border: 2px solid white; border-radius: 50%; background: #70a6fa; box-shadow: 0 0 0 4px #639cff30; }
+.tour-card { position: fixed; z-index: 4; top: 50%; left: max(16px, calc(50% - 190px)); width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid #ffffffb3; border-radius: 23px; padding: 23px 24px 18px; background: var(--tour-surface); color: var(--tour-text); box-shadow: 0 25px 90px #00112740, 0 4px 18px #00112716; outline: none; animation: tour-card-enter .2s ease-out; }
+.tour-card::before { content: ""; position: absolute; top: 0; left: 28px; right: 28px; height: 3px; background: linear-gradient(90deg, #cfe2ff, #528df0, #c5dafa); border-radius: 0 0 8px 8px; }
+.tour-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 21px; }
+.tour-badge { display: inline-flex; align-items: center; gap: 7px; color: #3474cd; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; }
+.tour-badge svg { padding: 6px; width: 30px; height: 30px; border-radius: 10px; background: #ebf3ff; }
+.tour-close { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border: 0; background: transparent; border-radius: 9px; color: var(--tour-muted); cursor: pointer; }
+.tour-close:hover { background: #7f9ab515; color: var(--tour-text); }
+.tour-step-meta { display: flex; justify-content: space-between; gap: 14px; font-size: 10px; font-weight: 600; color: var(--tour-muted); margin-bottom: 10px; }
+.tour-step-meta > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.tour-step-meta > span:last-child { white-space: nowrap; color: #3474cd; }
+.tour-copy h2 { font-family: "Outfit", system-ui, sans-serif; font-size: 23px; font-weight: 600; line-height: 1.25; letter-spacing: -.45px; color: var(--tour-text); margin: 0 0 12px; }
+.tour-copy p { font-size: 12px; line-height: 1.85; color: var(--tour-muted); margin: 0; overflow-wrap: anywhere; }
+.tour-progress { height: 3px; background: var(--tour-border); border-radius: 8px; margin: 23px 0 20px; overflow: hidden; }
+.tour-progress > span { display: block; height: 100%; background: linear-gradient(90deg, #76a8fa, #3475df); border-radius: inherit; transition: width .22s ease; }
+.tour-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.tour-controls { display: flex; align-items: center; gap: 8px; }
+.tour-footer button { font: 600 11px "Manrope", system-ui, sans-serif; cursor: pointer; border-radius: 10px; min-height: 40px; }
+.tour-skip { border: 0; background: transparent; color: var(--tour-muted); padding: 8px 0; }
+.tour-skip:hover { color: var(--tour-text); }
+.tour-back { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--tour-border); background: transparent; color: var(--tour-text); padding: 9px 11px; }
+.tour-back:disabled { opacity: .35; cursor: default; }
+.tour-next { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid #3374da; background: linear-gradient(130deg, #367ce5, #2162c6); color: white; padding: 9px 14px; box-shadow: 0 3px 9px #2563eb25; }
+.tour-next:hover { background: #185bc0; }
+.tour-keyboard-hint { display: block; text-align: center; color: var(--tour-muted); opacity: .8; font-size: 8px; line-height: 1.7; margin-top: 17px; }
+.tour-card button:focus-visible { outline: 3px solid #80adf3; outline-offset: 3px; }
+.tour-arrow { position: fixed; z-index: 3; width: 13px; height: 13px; background: var(--tour-surface); transform: rotate(45deg); pointer-events: none; }
+html[data-theme="dark"] .tour-overlay { --tour-surface: #17263b; --tour-text: #eaf2ff; --tour-muted: #a5b7cd; --tour-border: #2a3e58; }
+html[data-theme="dark"] .tour-card { border-color: #436082; }
+html[data-theme="dark"] .tour-badge, html[data-theme="dark"] .tour-step-meta > span:last-child { color: #8ebcff; }
+html[data-theme="dark"] .tour-badge svg { background: #223b5d; }
+html[data-theme="dark"] .page-guide-button { border-color: #3e5f88; color: #b5d1fb; }
+@keyframes tour-card-enter { from { opacity: 0; translate: 0 7px; } to { opacity: 1; translate: 0 0; } }
+@media (max-width: 480px) { .page-guide-button { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 10px 13px; } .tour-card { padding: 20px 18px 16px; border-radius: 20px; } .tour-card-top { margin-bottom: 17px; } .tour-copy h2 { font-size: 21px; } .tour-back span { display: none; } .tour-footer button { min-height: 44px; } .tour-close { width: 36px; height: 36px; } .tour-keyboard-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .tour-card, .tour-progress > span, .page-guide-button { animation: none; transition: none; } }

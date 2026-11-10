@@ -1,3 +1,7 @@
+import { invalidateReadCache } from "../../services/readCache";
+import { lazy, Suspense } from "react";
+import { downloadFile } from "../../utils/filePreview";
+import { prepareFilePreview } from '../../utils/previewLoaders';
 import Loading from "../../components/Loading/Loading";
 import RecipientPicker from "./RecipientPicker";
 import { getFileFavorites, setItemFavorite, favoriteKey } from "../../services/favoriteService";
@@ -10,8 +14,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Compartidos from "./Compartidoconmigo";
 import { request, getFolderLocations, getUserFiles } from "../../services/dashboardService";
 
+const FilePreview = lazy(() => import("../../components/FilePreview/FilePreview"));
+
 export default function ConnectedCompartidos() {
   const navigate = useNavigate();
+  const [preview, setPreview] = useState(null);
   const [params, setParams] = useSearchParams();
   const folder = params.get("folder");
   const [favoriteKeys, setFavoriteKeys] = useState([]);
@@ -50,6 +57,13 @@ export default function ConnectedCompartidos() {
     async function load() {
       setLoading(true); setError(""); setDetail(null);
       try {
+        const favoriteRequest = Promise.allSettled([getFileFavorites()]);
+        favoriteRequest.then(favorites => {
+          if (!active) return;
+          setFavoriteKeys(favorites[0].status === "fulfilled" ? favorites[0].value.map(f => `file-${f.id_archivo}`) : []);
+          setFavoriteAvailability({ files: favorites[0].status === "fulfilled", folders: false });
+          setFavoriteWarning(favorites.filter(result => result.status === "rejected").map(result => result.reason.message).join(" "));
+        });
         let rows;
         if (folder) {
           const content = await request(`/shares/folders/${folder}/content`);
@@ -59,13 +73,7 @@ export default function ConnectedCompartidos() {
           const shares = sent ? await request("/shares/sent") : (await Promise.all([request("/shares/received/files"), request("/shares/received/folders")])).flat();
           rows = shares.filter(s => (s.archivo || s.carpeta)?.id_estado === 1 && (!s.fecha_expiracion || new Date(s.fecha_expiracion) > new Date())).map(s => map(s.archivo || s.carpeta, s, !!s.carpeta));
         }
-        const favorites = await Promise.allSettled([getFileFavorites()]);
-        if (active) {
-          setItems(rows);
-          setFavoriteKeys(favorites[0].status === "fulfilled" ? favorites[0].value.map(f => `file-${f.id_archivo}`) : []);
-          setFavoriteAvailability({ files: favorites[0].status === "fulfilled", folders: false });
-          setFavoriteWarning(favorites.filter(result => result.status === "rejected").map(result => result.reason.message).join(" "));
-        }
+        if (active) setItems(rows);
       } catch (e) {
         if (active) { setItems([]); setError(e.message); if (e.status === 401) navigate("/login", { replace: true }); }
       } finally { if (active) setLoading(false); }
@@ -110,15 +118,10 @@ export default function ConnectedCompartidos() {
   async function open(item, download = false) {
     setError("");
     if (item.type === "carpeta") { setParams({ folder: String(item.rawId) }); return; }
+    const getUrl = () => request(`/shares/files/${item.rawId}/download-url`);
+    if (!download) { setPreview(prepareFilePreview(item, getUrl)); return; }
     try {
-      const result = await request(`/shares/files/${item.rawId}/download-url`);
-      if (download) {
-        const response = await fetch(result.url);
-        if (!response.ok) throw new Error("No se pudo descargar el archivo");
-        const url = URL.createObjectURL(await response.blob());
-        const link = document.createElement("a"); link.href = url; link.download = result.name; link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else window.location.assign(result.url);
+      await downloadFile(getUrl, item.name);
     } catch (e) { setError(e.message); }
   }
   async function info(item) {
@@ -134,20 +137,21 @@ export default function ConnectedCompartidos() {
   const formatDate = value => value ? new Date(value).toLocaleString("es-GT") : "Sin vencimiento";
   const detailName = detail?.archivo?.nombre || detail?.carpeta?.nombre || detail?.recurso;
   return <>
+    {preview && <Suspense fallback={<Loading fullScreen={false} text="Cargando vista previa" />}><FilePreview item={preview.item} getUrl={preview.getUrl} source={preview.source} onClose={() => setPreview(null)} /></Suspense>}
     <div className="sc-page sc-navigation">
       <div className="sc-scope-tabs" aria-label="Vista de compartidos">
         <button className={!sent ? "active" : ""} aria-pressed={!sent} onClick={() => { setParams({}); setSent(false); }}><Users size={17} />Compartidos conmigo</button>
         <button className={sent ? "active" : ""} aria-pressed={sent} onClick={() => { setParams({}); setSent(true); }}><Send size={17} />Compartidos por mí</button>
       </div>
       <div className="sc-navigation-actions">
-        <button className="sc-secondary" disabled={loading} onClick={() => setRevision(r => r + 1)}><RefreshCw size={16} className={loading ? "sc-spinning" : ""} />Actualizar</button>
+        <button className="sc-secondary" disabled={loading} onClick={() => { invalidateReadCache(); setRevision(r => r + 1); }}><RefreshCw size={16} className={loading ? "sc-spinning" : ""} />Actualizar</button>
         <button className="sc-primary" disabled={busy} onClick={showShare}><Share2 size={17} />Compartir</button>
       </div>
       {favoriteWarning && <p className="sc-favorite-warning" role="alert">{favoriteWarning}</p>}
       {folder && <div className="sc-folder-trail"><button onClick={() => setParams({})}><ArrowLeft size={16} />Volver a compartidos</button><span><FolderOpen size={16} />Contenido de carpeta compartida</span></div>}
-      {error && !sharing && !detail && <div className="sc-feedback sc-feedback-error" role="alert"><Info size={18} /><span>{error}</span><button onClick={() => setRevision(r => r + 1)}>Reintentar</button></div>}
+      {error && !sharing && !detail && <div className="sc-feedback sc-feedback-error" role="alert"><Info size={18} /><span>{error}</span><button onClick={() => { invalidateReadCache(); setRevision(r => r + 1); }}>Reintentar</button></div>}
     </div>
-    {loading ? <Loading inline text="Cargando tus compartidos" description="Estamos preparando tus archivos y carpetas." /> : <Compartidos key={`${folder}-${sent}-${revision}`} favoriteKeys={favoriteKeys} favoritePending={favoritePending} favoriteAvailability={favoriteAvailability} onToggleFavorite={toggleFavorite} sent={sent} insideFolder={Boolean(folder)} items={items} totalCount={items.length} folderCount={items.filter(i => i.type === "carpeta").length} fileCount={items.filter(i => i.type !== "carpeta").length} sharedByCount={new Set(items.map(i => i.owner)).size} onOpenItem={open} onDownloadItem={item => open(item, true)} onItemInfo={info} />}
+    {loading ? <Loading /> : <Compartidos key={`${folder}-${sent}-${revision}`} favoriteKeys={favoriteKeys} favoritePending={favoritePending} favoriteAvailability={favoriteAvailability} onToggleFavorite={toggleFavorite} sent={sent} insideFolder={Boolean(folder)} items={items} totalCount={items.length} folderCount={items.filter(i => i.type === "carpeta").length} fileCount={items.filter(i => i.type !== "carpeta").length} sharedByCount={new Set(items.map(i => i.owner)).size} onOpenItem={open} onDownloadItem={item => open(item, true)} onItemInfo={info} />}
     {sharing && <SharedDialog title="Compartir recurso" subtitle="Colabora con otras personas de CloudBox" icon={Share2} busy={busy} onClose={() => setSharing(false)} onSubmit={createShare} footer={<><button className="cf-cancel-btn" type="button" disabled={busy} onClick={() => setSharing(false)}>Cancelar</button><button className="cf-create-btn" disabled={busy || !resource} type="submit"><Share2 size={16} />{busy ? "Compartiendo…" : "Compartir recurso"}</button></>}>
       {error && <div className="cf-error" role="alert">{error}</div>}
       <div className="sc-dialog-note"><ShieldCheck size={19} /><p>Tú decides quién tiene acceso. Puedes cambiar el permiso o revocarlo cuando lo necesites.</p></div>

@@ -1,4 +1,5 @@
 import { formatFileSize } from "../utils/preferences";
+import { cachedRead } from './readCache';
 export function normalizeApiUrl(url) {
   const base = (url || "http://localhost:3000").replace(/\/+$/, "");
   return base.endsWith("/api") ? base : `${base}/api`;
@@ -27,7 +28,19 @@ export async function refreshAccessToken(expectedToken = localStorage.getItem('t
   }
   return refreshPromise;
 }
-export async function authenticatedFetch(url, options = {}) {
+export function authenticatedFetch(url, options = {}) {
+  const headers = new Headers(options.headers);
+  const authorization = headers.get('Authorization');
+  const token = localStorage.getItem('token');
+  if (authorization && authorization !== `Bearer ${token}`) {
+    if (!token || lastRefresh?.next !== token || authorization !== `Bearer ${lastRefresh.previous}`) {
+      return Promise.reject(new Error('La sesión cambió. Actualiza la página.'));
+    }
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return cachedRead(url, { ...options, headers }, performAuthenticatedFetch);
+}
+async function performAuthenticatedFetch(url, options = {}) {
   const headers = new Headers(options.headers);
   const token = localStorage.getItem('token');
   if (headers.has('Authorization') && token && headers.get('Authorization') !== `Bearer ${token}`) {
@@ -161,22 +174,7 @@ export const moveItem = (item, destination) =>
     : jsonMutation(`/files/${item.rawId}/move`, "PATCH", {
         folderId: destination,
       });
-export async function getFolderLocations() {
-  const locations = [];
-  const visited = new Set();
-  async function visit(parent = null, prefix = "") {
-    const folders = await getUserFolders(parent);
-    for (const folder of folders) {
-      if (visited.has(folder.id)) continue;
-      visited.add(folder.id);
-      const name = prefix + folder.nombre;
-      locations.push({ id: folder.id, name });
-      await visit(folder.id, `${name} / `);
-    }
-  }
-  await visit();
-  return locations;
-}
+export const getFolderLocations = () => request("/folders/locations");
 
 export function toDashboardProps(data) {
   const metrics = data.storage;

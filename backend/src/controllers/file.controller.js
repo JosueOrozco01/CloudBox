@@ -185,6 +185,8 @@ const fileController = {
                 data: {
                     fileId: file.id,
                     name: file.nombre,
+                    modifiedAt: file.fecha_modificacion || file.fecha_subida,
+                    size: file.tamano_bytes,
                     url: signedUrl,
                     expiresIn: 60
                 }

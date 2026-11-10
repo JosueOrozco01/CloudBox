@@ -40,7 +40,7 @@
 }
 
 .app-brand img {
-  height: clamp(56px, 8vw, 88px);
+  height: 56px;
   width: auto;
   display: block;
 }
@@ -546,3 +546,5 @@
   outline: 2px solid #1565c0;
   outline-offset: 3px;
 }
+
+@media (max-width: 480px) { .app-topbar-admin .app-admin-search { flex-basis: 100%; max-width: none; order: 5; } .app-topbar-admin { flex-wrap: wrap; height: auto; min-height: 64px; padding-block: 8px; } .app-topbar-admin .app-mobile-menu { max-height: calc(100dvh - 110px); } .app-topbar-left { min-width: 0; } .app-brand img { max-width: 110px; object-fit: contain; } }

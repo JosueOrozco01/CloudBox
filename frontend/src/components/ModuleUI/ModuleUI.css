@@ -101,7 +101,7 @@
 }
 .module-stats {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(185px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(min(185px,100%),1fr));
   gap:18px;
   margin-bottom:26px
 }
@@ -213,7 +213,7 @@
   font-size:13px;
   color:var(--textPrimary);
   flex:1;
-  min-width:145px
+  min-width:min(145px,100%)
 }
 .module-field :is(input,select,textarea) {
   border:1px solid var(--borderColor);
@@ -231,7 +231,7 @@
 }
 .module-grid {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(255px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(min(255px,100%),1fr));
   gap:22px;
   margin-bottom:26px
 }
@@ -440,3 +440,8 @@ html[data-theme="dark"] .module-badge.warning { background: #3a301d; color: #f7c
 html[data-theme="dark"] .module-badge.danger { background: #3b242e; color: #ffb4b9; }
 
 .module-dialog:focus { outline: none; }
+
+.module-heading > div, .module-panel, .module-table-scroll { min-width: 0; max-width: 100%; }
+.module-heading h1, .cf-header-text h2 { overflow-wrap: anywhere; }
+.cf-header-text { min-width: 0; }
+@media (max-width: 600px) { .module-actions, .module-pager { flex-wrap: wrap; } .module-actions > button { min-height: 44px; } .module-panel-heading { flex-wrap: wrap; gap: 12px; } }

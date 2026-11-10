@@ -13,4 +13,10 @@ body,
 body {
   font-family: Arial, sans-serif;
 }
+.authenticated-content { display: flex; flex-direction: column; min-height: calc(100dvh - 64px); }
+.authenticated-content > .footer { margin-top: auto; flex-shrink: 0; }
+img, video, canvas { max-width: 100%; }
+input, select, textarea { min-width: 0; max-width: 100%; }
+main, section, article, aside, form { min-width: 0; }
+button, a, input, select, textarea { touch-action: manipulation; }
 :root { --textPrimary: #0b1a2e; --textSecondary: #64748b; --backgroundColor: #f4f5f9; --surfaceColor: #fff; --borderColor: #e2e8f0; }

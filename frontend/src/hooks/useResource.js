@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { invalidateReadCache } from '../services/readCache';
 export function useResource(loader, dependencies = []) {
   const [state, setState] = useState({
     data: null,
@@ -32,6 +33,6 @@ export function useResource(loader, dependencies = []) {
     data: state.key === key ? state.data : null,
     error: state.key === key ? state.error : '',
     loading: state.key !== key,
-    refresh: () => setRevision(r => r + 1)
+    refresh: () => { invalidateReadCache(); setRevision(r => r + 1); }
   };
 }

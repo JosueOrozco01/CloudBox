@@ -96,3 +96,5 @@ html[data-theme="dark"] .support-topic-icon.rose { background: #3b242e; color: #
 @media (prefers-reduced-motion: reduce) { .support-page * { transition: none; } }
 
 .module-page .support-search input:focus-visible { outline: none; box-shadow: none; }
+
+@media (max-width: 480px) { .support-sidebar { display: grid; grid-template-columns: minmax(0, 1fr); } }

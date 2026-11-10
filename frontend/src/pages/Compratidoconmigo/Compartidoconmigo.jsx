@@ -2,6 +2,7 @@ import { ArrowRight, FileText, FolderOpen, Inbox, Search, Share2, ShieldCheck, S
 import { favoriteKey } from "../../services/favoriteService";
 import ViewToggle from "../../components/ViewToggle/ViewToggle";
 import { useState } from "react";
+import { preloadFilePreview } from '../../utils/previewLoaders';
 import "./Compartidoconmigo.css";
 import "./SharedRefresh.css";
 
@@ -156,7 +157,7 @@ export default function CompartidosConmigo({
           <tbody>
             {!filteredItems.length && <tr className="sc-empty-row"><td colSpan={6}><div className="sc-share-empty"><span><Share2 size={33} strokeWidth={1.5} /></span><h3>{query || Object.values(filters).some(Boolean) || tab !== 'todos' ? 'Probemos con otra búsqueda' : sent ? 'Comparte tu primera idea' : 'Aquí hay espacio para colaborar'}</h3><p>No hay elementos compartidos que coincidan.{query || Object.values(filters).some(Boolean) || tab !== 'todos' ? ' Prueba con otro nombre o ajusta los filtros.' : sent ? ' Usa Compartir para dar acceso a tus archivos o carpetas.' : ' Los archivos y carpetas que te compartan aparecerán aquí.'}</p>{(query || Object.values(filters).some(Boolean) || tab !== 'todos') && <button type="button" className="sc-open-btn" onClick={() => { setQuery(''); setFilters({}); setTab('todos'); setPage(1); }}>Ver todos los recursos</button>}</div></td></tr>}
             {filteredItems.map((item) => (
-              <tr key={item.id}>
+              <tr key={item.id} onPointerEnter={() => { if (item.type !== 'carpeta') preloadFilePreview(item.name); }} onFocus={() => { if (item.type !== 'carpeta') preloadFilePreview(item.name); }}>
                 <td>
                   <div className="sc-name-cell">
                     <TypeIcon type={item.type} />

@@ -4,6 +4,11 @@ const ActivityService = require('../services/activity.service');
 const ShareService = require('../services/share.service');
 
 const folderController = {
+  async getFolderLocations(req, res, next) {
+    try {
+      res.json({ success: true, data: await FolderService.getFolderLocations(parseInt(req.user.id, 10)) });
+    } catch (error) { next(error); }
+  },
   async getTrashFolders(req, res, next) {
     try { res.json({ success: true, data: await FolderService.getTrashFolders(req.user.id) }); }
     catch (error) { next(error); }

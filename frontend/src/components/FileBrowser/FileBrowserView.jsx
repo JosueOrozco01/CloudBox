@@ -1,5 +1,6 @@
 import ViewToggle from "../ViewToggle/ViewToggle";
 import { useState } from "react";
+import { preloadFilePreview } from '../../utils/previewLoaders';
 import {
   ArrowRight,
   ChevronRight,
@@ -202,6 +203,8 @@ export default function MisArchivos({
             {visible.map((item) => (
               <tr
                 key={item.id}
+                onPointerEnter={() => { if (!trash && item.type !== 'carpeta') preloadFilePreview(item.name); }}
+                onFocus={() => { if (!trash && item.type !== 'carpeta') preloadFilePreview(item.name); }}
                 className={
                   dragged === item.id
                     ? "mf-row-dragging"

@@ -1,11 +1,22 @@
-.loading-page,.loading-overlay,.loading-inline { display:flex; align-items:center; justify-content:center; font-family:"Manrope",sans-serif; color:var(--textPrimary,#0b1a2e); }
-.loading-page { position:fixed; inset:0; z-index:9999; background:var(--backgroundColor,#f3f4f9); min-height:100dvh; }
-.loading-overlay { position:fixed; inset:0; z-index:9999; background:#14274044; backdrop-filter:blur(5px); }
-.loading-inline { width:100%; min-height:160px; padding:32px 20px; }
-.loading-content { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
-.loading-overlay .loading-content { padding:32px; border-radius:16px; background:var(--surfaceColor,#fff); border:1px solid var(--borderColor,#e0e7f0); }
-.loading-arrows { color:var(--primaryColor,#1565c0); animation:cloudbox-loading-turn 1s linear infinite; flex-shrink:0; }
-.loading-text { font-family:"Outfit",sans-serif; font-size:.95rem; font-weight:600; }
-.loading-description { font-size:.75rem; line-height:1.7; color:var(--textSecondary,#718096); }
-@keyframes cloudbox-loading-turn { to { transform:rotate(360deg); } }
-@media(prefers-reduced-motion:reduce) { .loading-arrows { animation:none; } }
+.loading-page, .loading-overlay, .loading-inline { display: flex; align-items: center; justify-content: center; font-family: "Manrope", system-ui, sans-serif; color: var(--textPrimary, #0b1a2e); }
+.loading-page { position: fixed; inset: 0; z-index: 9999; background: var(--backgroundColor, #f4f5f9); min-height: 100dvh; padding: 24px; }
+.loading-overlay { position: fixed; inset: 0; z-index: 9999; background: #091d3c66; backdrop-filter: blur(6px); padding: 24px; }
+.loading-inline { width: 100%; min-height: 180px; padding: 28px 20px; }
+.loading-content { display: flex; flex-direction: column; align-items: center; gap: 25px; text-align: center; width: min(100%, 340px); }
+.loading-overlay .loading-content { width: min(100%, 380px); padding: 34px 24px; border-radius: 24px; background: var(--surfaceColor, #fff); border: 1px solid var(--borderColor, #e0e7f0); box-shadow: 0 24px 70px #06162e26; }
+.loading-symbol { position: relative; display: grid; place-items: center; width: 78px; height: 78px; color: #2870e8; background: linear-gradient(145deg, #e8f2ff, #dceafe); border-radius: 25px; box-shadow: inset 0 0 0 1px #3b82f61a, 0 12px 30px #1565c012; }
+.loading-orbit { position: absolute; inset: -8px; border: 1px solid #3b82f629; border-top-color: #3b82f6; border-right-color: #3b82f680; border-radius: 32px; animation: cloudbox-loading-turn 2.6s linear infinite; }
+.loading-symbol > i { position: absolute; right: -5px; top: 2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--backgroundColor, #f4f5f9); background: #528ff1; }
+.loading-copy { display: flex; flex-direction: column; gap: 9px; }
+.loading-text { font-family: "Outfit", system-ui, sans-serif; font-size: 1.1rem; font-weight: 600; letter-spacing: -.2px; }
+.loading-description { font-size: .78rem; line-height: 1.7; color: var(--textSecondary, #718096); }
+.loading-track { display: block; width: 100px; height: 3px; border-radius: 4px; background: #3b82f61a; overflow: hidden; }
+.loading-track > span { display: block; width: 45%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #7aacf7, #2563eb); animation: cloudbox-loading-progress 1.5s ease-in-out infinite alternate; }
+.loading-inline .loading-symbol { width: 52px; height: 52px; border-radius: 18px; }
+.loading-inline .loading-orbit { inset: -6px; border-radius: 23px; }
+.loading-inline .loading-symbol svg { width: 25px; height: 25px; }
+.loading-inline .loading-text { font-size: .9rem; }
+html[data-theme="dark"] .loading-symbol { color: #9dc4ff; background: linear-gradient(145deg, #1c3558, #172a45); }
+@keyframes cloudbox-loading-turn { to { transform: rotate(360deg); } }
+@keyframes cloudbox-loading-progress { from { transform: translateX(-30%); } to { transform: translateX(155%); } }
+@media (prefers-reduced-motion: reduce) { .loading-orbit, .loading-track > span { animation: none; } .loading-track > span { width: 65%; } }

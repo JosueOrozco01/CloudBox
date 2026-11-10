@@ -62,12 +62,15 @@ const requireAuth = async (req, res, next) => {
             });
         }
 
-        const { data: role, error: roleError } =
-            await authenticatedSupabase
-                .from('rol')
-                .select('id, nombre')
-                .eq('id', userProfile.id_rol)
-                .single();
+        // Both lookups depend on the profile, but not on each other.
+        const [roleResult, statusResult] = await Promise.all([
+            authenticatedSupabase.from('rol').select('id, nombre')
+                .eq('id', userProfile.id_rol).single(),
+            authenticatedSupabase.from('estado_usuario').select('id, nombre')
+                .eq('id', userProfile.id_estado).single()
+        ]);
+        const { data: role, error: roleError } = roleResult;
+        const { data: userStatus, error: statusError } = statusResult;
 
         if (roleError || !role) {
             return res.status(403).json({
@@ -76,13 +79,6 @@ const requireAuth = async (req, res, next) => {
                 message: 'User role was not found'
             });
         }
-
-        const { data: userStatus, error: statusError } =
-            await authenticatedSupabase
-                .from('estado_usuario')
-                .select('id, nombre')
-                .eq('id', userProfile.id_estado)
-                .single();
 
         if (statusError || !userStatus) {
             return res.status(403).json({

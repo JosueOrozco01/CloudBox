@@ -1,8 +1,19 @@
 import { normalizeApiUrl, authenticatedFetch } from "./dashboardService";
+import { getReadCacheRevision, onReadCacheInvalidated } from './readCache';
 const API_URL = `${normalizeApiUrl(import.meta.env.VITE_API_URL)}/users`;
+let verifiedProfile;
+onReadCacheInvalidated(() => { verifiedProfile = null; });
+export function getCachedProfile() {
+  return verifiedProfile?.token === localStorage.getItem('token')
+    && verifiedProfile.revision === getReadCacheRevision()
+    && verifiedProfile.expires > Date.now() ? verifiedProfile.data : null;
+}
 
-export const getMyProfile = async () => {
+export const getMyProfile = async ({ force = false } = {}) => {
+  const cached = !force && getCachedProfile();
+  if (cached) return cached;
   const token = localStorage.getItem("token");
+  const revision = getReadCacheRevision();
 
   if (!token) {
     const error = new Error("No hay una sesión activa");
@@ -12,6 +23,7 @@ export const getMyProfile = async () => {
 
   const response = await authenticatedFetch(`${API_URL}/me`, {
     method: "GET",
+    ...(force ? { cache: 'no-store' } : {}),
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -30,6 +42,9 @@ export const getMyProfile = async () => {
     throw new Error("El servidor no devolvió un perfil válido");
   }
 
+  if (token === localStorage.getItem('token') && revision === getReadCacheRevision()) {
+    verifiedProfile = { token, revision, expires: Date.now() + 30000, data: data.data };
+  }
   return data.data;
 };
 

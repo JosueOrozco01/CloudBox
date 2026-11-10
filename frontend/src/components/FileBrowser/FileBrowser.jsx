@@ -1,3 +1,7 @@
+import { invalidateReadCache } from "../../services/readCache";
+import { lazy, Suspense } from "react";
+import { downloadFile } from "../../utils/filePreview";
+import { prepareFilePreview } from '../../utils/previewLoaders';
 import { clearSession } from "../../services/authService";
 import { formatFileSize } from "../../utils/preferences";
 import { getFileFavorites, setItemFavorite, favoriteKey } from "../../services/favoriteService";
@@ -30,8 +34,11 @@ import Loading from "../../components/Loading/Loading";
 import AlertModal from "../../components/AlertModal/AlertModal";
 import Footer from "../../components/FooterSignOut/Footer";
 
+const FilePreview = lazy(() => import("../../components/FilePreview/FilePreview"));
+
 export default function FileBrowser({ user, trash = false }) {
   const navigate = useNavigate();
+  const [preview, setPreview] = useState(null);
   const dragSnapshot = useRef(null);
   const dropCommitted = useRef(false);
   const [params, setParams] = useSearchParams();
@@ -64,14 +71,21 @@ export default function FileBrowser({ user, trash = false }) {
   useEffect(() => {
     let active = true;
     const sessionToken = localStorage.getItem('token');
+    let summaryData = null;
+    getDashboard().then(summary => {
+      if (!active) return;
+      summaryData = toDashboardProps(summary);
+      setData(previous => previous ? { ...previous, ...summaryData } : previous);
+    }).catch(() => { /* The file list remains usable without account metrics. */ });
+    if (!trash) getFolderLocations().then(rows => {
+      if (active) setLocations(rows);
+    }).catch(() => { /* Move and create actions can retry loading destinations. */ });
     Promise.all([
       trash ? getTrashFiles() : favoritesMode ? Promise.resolve([]) : getUserFiles(folderId),
       trash ? getTrashFolders() : favoritesMode ? Promise.resolve([]) : getUserFolders(folderId),
-      getDashboard(),
-      trash ? Promise.resolve([]) : getFolderLocations(),
       trash ? Promise.resolve([]) : Promise.allSettled([getFileFavorites()]),
     ])
-      .then(([files, folders, summary, folderLocations, favoriteResults]) => {
+      .then(([files, folders, favoriteResults]) => {
         if (!active) return;
         const fileResult = favoriteResults[0];
         const fileFavorites = fileResult?.status === "fulfilled" ? fileResult.value : [];
@@ -125,8 +139,7 @@ export default function FileBrowser({ user, trash = false }) {
         } catch {
           /* Un orden local inválido no impide cargar archivos. */
         }
-        setData({ ...toDashboardProps(summary), items });
-        setLocations(folderLocations);
+        setData({ ...(summaryData || { storage: null, fileCount: files.length, folderCount: folders.length }), items });
         setError("");
       })
       .catch((error) => {
@@ -161,6 +174,7 @@ export default function FileBrowser({ user, trash = false }) {
   }, [folderId, trash, favoritesMode, revision, orderKey, navigate, user?.id]);
 
   const refresh = () => {
+    invalidateReadCache();
     setRevision((value) => value + 1);
   };
   const changeFolder = (id) => {
@@ -184,22 +198,23 @@ export default function FileBrowser({ user, trash = false }) {
       pendingFavorites.current.delete(key); setFavoritePending([...pendingFavorites.current]);
     }
   };
-  const openFile = async (item) => {
+  const openFile = async (item, download = false) => {
     if (item.type === "carpeta") {
       if (item.isShared) navigate(`/compartidos?folder=${item.rawId}`);
       else changeFolder(item.rawId);
       return;
     }
+    const getUrl = () => item.isShared
+      ? request(`/shares/files/${item.rawId}/download-url`)
+      : getFileDownloadUrl(item.rawId);
+    if (!download) { setPreview(prepareFilePreview(item, getUrl)); return; }
     try {
-      const result = item.isShared
-        ? await request(`/shares/files/${item.rawId}/download-url`)
-        : await getFileDownloadUrl(item.rawId);
-      window.location.assign(result.url);
+      await downloadFile(getUrl, item.name);
     } catch {
       setNotice({
         type: "error",
         message:
-          "No se pudo abrir el archivo. Vuelve a intentarlo en unos momentos.",
+          "No se pudo descargar el archivo. Vuelve a intentarlo en unos momentos.",
       });
     }
   };
@@ -330,7 +345,7 @@ export default function FileBrowser({ user, trash = false }) {
             }}
             onTrash={() => navigate(trash ? "/archivos" : "/papelera")}
             onOpenItem={openFile}
-            onDownloadItem={openFile}
+            onDownloadItem={item => openFile(item, true)}
             onRename={(item) => openAction("rename", item)}
             onDelete={(item) => openAction(trash ? 'permanent' : 'delete', item)}
             onMove={(item) => openAction("move", item)}
@@ -392,6 +407,7 @@ export default function FileBrowser({ user, trash = false }) {
         </>
       )}
       <Footer />
+      {preview && <Suspense fallback={<Loading fullScreen={false} text="Cargando vista previa" />}><FilePreview item={preview.item} getUrl={preview.getUrl} source={preview.source} onClose={() => setPreview(null)} /></Suspense>}
       {uploadOpen && (
         <ConnectedUploadModal
           storage={uploadStorage}

@@ -6,7 +6,7 @@ async function setup(){
  const data=new Map([['token','old'],['refreshToken','refresh-old']]);
  globalThis.localStorage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};
  globalThis.window=new EventTarget();
- const source=(await readFile(new URL('../src/services/dashboardService.js',import.meta.url),'utf8')).replace('import { formatFileSize } from "../utils/preferences";','const formatFileSize = String;').replaceAll('import.meta.env?.VITE_API_URL','undefined');
+ const source=(await readFile(new URL('../src/services/dashboardService.js',import.meta.url),'utf8')).replace('import { formatFileSize } from "../utils/preferences";','const formatFileSize = String;').replaceAll('import.meta.env?.VITE_API_URL','undefined').replace("'./readCache'", JSON.stringify(new URL('../src/services/readCache.js', import.meta.url).href));
  const module=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${sequence++}`);
  return {module,data};
 }
@@ -33,4 +33,13 @@ test('a different account signing in during a failed request cannot receive its 
 });
 test('API URL configuration is normalized consistently',async()=>{
  const {module}=await setup();assert.equal(module.normalizeApiUrl('https://cloud.example/api/'),'https://cloud.example/api');assert.equal(module.normalizeApiUrl('https://cloud.example/'),'https://cloud.example/api');
+});
+
+test('a stale caller cannot reuse cached data from a different account',async()=>{
+ const {module,data}=await setup();let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({private:true});};
+ await module.authenticatedFetch('/cached-private',{headers:{Authorization:'Bearer old'}});
+ data.set('token','different-account');
+ await assert.rejects(module.authenticatedFetch('/cached-private',{headers:{Authorization:'Bearer old'}}),/La sesión cambió/);
+ assert.equal(calls,1);
 });

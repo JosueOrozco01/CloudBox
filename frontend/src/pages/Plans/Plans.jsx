@@ -16,11 +16,11 @@ export default function Plans({
 }) {
   const navigate = useNavigate();
   const resource = useResource(async () => {
-    const plans = await getPlans();
-    if (publicCatalog) return {
-      plans
-    };
-    const results = await Promise.allSettled([getSubscription(), getSubscriptionHistory(), getQuota(), getPaymentMethods()]);
+    if (publicCatalog) return { plans: await getPlans() };
+    const [plans, results] = await Promise.all([
+      getPlans(),
+      Promise.allSettled([getSubscription(), getSubscriptionHistory(), getQuota(), getPaymentMethods()]),
+    ]);
     const [current, history, quota, methods] = results.map(r => r.status === 'fulfilled' ? r.value : null);
     return {
       plans,
