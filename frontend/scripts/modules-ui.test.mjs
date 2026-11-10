@@ -59,6 +59,7 @@ function mock(url, method, body, headers = {}) {
   if (path === '/shares/24/revoke') { sentShareActive = false; return {}; }
   if (path === '/favorites') return favoriteFiles;
   if (/^\/favorites\/\d+$/.test(path)) { const id = Number(path.split('/')[2]); favoriteFiles = method === 'POST' ? [...favoriteFiles, { id_archivo: id, archivo: ownFiles.find(row=>row.id === id) || receivedFile.archivo }] : favoriteFiles.filter(row => row.id_archivo !== id); return {}; }
+  if (path === '/folders/locations') return ownFolders.map(folder=>({id:folder.id,name:folder.nombre}));
   if (path === '/folders') return ownFolders.filter(row=>row.id_padre == null);
   if (/^\/folders\/\d+\/subfolders$/.test(path)) return ownFolders.filter(row=>row.id_padre === Number(path.split('/')[2]));
   if (path === '/files') return ownFiles.filter(row=>row.id_carpeta === (url.searchParams.get('folderId') && url.searchParams.get('folderId') !== 'null' ? Number(url.searchParams.get('folderId')) : null));
@@ -129,7 +130,12 @@ socket.onmessage = async event => {
       result = data?.envelope || { success: true, data };
     } catch (err) { status = err.status || 500; result = { success: false, message: err.message }; }
     if (backendDelay) await new Promise(resolve => setTimeout(resolve, backendDelay));
-    await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: binary?.contentType || 'application/json' }, ...(binary ? [{ name: 'Content-Disposition', value: 'attachment; filename=ui-test.pdf' }] : []), { name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: 'Authorization,Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' }], body: status === 204 ? '' : Buffer.from(binary?.binary || JSON.stringify(result)).toString('base64') });
+    try {
+      await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: binary?.contentType || 'application/json' }, ...(binary ? [{ name: 'Content-Disposition', value: 'attachment; filename=ui-test.pdf' }] : []), { name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: 'Authorization,Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' }], body: status === 204 ? '' : Buffer.from(binary?.binary || JSON.stringify(result)).toString('base64') });
+    } catch (error) {
+      // Navigation cancels outstanding intercepted requests. Other CDP errors fail the suite.
+      if (!error.message.includes('Invalid InterceptionId')) throw error;
+    }
   }
 };
 const evaluate = async expression => {
@@ -138,8 +144,8 @@ const evaluate = async expression => {
   return result.result.value;
 };
 const waitFor = async (expression, label) => {
-  for (let i = 0; i < 100; i++) { if (await evaluate(`!!document.body && (${expression})`)) return; await new Promise(r => setTimeout(r, 50)); }
-  throw new Error(`Timed out: ${label}\n${await evaluate('document.body.innerText')}`);
+  for (let i = 0, deadline = Date.now()+20000; i < 300 && Date.now()<deadline; i++) { if (await evaluate(`!!document.body && (${expression})`)) return; await new Promise(r => setTimeout(r, 50)); }
+  throw new Error(`Timed out: ${label}\n${await evaluate('document.body.innerText')}\nExceptions: ${JSON.stringify(exceptions)}\nRecent requests: ${JSON.stringify(requests.slice(-5))}`);
 };
 const text = value => `document.body.innerText.includes(${JSON.stringify(value)})`;
 const click = async label => {
@@ -148,7 +154,31 @@ const click = async label => {
   return evaluate(`(${find}).click()`);
 };
 const select = (index, value) => evaluate(`(()=>{const e=document.querySelectorAll('select')[${index}];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-async function visit(path, expected) { await send('Page.navigate', { url: origin + path }); await waitFor(text(expected), path); await waitFor(`!document.querySelector('[aria-busy="true"]')`, 'loaded'); }
+async function visit(path, expected) { console.log('Checking route '+path); await send('Page.navigate', { url: origin + path }); await waitFor(text(expected), path); await waitFor(`!document.querySelector('[aria-busy="true"]')`, 'loaded'); }
+async function assertAccountNavigationTheme(expectedTheme) {
+  for (const path of ['/dashboard','/archivos','/compartidos','/plan','/pagos','/soporte']) {
+    await evaluate(`document.querySelector('.app-topbar-links a[href="${path}"]').click()`);
+    await waitFor(`location.pathname === '${path}' && !!document.querySelector('.app-user-name') && !document.querySelector('[aria-busy="true"]')`, 'account navigation '+path);
+    assert.equal(await evaluate('document.documentElement.dataset.theme'),expectedTheme,`Saved theme follows the account to ${path}`);
+  }
+  await visit('/perfil?tab=preferencias', 'Interfaz y región');
+  assert.equal(await evaluate('document.documentElement.dataset.theme'),expectedTheme,'Saved theme also survives a full page navigation');
+}
+async function assertFileControlsFit() {
+  await evaluate('document.fonts.ready');
+  for (const theme of ['light','dark']) for (const width of [390,1024]) for (const font of [16,24]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});
+    await evaluate(`document.documentElement.dataset.theme='${theme}';document.documentElement.style.fontSize='${font}px'`);
+    const clipped = await evaluate(`([...document.querySelectorAll('.mf-header-right button,.mf-search-actions .mf-tabs button')].filter(button=>{
+      const box=button.getBoundingClientRect(),style=getComputedStyle(button),range=document.createRange();range.selectNodeContents(button);const content=range.getBoundingClientRect();
+      return content.left<box.left+parseFloat(style.paddingLeft)-1.5||content.right>box.right-parseFloat(style.paddingRight)+1.5||content.top<box.top+parseFloat(style.paddingTop)-1.5||content.bottom>box.bottom-parseFloat(style.paddingBottom)+1.5;
+    }).map(button=>button.innerText))`);
+    assert.deepEqual(clipped,[],`File controls must retain space around their labels: ${theme}, ${width}px, ${font}px text`);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Enlarged text cannot widen the page');
+  }
+  await evaluate("document.documentElement.style.removeProperty('font-size');document.documentElement.dataset.theme='light'");
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+}
 try {
   await send('Page.enable'); await send('Runtime.enable');
   await send('Browser.setDownloadBehavior', { behavior: 'deny' });
@@ -348,7 +378,12 @@ try {
   Object.assign(current, { price: 29, planId: 2, planName: 'Básico' });
   await visit('/archivos', 'Mis Archivos');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'file library');
+  await assertFileControlsFit();
   assert.ok(await evaluate("!!document.querySelector('.mf-library-storage-track[role=progressbar]')"));
+  const tinyUsage = await evaluate("(()=>{const bar=document.querySelector('.mf-library-storage-track');return {value:Number(bar.getAttribute('aria-valuenow')),fill:bar.firstElementChild.getBoundingClientRect().width,text:bar.getAttribute('aria-valuetext')};})()");
+  assert.ok(tinyUsage.value > 0 && tinyUsage.value < 0.1, 'Tiny usage must retain a nonzero actual ratio');
+  assert.ok(tinyUsage.fill >= 1.9 && tinyUsage.fill <= 3, 'Tiny usage is visible without suggesting substantial storage');
+  assert.ok(tinyUsage.text.includes('<0.1 %'));
   await click('Carpetas'); await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 1", 'file folder tab');
   await click('Todos'); await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'all files');
   await evaluate("document.querySelector('[aria-label=\"Buscar archivos\"]').focus()"); await send('Input.insertText', { text: 'Informe' });
@@ -383,9 +418,17 @@ try {
   assert.ok(requests.some(r=>r.path === '/files/52/rename' && r.body.name === 'Informe final.pdf'));
   await click('Crear carpeta'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Crear carpeta\"]')", 'create folder dialog');
   await click('Cancelar');
-  await click('Subir archivo'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Subir archivos\"]')", 'upload modal'); await click('Cancelar');
+  await click('Subir archivo'); await waitFor("!!document.querySelector('[role=dialog][aria-label=\"Subir archivos\"]')", 'upload modal');
+  assert.equal(await evaluate("document.activeElement.closest('[role=dialog]')!==null"),true,'Upload captures keyboard focus');
+  await evaluate("document.querySelector('[aria-label=\"Cerrar ventana de subida\"]').click()");
+  await waitFor("!document.querySelector('.upload-modal')",'Upload close button');
+  await click('Subir archivo');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await waitFor("!document.querySelector('.upload-modal')",'Escape closes upload');
   await visit('/papelera', 'documento.pdf');
   await waitFor("document.querySelectorAll('.mf-table tbody tr').length === 3", 'trash contents');
+  await assertFileControlsFit();
   assert.equal(await evaluate("[...document.querySelectorAll('.mf-table tbody tr')].find(row=>row.textContent.includes('Recuerdos')).querySelector('.mf-trash-delete-btn') === null"), true, 'Folders have restore but no permanent delete action');
   const trashDesktop = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(tmpdir(), 'cloudbox-trash-desktop.png'), Buffer.from(trashDesktop.data, 'base64'));
@@ -459,7 +502,7 @@ try {
     await evaluate(`document.querySelectorAll('.sec-form input')[${index}].focus()`);
     await send('Input.insertText', { text: value });
   }
-  assert.equal(await evaluate("document.querySelector('[aria-label=\"Requisitos de la contraseña cumplidos\"]').getAttribute('aria-valuenow')"), '4');
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"Requisitos de la contraseña cumplidos\"]').getAttribute('aria-valuenow')"), '5');
   await click('Actualizar contraseña'); await waitFor(text('Contraseña actualizada correctamente.'), 'change password');
   assert.ok(requests.some(r=>r.path === '/users/me/password' && r.method === 'PATCH' && r.body.newPassword === demoPassword));
   assert.equal(await evaluate("document.querySelectorAll('.sec-form input')[1].value"), '', 'Clear password after success');
@@ -513,7 +556,7 @@ try {
     }
   }
   admin = true;
-  await visit('/admin/planes', 'Catálogo de planes'); await waitFor(text('Inactivo'), 'inactive admin plan');
+  await visit('/admin/planes', 'Tu catálogo de planes'); await waitFor(text('Inactivo'), 'inactive admin plan');
   await click('Activar'); await click('Confirmar'); await waitFor(text('Plan actualizado'), 'activate plan');
   assert.ok(requests.some(r => r.path === '/plans/3/status' && r.body.id_estado === 1));
   await click('Crear plan');
@@ -525,16 +568,16 @@ try {
   assert.equal(await evaluate("document.activeElement === document.querySelectorAll('[role=dialog] input')[4]"), true, 'Modal retains input focus while editing');
   await click('Guardar plan'); await waitFor(text('Empresas'), 'created plan');
   assert.ok(requests.some(r=>r.path === '/plans' && r.method === 'POST' && r.body.precio === 199 && r.body.espacio_maximo_gb === 200));
-  await evaluate("[...document.querySelectorAll('tr')].find(r=>r.textContent.includes('Básico')).querySelector('button').click()");
-  await waitFor(text('Editar plan'), 'edit form');
+  await evaluate("[...document.querySelectorAll('article.ap-plan')].find(r=>r.textContent.includes('Básico')).querySelector('button').click()");
+  await waitFor("!!document.querySelector('[role=dialog] input')", 'edit form');
   await evaluate("const input=document.querySelectorAll('[role=dialog] input')[1];input.focus();input.select();");
   await send('Input.insertText', { text: 'Descripción actualizada' });
   await click('Guardar plan'); await waitFor("!document.querySelector('[role=dialog]')", 'saved plan');
   assert.ok(requests.some(r=>r.path === '/plans/2' && r.method === 'PUT' && r.body.descripcion === 'Descripción actualizada'));
 
-  await visit('/admin/suscripciones', 'Suscripciones (1)');
-  await visit('/admin/almacenamiento', 'Consumo por usuario'); await select(0, 'over'); await waitFor(text('No hay registros'), 'over quota filter');
-  await visit('/admin/metricas', 'Métricas y reportes'); await waitFor(text('pdf'), 'object distribution');
+  await visit('/admin/suscripciones', 'Suscripciones');
+  await visit('/admin/almacenamiento', 'Consumo por usuario'); await select(0, 'over'); await waitFor(text('No hay usuarios sobre cuota'), 'over quota filter');
+  await visit('/admin/metricas', 'Métricas y reportes'); await waitFor("document.body.innerText.toLowerCase().includes('pdf')", 'object distribution');
   await click('CSV'); await waitFor("![...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='CSV').disabled", 'CSV download');
   assert.ok(requests.some(r=>r.path === '/admin/reports/export' && r.search.includes('format=csv')));
   await click('PDF'); await waitFor("![...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='PDF').disabled", 'PDF export');
@@ -548,7 +591,7 @@ try {
   const screenshotPath = join(tmpdir(), 'cloudbox-modules-mobile.png');
   await writeFile(screenshotPath, Buffer.from(screenshot.data, 'base64'));
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await visit('/admin/planes', 'Catálogo de planes');
+  await visit('/admin/planes', 'Tu catálogo de planes');
   await waitFor(text('Pro'), 'desktop catalog');
   const desktop = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(tmpdir(), 'cloudbox-modules-desktop.png'), Buffer.from(desktop.data, 'base64'));
@@ -558,6 +601,7 @@ try {
   await visit('/perfil?tab=preferencias', 'Interfaz y región');
   await click('Oscuro'); await click('Guardar preferencias');
   await waitFor("document.documentElement.dataset.theme === 'dark' && JSON.parse(localStorage.getItem('cloudbox:preferences:1')).theme === 'oscuro'", 'save dark for account A');
+  await assertAccountNavigationTheme('dark');
   await click('Cerrar sesión');
   await waitFor("location.pathname === '/login' && !!document.querySelector('#email')", 'logout from preferences');
   await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
@@ -580,6 +624,7 @@ try {
   await click('Claro'); await click('Guardar preferencias');
   await waitFor("JSON.parse(localStorage.getItem('cloudbox:preferences:2'))?.theme === 'claro'", 'save light for account B');
   assert.equal(await evaluate("JSON.parse(localStorage.getItem('cloudbox:preferences:1')).theme"), 'oscuro', 'Saving B does not modify A');
+  await assertAccountNavigationTheme('light');
   await click('Cerrar sesión'); await waitFor("location.pathname === '/login' && !!document.querySelector('#email')", 'logout B');
   await loginAs('a@example.invalid');
   await waitFor("document.documentElement.dataset.theme === 'dark'", 'return to A dark theme');

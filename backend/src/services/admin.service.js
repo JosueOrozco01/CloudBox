@@ -1,3 +1,5 @@
+const { countsTowardStorage } = require('./storage-policy');
+const { isOwnedAvatarPath } = require('./avatar-path');
 
 const {utcDay,isCurrent,readPages,calendarDate} = require('./commercial-policy');
 const { createClient } = require("@supabase/supabase-js");
@@ -69,7 +71,7 @@ async function readAvatars() {
         metadata.avatarUrl ||
         metadata.picture ||
         metadata.foto_url;
-      if (metadata.avatar_path) {
+      if (isOwnedAvatarPath(user.id,metadata.avatar_path)) {
         const signed=await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600);
         if (signed.data?.signedUrl) avatars.set(user.id,signed.data.signedUrl);
       }
@@ -94,7 +96,7 @@ const AdminService = {
         ),
         readAll(
           "archivo",
-          "id,id_usuario,tamano_bytes,fecha_subida,estado:id_estado(nombre)",
+          "id,id_usuario,tamano_bytes,fecha_subida,id_estado,storage_deleted_at,estado:id_estado(nombre)",
         ),
         readAll("estado_usuario", "id,nombre"),
         readAll("rol", "id,nombre"),
@@ -113,9 +115,7 @@ const AdminService = {
       }
       return isCurrent(sub,todayStr);
     });
-    const stored = files.filter((file) =>
-      ["Activo", "En papelera"].includes(file.estado?.nombre),
-    );
+    const stored = files.filter(countsTowardStorage);
 
     return {
       users: users.map((user) => {
@@ -291,7 +291,7 @@ const AdminService = {
       const sub=current.get(u.id);
       const auth = u.auth_user_id ? await supabaseAdmin.auth.admin.getUserById(u.auth_user_id) : {data:{}};
       const metadata=auth.data?.user?.user_metadata || {};
-      const signed=metadata.avatar_path ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
+      const signed=isOwnedAvatarPath(u.auth_user_id,metadata.avatar_path) ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
       return ({
       id: u.id,
       auth_user_id: u.auth_user_id,
@@ -375,7 +375,7 @@ const AdminService = {
     const plan = subscription?.plan?.nombre || 'Sin suscripción activa';
     const auth=user.auth_user_id ? await supabaseAdmin.auth.admin.getUserById(user.auth_user_id) : {data:{}};
     const metadata=auth.data?.user?.user_metadata || {};
-    const signed=metadata.avatar_path ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
+    const signed=isOwnedAvatarPath(user.auth_user_id,metadata.avatar_path) ? await supabaseAdmin.storage.from('avatars').createSignedUrl(metadata.avatar_path,3600) : null;
     const usedBytes = Number(user.espacio_usado_bytes || user.espacio_usado_by || 0);
 
     return {
@@ -710,9 +710,9 @@ const AdminService = {
   async getGeneralStats() {
     const [users,subs,pagos,files]=await Promise.all([
       readAll('usuario','id,id_estado'),readAll('suscripcion','id,fecha_inicio,fecha_fin,id_estado',q=>q.in('id_estado',[2,3])),
-      readAll('pago','id,monto',q=>q.eq('id_estado',1)),readAll('archivo','id,tamano_bytes',q=>q.in('id_estado',[1,2]))
+      readAll('pago','id,monto',q=>q.eq('id_estado',1)),readAll('archivo','id,tamano_bytes,id_estado,storage_deleted_at',q=>q.in('id_estado',[1,2,3]))
     ]);
-    const used=files.reduce((sum,f)=>sum+Number(f.tamano_bytes),0);
+    const used=files.filter(countsTowardStorage).reduce((sum,f)=>sum+Number(f.tamano_bytes),0);
     return {totalUsuarios:users.length,usuariosActivos:users.filter(u=>u.id_estado===1).length,
       totalSuscripcionesActivas:subs.filter(s=>isCurrent(s)).length,ingresosTotales:totalMoney(pagos),
       almacenamientoUsadoBytes:used,almacenamientoUsadoGb:Number((used/BYTES_PER_GB).toFixed(2))};
@@ -722,7 +722,7 @@ const AdminService = {
    * Métricas agregadas de almacenamiento global consumido.
    */
   async getStorageMetrics() {
-    const archivos=await readAll('archivo','id,nombre,tamano_bytes',q=>q.in('id_estado',[1,2]));
+    const archivos=(await readAll('archivo','id,nombre,tamano_bytes,id_estado,storage_deleted_at',q=>q.in('id_estado',[1,2,3]))).filter(countsTowardStorage);
 
     let espacioConsumidoTotalBytes = 0;
     const distribucionPorTipo = { pdf: 0, imagenes: 0, documentos: 0, otros: 0 };

@@ -48,6 +48,7 @@
 
 .upload-header-text {
   flex: 1;
+  min-width: 0;
 }
 
 .upload-header-text h2 {
@@ -149,6 +150,8 @@
 .upload-storage-head {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 0.78rem;
   font-weight: 600;
   margin-bottom: 8px;
@@ -388,6 +391,11 @@
 .upload-confirm-btn:hover {
   background: #1d4fd6;
 }
+.upload-modal:focus { outline: none; }
+.upload-modal :is(button,input):focus-visible { outline: 3px solid #79aaff; outline-offset: 3px; }
+.upload-modal button:disabled { opacity: .5; cursor: not-allowed; }
+.upload-star { border-radius: 6px; padding: 4px; }
+.upload-footer-actions { flex-wrap: wrap; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {

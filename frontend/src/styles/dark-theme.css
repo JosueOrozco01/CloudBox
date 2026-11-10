@@ -11,6 +11,14 @@ html[data-theme="dark"] {
   --dark-muted: #a8b6ca;
   --dark-accent: #9bc2ff;
   --dark-selected: #253956;
+  --status-success-bg: #173c30;
+  --status-success-color: #86efac;
+  --status-warning-bg: #3a301d;
+  --status-warning-color: #f7cb69;
+  --status-danger-bg: #3b242e;
+  --status-danger-color: #ffb4b9;
+  --status-neutral-bg: #202a39;
+  --status-neutral-color: #a8b6ca;
   --textPrimary: var(--dark-text);
   --textSecondary: var(--dark-muted);
   --backgroundColor: var(--dark-bg);
@@ -133,3 +141,40 @@ html[data-theme="dark"] .loading-overlay .loading-content {
 }
 html[data-theme="dark"] .loading-text { color: var(--dark-text); }
 html[data-theme="dark"] .loading-arrows { color: var(--dark-accent); }
+
+/* Composed controls keep one surface instead of a light wrapper around a dark input. */
+html[data-theme="dark"] .app-admin-search { background: var(--dark-input); border-color: #40516a; }
+html[data-theme="dark"] .app-topbar .app-admin-search input { background: transparent; color: var(--dark-text); border: 0; box-shadow: none; }
+html[data-theme="dark"] .app-admin-search button { color: var(--dark-muted); }
+html[data-theme="dark"] .app-admin-search:focus-within { border-color: #79aaff; box-shadow: 0 0 0 3px #79aaff24; }
+html[data-theme="dark"] .dashboard-page { background: var(--dark-bg); color: var(--dark-text); }
+html[data-theme="dark"] .admin-page { --plan-chart-third: #7c94bd; }
+html[data-theme="dark"] .dash-search input { background: var(--dark-input); color: var(--dark-text); border: 1px solid #40516a; }
+html[data-theme="dark"] .dash-more-space { background: var(--dark-surface); border-color: var(--dark-border); }
+html[data-theme="dark"] .quick-action:hover { background: var(--dark-raised); border-color: #5e7699; }
+html[data-theme="dark"] :is(.stat-progress, .admin-stat-progress) { background: var(--dark-border); }
+html[data-theme="dark"] :is(.stat-progress-fill, .admin-stat-progress-fill) { background: #79aaff; }
+
+/* The upload dialog is mounted outside the page and needs its own theme. */
+html[data-theme="dark"] .upload-modal { background: var(--dark-surface); color: var(--dark-text); box-shadow: 0 24px 50px #00000055; }
+html[data-theme="dark"] :is(.upload-header, .upload-footer, .upload-file-item) { border-color: var(--dark-border); }
+html[data-theme="dark"] :is(.upload-header-icon, .upload-file-icon) { background: var(--dark-selected); color: var(--dark-accent); }
+html[data-theme="dark"] .upload-dropzone { background: var(--dark-input); border-color: #5e7699; }
+html[data-theme="dark"] .upload-dropzone.dragging { background: var(--dark-selected); border-color: #79aaff; }
+html[data-theme="dark"] :is(.upload-dropzone-icon, .upload-file-percent) { color: var(--dark-accent); }
+html[data-theme="dark"] :is(.upload-header-text p, .upload-dropzone-sub, .upload-formats, .upload-storage-head span:last-child, .upload-storage-sub, .upload-selected-head span:last-child, .upload-file-status, .upload-footer-status) { color: var(--dark-muted); }
+html[data-theme="dark"] :is(.upload-file-name, .upload-formats strong, .upload-cancel-btn) { color: var(--dark-text); }
+html[data-theme="dark"] .upload-select-btn { background: var(--dark-raised); color: var(--dark-accent); border-color: #40516a; }
+html[data-theme="dark"] .upload-select-btn:hover:not(:disabled) { background: var(--dark-selected); }
+html[data-theme="dark"] :is(.upload-storage-bar, .upload-file-progress) { background: var(--dark-border); }
+html[data-theme="dark"] .upload-storage-fill { background: #79aaff; }
+html[data-theme="dark"] .upload-file-status.completed { color: #86efac; }
+html[data-theme="dark"] .upload-error-item { background: #3b242e; border-color: #7d3d4b; }
+html[data-theme="dark"] :is(.upload-error-item p, .upload-error-item svg, .upload-error-action) { color: #ffb4b9; }
+html[data-theme="dark"] :is(.upload-star, .upload-file-star) { color: var(--dark-muted); }
+html[data-theme="dark"] :is(.upload-star, .upload-cancel-btn):hover:not(:disabled) { background: var(--dark-raised); color: var(--dark-text); }
+html[data-theme="dark"] .alert-icon-success { background: #173c30; color: #86efac; }
+html[data-theme="dark"] .alert-icon-error { background: #3b242e; color: #ffb4b9; }
+html[data-theme="dark"] .alert-icon-warning { background: #3a301d; color: #f7cb69; }
+html[data-theme="dark"] .alert-icon-info { background: var(--dark-selected); color: var(--dark-accent); }
+html[data-theme="dark"] .alert-btn-primary.alert-btn-info { background: #2563eb; color: white; }

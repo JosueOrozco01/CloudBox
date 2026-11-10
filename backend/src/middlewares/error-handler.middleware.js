@@ -1,6 +1,14 @@
 const multer = require('multer');
 
 const errorHandler = (error, req, res, next) => {
+    const invariants = {
+        CLOUDBOX_FOLDER_DUPLICATE: [409, 'Ya existe una carpeta con ese nombre en esta ubicación.'],
+        CLOUDBOX_FOLDER_CYCLE: [409, 'No puedes mover una carpeta dentro de sus subcarpetas.'],
+        CLOUDBOX_FOLDER_PARENT_INVALID: [409, 'La carpeta de destino ya no está disponible.'],
+        CLOUDBOX_TICKET_CLOSED: [409, 'La solicitud está cerrada.']
+    };
+    const invariant = Object.keys(invariants).find(code => error.message?.includes(code));
+    if (invariant) return res.status(invariants[invariant][0]).json({success:false,code:invariant,message:invariants[invariant][1]});
     if (
         error instanceof multer.MulterError &&
         error.code === 'LIMIT_FILE_SIZE'
@@ -28,9 +36,9 @@ const errorHandler = (error, req, res, next) => {
 
     const message =
         statusCode >= 500
-            ? 'An unexpected error occurred'
+            ? 'No se pudo completar la operación. Inténtalo nuevamente.'
             : error.message ||
-            'Request could not be processed';
+            'No se pudo procesar la solicitud.';
 
     return res.status(statusCode).json({
         success: false,

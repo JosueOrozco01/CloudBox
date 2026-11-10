@@ -10,9 +10,10 @@ export function ModulePage({
   description,
   actions,
   loading = false,
-  children
+  children,
+  className = ''
 }) {
-  return <><div className="module-shell"><main className="module-page" aria-busy={loading}><header className="module-heading"><div><h1>{title}</h1><p>{description}</p></div><div className="module-actions">{actions}</div></header>{loading ? <Loading /> : children}</main></div><Footer /></>;
+  return <><div className="module-shell"><main className={`module-page ${className}`} aria-busy={loading}><header className="module-heading"><div><h1>{title}</h1><p>{description}</p></div><div className="module-actions">{actions}</div></header>{loading ? <Loading /> : children}</main></div><Footer /></>;
 }
 export function Panel({
   title,

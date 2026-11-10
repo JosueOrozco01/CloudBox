@@ -10,12 +10,13 @@ function setup(validPassword = true) {
     if (name === '@supabase/supabase-js') return { createClient: () => ({ auth: { admin } }) };
     if (name === '../services/session-history.service') return { recordCloseOthers: async () => {} };
     if (name === '../services/user.service') return { verifyCurrentPassword: async () => validPassword };
+    if (name === '../services/input-validation') return require('../src/services/input-validation');
     throw new Error(name);
   } };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/controllers/settings.controller.js'), 'utf8'), sandbox);
   const req = { authUser: { id: 'session-user', user_metadata: { existing: 'preserved' } }, headers: { authorization: 'Bearer verified-token' }, body: {} };
   const res = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
-  const next = error => { throw error; };
+  const next = error => require('../src/middlewares/error-handler.middleware')(error,req,res,()=>{});
   return { controller: sandbox.module.exports, updates, signouts, req, res, next };
 }
 test('preferences save in existing auth metadata for session identity only', async () => {
@@ -24,7 +25,7 @@ test('preferences save in existing auth metadata for session identity only', asy
   await ctx.controller.savePreferences(ctx.req, ctx.res, ctx.next);
   assert.equal(ctx.updates[0][0], 'session-user');
   const metadata = ctx.updates[0][1].user_metadata;
-  assert.equal(metadata.existing, 'preserved');
+  assert.equal(metadata.existing, undefined, 'Only changed metadata keys are sent; Auth merges siblings.');
   assert.equal(metadata.cloudbox_preferences.theme, 'oscuro');
   assert.equal(metadata.cloudbox_preferences.role, undefined);
 });

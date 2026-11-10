@@ -25,8 +25,8 @@ test('security HTTP: real middleware, controllers and services retain privileged
       ? {data:{},error:{message:'invalid'}} : {data:{user:{id:token}},error:null}}},
     '../config/authenticated-supabase':() => sessionDb
   });
-  const admin = load('services/admin.service.js', {'@supabase/supabase-js':sdk});
   const audit = load('services/audit.service.js', {'@supabase/supabase-js':sdk});
+  const admin = load('services/admin.service.js', {'./audit.service':audit,'./admin-storage.service':Object.fromEntries(['getStorageOverview','getStorageUsers','getUsersOverQuota'].map(name=>[name,async()=>({})])),'@supabase/supabase-js':sdk});
   const users = load('services/user.service.js', {'@supabase/supabase-js':sdk});
   const revocations = [];
   users.verifyCurrentPassword = async (_,password) => password === 'valid';
@@ -36,10 +36,10 @@ test('security HTTP: real middleware, controllers and services retain privileged
   });
   const userController = load('controllers/user.controller.js', {
     '../services/user.service':users,'../services/admin.service':admin,
-    '../services/quota.service':{}
+    './integrations.controller':{avatarUrl:async()=>null},'../services/quota.service':{}
   });
   const adminRoutes = load('routes/admin.routes.js', {
-    express,'../controllers/admin.controller':adminController,
+    express,'./report.routes':express.Router(),'../controllers/integrations.controller':Object.fromEntries(['reads','markReads','userCatalog'].map(name=>[name,(_,res)=>res.json({success:true,data:[]})])),'../controllers/admin.controller':adminController,
     '../middlewares/auth.middleware':auth,
     '../middlewares/role.middleware':require('../src/middlewares/role.middleware')
   });
@@ -48,6 +48,7 @@ test('security HTTP: real middleware, controllers and services retain privileged
   app.use('/api/admin',adminRoutes);
   const userRoutes = load('routes/user.routes.js', {
     express,'../middlewares/auth.middleware':auth,'../controllers/user.controller':userController,
+    '../controllers/integrations.controller':{avatar:(_,res)=>res.sendStatus(501)},
     '../controllers/settings.controller':Object.fromEntries(['getPreferences','savePreferences','security','changePassword','logoutOthers'].map(name=>[name,(_,res)=>res.sendStatus(501)]))
   });
   app.use('/api/users',userRoutes);
@@ -108,14 +109,14 @@ test('security HTTP: real middleware, controllers and services retain privileged
 
 test('all legacy admin handlers forward failures to the existing error middleware', async () => {
   const error = new Error('PRIVATE_DATABASE_DETAIL');
-  const service = Object.fromEntries(['getOverview','getAllUsers','getAuditLogs','updateUserStatus','updateUserRole']
+  const service = Object.fromEntries(['getOverview','getAllUsers','getAuditLogs','updateUserStatus','updateUserRole','getUsersList']
     .map(name => [name,async () => { throw error; }]));
   const controller = load('controllers/admin.controller.js', {
     '../services/admin.service':service,'../services/audit.service':{}
   });
-  for (const method of Object.keys(service)) {
+  for (const method of Object.keys(service).filter(name=>name!=='getUsersList')) {
     let forwarded;
-    const req = {params:{id:2},body:{id_estado:2,id_rol:2},user:{id:1},query:{}};
+    const req = {params:{id:2},body:{id_estado:2,id_rol:2},user:{id:1},query:{},headers:{},socket:{remoteAddress:'127.0.0.1'}};
     await controller[method](req,{},value => { forwarded=value; });
     assert.equal(forwarded,error,method);
   }

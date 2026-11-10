@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import "./AlertModal.css";
 
 const ICONS = {
@@ -88,6 +88,26 @@ export default function AlertModal({
   autoClose = false,
   autoCloseTime = 3000,
 }) {
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (!isOpen || variant === 'toast') return;
+    const previous = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = dialogRef.current;
+    dialog?.focus();
+    const trap = event => {
+      if (event.key !== 'Tab') return;
+      const nodes = [...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),a[href],[tabindex="0"]')];
+      const first = nodes[0], last = nodes.at(-1);
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown',trap);
+    return () => { document.removeEventListener('keydown',trap);document.body.style.overflow=overflow;previous?.focus(); };
+  }, [isOpen, variant]);
   // Cierra con Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -171,13 +191,16 @@ export default function AlertModal({
         className="alert-modal"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="alert-title"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Notificación"}
+        ref={dialogRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`alert-icon alert-icon-${type}`}>{ICONS[type]}</div>
 
         {title && (
-          <h2 id="alert-title" className="alert-title">
+          <h2 id={titleId} className="alert-title">
             {title}
           </h2>
         )}
@@ -199,7 +222,6 @@ export default function AlertModal({
             type="button"
             className={`alert-btn alert-btn-primary alert-btn-${type}`}
             onClick={handleConfirm}
-            autoFocus
           >
             {confirmText}
           </button>

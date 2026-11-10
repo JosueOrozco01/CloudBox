@@ -2,14 +2,9 @@ import { pageLoaders, installRoutePreload } from "./routes/pageLoaders";
 import { getPreferences } from "./services/settingsService";
 import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import PageGuide from "./components/PageGuide/PageGuide";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from "react-router-dom";
+import PageBoundary from "./components/PageBoundary";
 import OfflineBanner from "./components/OfflineBanner/Offline";
 import AppTopbar from "./components/Apptopbar/Apptopbar";
 import Loading from "./components/Loading/Loading";
@@ -183,6 +178,8 @@ function App() {
   }, []);
   return (
     <BrowserRouter>
+      <PageBoundary>
+      <Suspense fallback={<Loading text="Cargando página..." />}>
       <OfflineBanner />
       <PageGuide />
       <Suspense fallback={<Loading />}>
@@ -267,8 +264,11 @@ function App() {
         <Route path="/terminos" element={<InformationalPage component={Terms} />} />
         <Route path="/privacidad" element={<InformationalPage component={Privacy} />} />
         <Route path="/cookies" element={<InformationalPage component={Cookies} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
+      </Suspense>
+      </PageBoundary>
     </BrowserRouter>
   );
 }

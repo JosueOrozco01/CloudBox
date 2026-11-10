@@ -572,19 +572,25 @@
 .mf-page .mf-folder-btn,
 .mf-page .mf-upload-btn,
 .mf-feedback .mf-folder-btn {
-  min-width: 130px;
-  width: 130px;
+  min-width: min(130px, 100%);
+  width: auto;
+  max-width: 100%;
+  flex-shrink: 0;
 }
 .mf-page .mf-tabs {
-  height: 45px;
-  padding: 9px;
+  height: auto;
+  min-height: 44px;
+  max-width: 100%;
+  flex-wrap: wrap;
+  padding: 3px;
   align-items: stretch;
 }
 .mf-page .mf-tabs button {
-  min-width: 130px;
-  width: 130px;
-  height: 36px;
+  min-width: 0;
+  width: auto;
+  height: auto;
   min-height: 36px;
+  flex: 1 0 auto;
 }
 .mf-page .mf-search {
   height: 52px;
@@ -610,20 +616,21 @@
 }
 
 .mf-page .mf-search-actions .mf-tabs {
+  height: auto;
   padding: 3px;
   align-items: stretch;
 }
 
 .mf-page .mf-search-actions .mf-tabs button {
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 36px;
 }
 
 .mf-page .mf-search-actions > .mf-upload-btn {
-  height: 42px;
-  min-height: 20px;
-  width: 122px;
-  min-width: 12px;
+  height: auto;
+  min-height: 42px;
+  width: auto;
+  min-width: max-content;
   padding: 0 10px;
   gap: 6px;
 }

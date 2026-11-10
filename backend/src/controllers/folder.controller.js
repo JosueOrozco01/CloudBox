@@ -6,7 +6,7 @@ const ShareService = require('../services/share.service');
 const folderController = {
   async getFolderLocations(req, res, next) {
     try {
-      res.json({ success: true, data: await FolderService.getFolderLocations(parseInt(req.user.id, 10)) });
+      res.json({ success: true, data: await FolderService.getFolderLocations(Number(req.user.id)) });
     } catch (error) { next(error); }
   },
   async getTrashFolders(req, res, next) {
@@ -25,10 +25,10 @@ const folderController = {
 
   async getFolderById(req, res, next) {
     try {
-      const folderId = parseInt(req.params.id, 10);
+      const folderId = Number(req.params.id);
       const userId = parseInt(req.user.id, 10);
 
-      if (isNaN(folderId)) {
+      if ((!Number.isSafeInteger(folderId) || folderId <= 0)) {
         return res.status(400).json({
           success: false,
           message: 'ID de carpeta inválido'
@@ -85,7 +85,7 @@ const folderController = {
   async createFolder(req, res, next) {
     try {
       const userId = parseInt(req.user.id, 10);
-      const { nombre, id_padre } = req.body;
+      const { nombre, id_padre } = req.body || {};
 
       const parentId = id_padre
         ? parseInt(id_padre, 10)
@@ -93,7 +93,7 @@ const folderController = {
 
       if (
         id_padre &&
-        (isNaN(parentId) || parentId <= 0)
+        ((!Number.isSafeInteger(parentId) || parentId <= 0) || parentId <= 0)
       ) {
         return res.status(400).json({
           success: false,
@@ -188,13 +188,13 @@ const folderController = {
   async updateFolderName(req, res, next) {
     try {
       const folderId =
-        parseInt(req.params.id, 10);
+        Number(req.params.id);
       const userId =
         parseInt(req.user.id, 10);
 
-      const { nombre } = req.body;
+      const { nombre } = req.body || {};
 
-      if (isNaN(folderId)) {
+      if ((!Number.isSafeInteger(folderId) || folderId <= 0)) {
         return res.status(400).json({
           success: false,
           message: 'ID de carpeta inválido'
@@ -275,11 +275,11 @@ const folderController = {
   async getSubfolders(req, res, next) {
     try {
       const folderId =
-        parseInt(req.params.id, 10);
+        Number(req.params.id);
       const userId =
         parseInt(req.user.id, 10);
 
-      if (isNaN(folderId)) {
+      if ((!Number.isSafeInteger(folderId) || folderId <= 0)) {
         return res.status(400).json({
           success: false,
           message: 'ID de carpeta inválido'
@@ -345,7 +345,7 @@ const folderController = {
         ? null
         : parseInt(folderIdStr, 10);
 
-      if (!isRoot && isNaN(folderId)) {
+      if (!isRoot && (!Number.isSafeInteger(folderId) || folderId <= 0)) {
         return res.status(400).json({
           success: false,
           message: 'ID de carpeta inválido'
@@ -439,15 +439,15 @@ const folderController = {
   async moveFolder(req, res, next) {
     try {
       const folderId =
-        parseInt(req.params.id, 10);
+        Number(req.params.id);
 
       const userId =
         parseInt(req.user.id, 10);
 
-      const { id_padre } = req.body;
+      const { id_padre } = req.body || {};
 
       if (
-        isNaN(folderId) ||
+        (!Number.isSafeInteger(folderId) || folderId <= 0) ||
         folderId <= 0
       ) {
         return res.status(400).json({
@@ -468,7 +468,7 @@ const folderController = {
           parseInt(id_padre, 10);
 
         if (
-          isNaN(newParentId) ||
+          (!Number.isSafeInteger(newParentId) || newParentId <= 0) ||
           newParentId <= 0
         ) {
           return res.status(400).json({

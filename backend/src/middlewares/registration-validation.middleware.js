@@ -1,68 +1,8 @@
-const validateRegistration = (req, res, next) => {
-    const { firstName, lastName, email, password } = req.body;
-
-    const validationErrors = [];
-
-    if (!firstName || !firstName.trim()) {
-        validationErrors.push('Nombre es obligatorio');
-    }
-
-    if (!lastName || !lastName.trim()) {
-        validationErrors.push('Apellido es obligatorio');
-    }
-
-    if (!email || !email.trim()) {
-        validationErrors.push('Correo electrónico es obligatorio');
-    } else {
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (!emailPattern.test(email.trim())) {
-            validationErrors.push('Formato del correo electrónico no es válido');
-        }
-    }
-
-    if (!password) {
-        validationErrors.push('Password is required');
-    } else {
-        if (password.length < 8) {
-            validationErrors.push(
-                'La contraseña debe contener al menos 8 caracteres'
-            );
-        }
-
-        if (!/[A-Z]/.test(password)) {
-            validationErrors.push(
-                'La contraseña debe contener al menos una letra mayúscula'
-            );
-        }
-
-        if (!/[a-z]/.test(password)) {
-            validationErrors.push(
-                'La contraseña debe contener al menos una letra minúscula.'
-            );
-        }
-
-        if (!/[0-9]/.test(password)) {
-            validationErrors.push(
-                'La contraseña debe contener al menos un número'
-            );
-        }
-    }
-
-    if (validationErrors.length > 0) {
-        return res.status(400).json({
-            success: false,
-            message: 'Los datos de registro no son válidos',
-            errors: validationErrors
-        });
-    }
-
-    // Normalize input before sending registration data to the authentication.
-    req.body.firstName = firstName.trim();
-    req.body.lastName = lastName.trim();
-    req.body.email = email.trim().toLowerCase();
-
+const validation = require('../services/input-validation');
+module.exports = (req, res, next) => {
+  try {
+    const body = req.body || {};
+    req.body = { firstName: validation.text(body.firstName, 'El nombre'), lastName: validation.text(body.lastName, 'El apellido'), email: validation.email(body.email), password: validation.password(body.password) };
     next();
+  } catch (error) { next(error); }
 };
-
-module.exports = validateRegistration;

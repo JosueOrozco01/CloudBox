@@ -1,9 +1,9 @@
 const SessionHistory = require('../services/session-history.service');
 const { registrarUsuario, verificarCorreo, iniciarSesion, requestPasswordRecovery, resetPassword, signOutUser } = require('../services/auth.service');
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
     try {
-        const { firstName, lastName, email, password } = req.body;
+        const { firstName, lastName, email, password } = req.body || {};
         
         await registrarUsuario({ firstName, lastName, email, password });
         
@@ -11,13 +11,10 @@ const register = async (req, res) => {
             message: 'Revisa tu correo para verificar tu cuenta'
         });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            message: error.message || 'Error registrando al usuario'
-        });
+        return next(error);
     }
 };
-const verifyEmail = async (req, res) => {
+const verifyEmail = async (req, res, next) => {
     try {
         // Permit payload from body (POST) or query string (GET)
         const payload = Object.keys(req.body || {}).length > 0 ? req.body : req.query;
@@ -29,15 +26,12 @@ const verifyEmail = async (req, res) => {
             message: "Cuenta verificada correctamente"
         });
     } catch (error) {
-        return res.status(error.status || 400).json({
-            success: false,
-            message: error.message || 'El enlace de verificación no es válido o ha vencido'
-        });
+        return next(error);
     }
 };
-const login = async (req, res) => {
+const login = async (req, res, next) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body || {};
         
         const sessionData = await iniciarSesion({ email, password });
         await SessionHistory.recordLogin(req, sessionData.user.id, sessionData.token);
@@ -49,34 +43,28 @@ const login = async (req, res) => {
             user: sessionData.user
         });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            message: error.message || 'Error al iniciar sesión'
-        });
+        return next(error);
     }
 };
 
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
     try {
-        const { email } = req.body;
+        const { email } = req.body || {};
         
         await requestPasswordRecovery(email);
         
         return res.status(200).json({
             success: true,
-            message: "Se ha enviado un código a tu correo electrónico"
+            message: "Si la cuenta existe y permite recuperación, recibirás las instrucciones en tu correo."
         });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            message: error.message || 'No se pudo procesar la solicitud'
-        });
+        return next(error);
     }
 };
 
-const resetPasswordController = async (req, res) => {
+const resetPasswordController = async (req, res, next) => {
     try {
-        const { email, token, newPassword } = req.body;
+        const { email, token, newPassword } = req.body || {};
         
         const result = await resetPassword({ email, token, newPassword });
         
@@ -85,16 +73,13 @@ const resetPasswordController = async (req, res) => {
             message: result.message
         });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            message: error.message || 'Error al restablecer la contraseña'
-        });
+        return next(error);
     }
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
     try {
-        const { accessToken, refreshToken } = req.body;
+        const { accessToken, refreshToken } = req.body || {};
 
         await signOutUser(accessToken, refreshToken);
         await SessionHistory.recordLogout(req, accessToken);
@@ -104,10 +89,7 @@ const logout = async (req, res) => {
             message: 'Sesión cerrada correctamente'
         });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            message: error.message || 'No se pudo cerrar la sesión'
-        });
+        return next(error);
     }
 };
 

@@ -1,0 +1,3 @@
+/* Two pixels indicate nonzero usage; the accessible value keeps the exact ratio. */
+.storage-meter { overflow: hidden; }
+.storage-meter > span { display: block; height: 100%; max-width: 100%; border-radius: inherit; }

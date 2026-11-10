@@ -22,17 +22,17 @@ function getFileExtension(fileName) {
 }
 
 const fileController = {
-    async getUserFiles(req, res) {
+    async getUserFiles(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
 
             const folderId =
                 req.query.folderId !== undefined &&
                     req.query.folderId !== 'null'
-                    ? parseInt(req.query.folderId, 10)
+                    ? Number(req.query.folderId)
                     : null;
 
-            if (folderId !== null && isNaN(folderId)) {
+            if (folderId !== null && (!Number.isSafeInteger(folderId) || folderId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de carpeta inválido'
@@ -49,19 +49,16 @@ const fileController = {
                 data: files
             });
         } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async getFileById(req, res) {
+    async getFileById(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -106,20 +103,16 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async getDownloadUrl(req, res) {
+    async getDownloadUrl(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -192,23 +185,19 @@ const fileController = {
                 }
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async moveFile(req, res) {
+    async moveFile(req, res, next) {
         try {
             const userId =
                 parseInt(req.user.id, 10);
 
             const fileId =
-                parseInt(req.params.id, 10);
+                Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -218,14 +207,14 @@ const fileController = {
             let folderId = null;
 
             if (
-                req.body.folderId !== undefined &&
-                req.body.folderId !== null &&
-                req.body.folderId !== ''
+                req.body?.folderId !== undefined &&
+                req.body?.folderId !== null &&
+                req.body?.folderId !== ''
             ) {
                 folderId =
-                    parseInt(req.body.folderId, 10);
+                    Number(req.body?.folderId);
 
-                if (isNaN(folderId)) {
+                if ((!Number.isSafeInteger(folderId) || folderId <= 0)) {
                     return res.status(400).json({
                         success: false,
                         message:
@@ -355,20 +344,16 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async moveToTrash(req, res) {
+    async moveToTrash(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -401,20 +386,16 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async restoreFile(req, res) {
+    async restoreFile(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -440,15 +421,11 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async deleteFilePermanently(req, res) {
+    async deleteFilePermanently(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
             const fileId = Number(req.params.id);
@@ -487,6 +464,7 @@ const fileController = {
 
             try {
                 await StorageService.deleteFile(deletedFile.ruta_storage);
+                await FileService.confirmStorageDeletion(fileId,userId);
             } catch (storageError) {
                 console.error('Physical file deletion pending:', {
                     fileId,
@@ -521,15 +499,11 @@ const fileController = {
                 ...(quotaSyncPending ? { quotaSyncPending: true } : {})
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async uploadFile(req, res) {
+    async uploadFile(req, res, next) {
         let uploadedPath = null;
 
         try {
@@ -547,16 +521,13 @@ const fileController = {
             let folderId = null;
 
             if (
-                req.body.folderId !== undefined &&
-                req.body.folderId !== '' &&
-                req.body.folderId !== 'null'
+                req.body?.folderId !== undefined &&
+                req.body?.folderId !== '' &&
+                req.body?.folderId !== 'null'
             ) {
-                folderId = parseInt(
-                    req.body.folderId,
-                    10
-                );
+                folderId = Number(req.body?.folderId);
 
-                if (isNaN(folderId)) {
+                if ((!Number.isSafeInteger(folderId) || folderId <= 0)) {
                     return res.status(400).json({
                         success: false,
                         message:
@@ -653,6 +624,8 @@ const fileController = {
                     extensionId:
                         validation.extension.id
                 });
+            // The database now owns this object. A secondary failure must not delete it.
+            uploadedPath = null;
 
             try {
                 await QuotaService.syncUsedStorage(
@@ -681,10 +654,14 @@ const fileController = {
         } catch (error) {
             if (uploadedPath) {
                 try {
-                    await StorageService.deleteFile(
-                        uploadedPath
-                    );
+                    // A lost insert response may hide a committed record. Verify
+                    // before compensation so a successful write keeps its object.
+                    if (!await FileService.isStoragePathReferenced(uploadedPath)) {
+                        await StorageService.deleteFile(uploadedPath);
+                    }
                 } catch (cleanupError) {
+                    try { await FileService.recordFailedUploadCleanup(uploadedPath); }
+                    catch { console.error('No se pudo registrar la limpieza de una carga fallida. Requiere reconciliación de Storage.'); }
                     console.error(
                         'Error al limpiar archivo de Storage:',
                         cleanupError.message
@@ -692,15 +669,11 @@ const fileController = {
                 }
             }
 
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async getTrashFiles(req, res) {
+    async getTrashFiles(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
 
@@ -714,21 +687,18 @@ const fileController = {
                 data: files
             });
         } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: error.message
-            });
+            return next(error);
         }
     },
 
-    async renameFile(req, res) {
+    async renameFile(req, res, next) {
         try {
             const userId =
                 parseInt(req.user.id, 10);
             const fileId =
-                parseInt(req.params.id, 10);
+                Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -736,8 +706,8 @@ const fileController = {
             }
 
             const newName =
-                typeof req.body.name === 'string'
-                    ? req.body.name.trim()
+                typeof req.body?.name === 'string'
+                    ? req.body?.name.trim()
                     : '';
 
             if (!newName) {
@@ -839,19 +809,15 @@ const fileController = {
                 data: file
             });
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     },
-    async downloadFile(req, res) {
+    async downloadFile(req, res, next) {
         try {
             const userId = parseInt(req.user.id, 10);
-            const fileId = parseInt(req.params.id, 10);
+            const fileId = Number(req.params.id);
 
-            if (isNaN(fileId)) {
+            if ((!Number.isSafeInteger(fileId) || fileId <= 0)) {
                 return res.status(400).json({
                     success: false,
                     message: 'ID de archivo inválido'
@@ -915,11 +881,7 @@ const fileController = {
 
             return res.redirect(signedUrl);
         } catch (error) {
-            return res.status(error.status || 500).json({
-                success: false,
-                code: error.code,
-                message: error.message
-            });
+            return next(error);
         }
     }
 

@@ -9,7 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(
   supabaseUrl,
-  supabaseAnonKey
+  supabaseAnonKey,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
 module.exports = supabase;

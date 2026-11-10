@@ -1,5 +1,5 @@
-import { formatFileSize } from "../utils/preferences";
-import { cachedRead } from './readCache';
+import { formatFileSize } from "../utils/preferences.js";
+import { cachedRead } from "./readCache.js";
 export function normalizeApiUrl(url) {
   const base = (url || "http://localhost:3000").replace(/\/+$/, "");
   return base.endsWith("/api") ? base : `${base}/api`;
@@ -73,6 +73,7 @@ export async function request(path, options = {}) {
     );
     error.status = response.status;
     error.code = result.code;
+    error.data = result.data;
     throw error;
   }
   return result.data;

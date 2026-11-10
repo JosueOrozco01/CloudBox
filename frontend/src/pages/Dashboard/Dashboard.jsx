@@ -1,4 +1,6 @@
 import { invalidateReadCache } from "../../services/readCache";
+import StorageBar from '../../components/StorageBar/StorageBar';
+import { formatStorageBytes, formatStoragePercent, storagePercentage } from '../../utils/storageUsage';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -80,8 +82,7 @@ function DashboardHome({
   const [query, setQuery] = useState("");
   const [showAlert, setShowAlert] = useState(true);
 
-  const usedPercent = storage ? Math.min(100, storage.percentageUsed ?? 0) : 0;
-  const availableGB = storage ? storage.availableGB.toFixed(2) : "—";
+  const usedPercent = storagePercentage(storage?.usedGB * 1024 ** 3, storage?.totalGB * 1024 ** 3, storage?.percentageUsed);
   const isLowStorage = usedPercent >= 90;
 
   const handleSearchSubmit = (e) => {
@@ -100,6 +101,7 @@ function DashboardHome({
           </p>
 
           <form className="dash-search" onSubmit={handleSearchSubmit}>
+            <label className="dash-search-field">
             <span className="dash-search-icon">
               <svg {...icon} width="16" height="16">
                 <circle cx="11" cy="11" r="8" />
@@ -108,10 +110,12 @@ function DashboardHome({
             </span>
             <input
               type="search"
+              aria-label="Buscar archivos"
               placeholder="Buscar archivos..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            </label>
             <button
               type="button"
               className="dash-upload-btn"
@@ -178,24 +182,20 @@ function DashboardHome({
             <button
               type="button"
               className="stat-more"
-              aria-label="Más opciones"
+              aria-label="Ver almacenamiento de mi plan"
+              onClick={onViewPlans}
             >
               ⋯
             </button>
           </div>
           <p className="stat-label">Almacenamiento</p>
           <p className="stat-value">
-            {storage ? storage.usedGB.toFixed(2) : "—"} GB{" "}
-            <span>de {storage?.totalGB ?? "—"} GB</span>
+            {storage ? formatStorageBytes(storage.usedGB * 1024 ** 3) : "—"}{" "}
+            <span>de {formatStorageBytes(storage?.totalGB * 1024 ** 3)}</span>
           </p>
-          <p className="stat-sub">{availableGB} GB disponibles</p>
-          <div className="stat-progress">
-            <div
-              className="stat-progress-fill"
-              style={{ width: `${usedPercent}%` }}
-            />
-          </div>
-          <p className="stat-percent">{usedPercent}% usado</p>
+          <p className="stat-sub">{formatStorageBytes(storage?.availableGB * 1024 ** 3)} disponibles</p>
+          <StorageBar className="stat-progress" fillClassName="stat-progress-fill" usedBytes={storage?.usedGB * 1024 ** 3} totalBytes={storage?.totalGB * 1024 ** 3} />
+          <p className="stat-percent">{formatStoragePercent(usedPercent)} usado</p>
         </article>
 
         <article className="stat-card">
@@ -208,14 +208,15 @@ function DashboardHome({
             <button
               type="button"
               className="stat-more"
-              aria-label="Más opciones"
+              aria-label="Ver mis archivos"
+              onClick={onViewAllFiles}
             >
               ⋯
             </button>
           </div>
           <p className="stat-label">Mis archivos</p>
           <p className="stat-value">{fileCount}</p>
-          <p className="stat-sub">Archivos · {folderCount} carpetas</p>
+          <p className="stat-sub">Archivos · {folderCount} {folderCount === 1 ? 'carpeta' : 'carpetas'}</p>
         </article>
 
         <article className="stat-card">
@@ -229,7 +230,8 @@ function DashboardHome({
             <button
               type="button"
               className="stat-more"
-              aria-label="Más opciones"
+              aria-label="Ver mi plan"
+              onClick={onViewPlans}
             >
               ⋯
             </button>
