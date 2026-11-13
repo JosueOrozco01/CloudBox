@@ -20,3 +20,5 @@ html[data-theme="dark"] .loading-symbol { color: #9dc4ff; background: linear-gra
 @keyframes cloudbox-loading-turn { to { transform: rotate(360deg); } }
 @keyframes cloudbox-loading-progress { from { transform: translateX(-30%); } to { transform: translateX(155%); } }
 @media (prefers-reduced-motion: reduce) { .loading-orbit, .loading-track > span { animation: none; } .loading-track > span { width: 65%; } }
+.loading-page { animation: cloudbox-loading-reveal .2s ease var(--loading-delay, 0ms) both; }
+@keyframes cloudbox-loading-reveal { from { opacity: 0; visibility: hidden; } to { opacity: 1; visibility: visible; } }

@@ -135,7 +135,7 @@ export default function AppTopbar({ user }) {
 
   return (
     <>
-      {isLoggingOut && <Loading />}
+      {isLoggingOut && <Loading delay={0} />}
 
       <AlertModal
         isOpen={alert.open}

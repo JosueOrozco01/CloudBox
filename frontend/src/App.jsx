@@ -1,8 +1,8 @@
-import { pageLoaders, installRoutePreload } from "./routes/pageLoaders";
+import { pageLoaders, installRoutePreload, preloadMainRoutes } from "./routes/pageLoaders";
 import { getPreferences } from "./services/settingsService";
 import { applyPreferences, beginAccountAppearance, restoreCachedPreferences } from "./utils/preferences";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useOutletContext } from "react-router-dom";
 import PageGuide from "./components/PageGuide/PageGuide";
 import PageBoundary from "./components/PageBoundary";
 import OfflineBanner from "./components/OfflineBanner/Offline";
@@ -38,11 +38,9 @@ const AdminSubscriptions = lazy(pageLoaders.AdminSubscriptions);
 const AdminStorage = lazy(pageLoaders.AdminStorage);
 const AdminReports = lazy(pageLoaders.AdminReports);
 
-function AuthenticatedPage({
-  children,
-  requiredPermission = null,
-  clientOnly = false,
-}) {
+// Persistent authenticated shell: loads the session once and keeps AppTopbar mounted
+// across route changes. Only the inner content suspends while a page chunk loads.
+function AuthenticatedPage({ children }) {
   const location = useLocation();
 
   const [user, setUser] = useState(getCachedProfile);
@@ -95,8 +93,11 @@ function AuthenticatedPage({
     };
   }, [profileRevision]);
 
+  const hasUser = Boolean(user);
+  useEffect(() => { if (hasUser) return preloadMainRoutes(); }, [hasUser]);
+
   if (isLoading) {
-    return <Loading />;
+    return <Loading delay={300} />;
   }
 
   if (!user) {
@@ -121,24 +122,31 @@ function AuthenticatedPage({
     );
   }
 
-  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-
-  if (clientOnly && permissions.includes("admin_panel")) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  if (requiredPermission && !permissions.includes(requiredPermission)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return (
     <>
       <AppTopbar user={user} />
-      <div className="authenticated-content">{typeof children === "function"
-        ? children(user)
-        : children}</div>
+      <div className="authenticated-content">
+        <Suspense fallback={<RouteProgress />}>
+          <div className="route-view" key={location.pathname}>
+            {children ?? <Outlet context={user} />}
+          </div>
+        </Suspense>
+      </div>
     </>
   );
+}
+
+function RouteProgress() {
+  return <div className="route-progress" role="progressbar" aria-label="Cargando sección" aria-busy="true"><span /></div>;
+}
+
+// Per-route access rules, evaluated inside the persistent shell.
+function Protected({ children, requiredPermission = null, clientOnly = false }) {
+  const user = useOutletContext();
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  if (clientOnly && permissions.includes("admin_panel")) return <Navigate to="/admin" replace />;
+  if (requiredPermission && !permissions.includes(requiredPermission)) return <Navigate to="/dashboard" replace />;
+  return typeof children === "function" ? children(user) : children;
 }
 
 function InformationalPage({ component: Page, ...props }) {
@@ -182,13 +190,11 @@ function App() {
       <Suspense fallback={<Loading text="Cargando página..." />}>
       <OfflineBanner />
       <PageGuide />
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<Loading delay={300} />}>
       <Routes key={sessionVersion}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verificar-correo" element={<VerifyEmail />} />
-        <Route path="/soporte/mis-solicitudes" element={<AuthenticatedPage>{user => <TicketCenter user={user} />}</AuthenticatedPage>} />
-        <Route path="/admin/soporte" element={<AuthenticatedPage requiredPermission="admin_panel">{user => <TicketCenter user={user} />}</AuthenticatedPage>} />
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/recuperar" element={<RecoveryPage />} />
         <Route path="/sobre-nosotros" element={<InformationalPage component={Product} kind="about" />} />
@@ -197,70 +203,27 @@ function App() {
         <Route path="/seguridad" element={<InformationalPage component={Product} kind="security" />} />
         <Route path="/planes" element={<InformationalPage component={Plans} publicCatalog />} />
         <Route path="/soporte" element={<InformationalPage component={Support} />} />
-        <Route path="/plan" element={<AuthenticatedPage clientOnly><Plans /></AuthenticatedPage>} />
-        <Route path="/pagos" element={<AuthenticatedPage clientOnly><Payments /></AuthenticatedPage>} />
-        <Route path="/actividad" element={<AuthenticatedPage clientOnly><Activity /></AuthenticatedPage>} />
-        <Route path="/notificaciones" element={<AuthenticatedPage clientOnly><Notifications /></AuthenticatedPage>} />
-        <Route path="/admin/notificaciones" element={<AuthenticatedPage requiredPermission="admin_panel">{user => <AdminNotificationInbox user={user} />}</AuthenticatedPage>} />
-        <Route path="/admin/planes" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminPlans /></AuthenticatedPage>} />
-        <Route path="/admin/suscripciones" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminSubscriptions /></AuthenticatedPage>} />
-        <Route path="/admin/almacenamiento" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminStorage /></AuthenticatedPage>} />
-        <Route path="/admin/metricas" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminReports /></AuthenticatedPage>} />
-        <Route path="/admin/reportes" element={<AuthenticatedPage requiredPermission="admin_panel"><AdminReports /></AuthenticatedPage>} />
-        <Route
-          path="/dashboard"
-          element={
-            <AuthenticatedPage key="dashboard" clientOnly>
-              {(user) => (
-                <Dashboard user={user} />
-              )}
-            </AuthenticatedPage>
-          }
-        />
-        <Route
-          path="/archivos"
-          element={
-            <AuthenticatedPage key="files" clientOnly>
-              {(user) => <FilesPage user={user} />}
-            </AuthenticatedPage>
-          }
-        />
-        <Route path="/compartidos" element={<AuthenticatedPage key="shared" clientOnly>{(user) => <SharedPage user={user} />}</AuthenticatedPage>} />
-        <Route
-          path="/papelera"
-          element={
-            <AuthenticatedPage key="trash" clientOnly>
-              {(user) => <Papelera user={user} />}
-            </AuthenticatedPage>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <AuthenticatedPage requiredPermission="admin_panel">
-              <AdminDashboard />
-            </AuthenticatedPage>
-          }
-        />
-        <Route
-          path="/admin/usuarios"
-          element={
-            <AuthenticatedPage
-              key="admin-users"
-              requiredPermission="manage_users"
-            >
-              {(user) => <UserManagement user={user} />}
-            </AuthenticatedPage>
-          }
-        />
-        <Route
-          path="/perfil"
-          element={
-            <AuthenticatedPage>
-              <UserProfile />
-            </AuthenticatedPage>
-          }
-        />
+        <Route element={<AuthenticatedPage />}>
+          <Route path="/soporte/mis-solicitudes" element={<Protected>{user =><TicketCenter user={user} />}</Protected>} />
+          <Route path="/admin/soporte" element={<Protected requiredPermission="admin_panel">{user =><TicketCenter user={user} />}</Protected>} />
+          <Route path="/plan" element={<Protected clientOnly><Plans /></Protected>} />
+          <Route path="/pagos" element={<Protected clientOnly><Payments /></Protected>} />
+          <Route path="/actividad" element={<Protected clientOnly><Activity /></Protected>} />
+          <Route path="/notificaciones" element={<Protected clientOnly><Notifications /></Protected>} />
+          <Route path="/admin/notificaciones" element={<Protected requiredPermission="admin_panel">{user =><AdminNotificationInbox user={user} />}</Protected>} />
+          <Route path="/admin/planes" element={<Protected requiredPermission="admin_panel"><AdminPlans /></Protected>} />
+          <Route path="/admin/suscripciones" element={<Protected requiredPermission="admin_panel"><AdminSubscriptions /></Protected>} />
+          <Route path="/admin/almacenamiento" element={<Protected requiredPermission="admin_panel"><AdminStorage /></Protected>} />
+          <Route path="/admin/metricas" element={<Protected requiredPermission="admin_panel"><AdminReports /></Protected>} />
+          <Route path="/admin/reportes" element={<Protected requiredPermission="admin_panel"><AdminReports /></Protected>} />
+          <Route path="/dashboard" element={<Protected clientOnly>{(user) => <Dashboard user={user} />}</Protected>} />
+          <Route path="/archivos" element={<Protected clientOnly>{(user) =><FilesPage user={user} />}</Protected>} />
+          <Route path="/compartidos" element={<Protected clientOnly>{(user) =><SharedPage user={user} />}</Protected>} />
+          <Route path="/papelera" element={<Protected clientOnly>{(user) =><Papelera user={user} />}</Protected>} />
+          <Route path="/admin" element={<Protected requiredPermission="admin_panel"><AdminDashboard /></Protected>} />
+          <Route path="/admin/usuarios" element={<Protected requiredPermission="manage_users">{(user) =><UserManagement user={user} />}</Protected>} />
+          <Route path="/perfil" element={<Protected><UserProfile /></Protected>} />
+        </Route>
         <Route path="/terminos" element={<InformationalPage component={Terms} />} />
         <Route path="/privacidad" element={<InformationalPage component={Privacy} />} />
         <Route path="/cookies" element={<InformationalPage component={Cookies} />} />

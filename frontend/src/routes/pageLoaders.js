@@ -78,3 +78,12 @@ export function installRoutePreload() {
     document.removeEventListener('focusin', preload);
   };
 }
+
+// Warm up the most visited sections once the session is ready, without competing with the current page.
+export function preloadMainRoutes() {
+  if (navigator.connection?.saveData) return;
+  const main = [pageLoaders.Dashboard, pageLoaders.FilesPage, pageLoaders.SharedPage, pageLoaders.Papelera, pageLoaders.Activity];
+  const run = () => main.forEach(load => void load().catch(() => {}));
+  if ('requestIdleCallback' in window) { const id = requestIdleCallback(run, { timeout: 2000 }); return () => cancelIdleCallback(id); }
+  const id = setTimeout(run, 800); return () => clearTimeout(id);
+}

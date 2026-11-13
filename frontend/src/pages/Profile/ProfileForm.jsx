@@ -210,7 +210,7 @@ function ProfileForm({ user, onProfileUpdated }) {
           Cambiar contraseña
         </button>
       </div>
-      {isSaving && <Loading />}
+      {isSaving && <Loading delay={0} />}
 
       <AlertModal
         isOpen={alert.isOpen}
