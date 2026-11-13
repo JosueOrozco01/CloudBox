@@ -11,9 +11,9 @@ test('vigencia parcial redondea hacia arriba', () => {
 });
 test('mapea columnas reales y conserva estado PorVencer', () => {
   const out = normalize({ id: 8, id_plan: 2, id_estado: 3, fecha_inicio: '2026-10-01', fecha_fin: '2026-11-01' },
-    { nombre: 'Pro', espacio_maximo_gb: 50, precio: 89 }, 'PorVencer', new Date('2026-10-24'));
+    { nombre: 'Pro', espacio_maximo_gb: 50, precio: 25 }, 'PorVencer', new Date('2026-10-24'));
   assert.equal(out.planName, 'Pro'); assert.equal(out.capacityGb, 50);
-  assert.equal(out.status, 'PorVencer'); assert.equal(out.price, 89);
+  assert.equal(out.status, 'PorVencer'); assert.equal(out.price, 25);
 });
 test('nulos sin suscripción no inventan fechas', () => {
   assert.equal(daysRemaining(null), null);

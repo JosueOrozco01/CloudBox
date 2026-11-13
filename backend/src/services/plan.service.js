@@ -152,7 +152,12 @@ const PlanService = {
     const existing = await this.getPlanById(planId);
 
     const payload = {};
-    if (updateData.nombre !== undefined) payload.nombre = updateData.nombre.trim();
+    if (updateData.nombre !== undefined) {
+      if (typeof updateData.nombre !== 'string' || !updateData.nombre.trim())
+        throw createServiceError('Nombre inválido', 400, 'INVALID_PLAN_PAYLOAD');
+      if (updateData.nombre.trim() !== existing.nombre)
+        throw createServiceError('El nombre de un plan existente no se puede cambiar; crea otro plan', 409, 'PLAN_NAME_IMMUTABLE');
+    }
     if (updateData.descripcion !== undefined) payload.descripcion = updateData.descripcion ? updateData.descripcion.trim() : null;
     if (updateData.precio !== undefined) {
       const p = Number(updateData.precio);
@@ -176,10 +181,10 @@ const PlanService = {
       throw createServiceError('Free debe conservar Q0 y 1 GB',409,'FREE_PLAN_PROTECTED');
     if (String(candidate.nombre).trim().toLowerCase()==='free' && (candidate.precio!==0||candidate.espacio_maximo_gb!==1))
       throw createServiceError('Free debe conservar Q0 y 1 GB',400,'INVALID_FREE_PLAN');
-    if (['precio','espacio_maximo_gb','vigencia_dias'].some(k=>payload[k]!==undefined && Number(payload[k])!==Number(existing[k]))) {
+    if (['espacio_maximo_gb','vigencia_dias'].some(k=>payload[k]!==undefined && Number(payload[k])!==Number(existing[k]))) {
       const result=await supabaseAdmin.from('suscripcion').select('id').eq('id_plan',existing.id).range(0,0);
       if (result.error) throw result.error;
-      if (result.data.length) throw createServiceError('Crea otro plan para una nueva tarifa; las condiciones contratadas son inmutables',409,'PLAN_TERMS_IMMUTABLE');
+      if (result.data.length) throw createServiceError('La capacidad y vigencia contratadas son inmutables; crea otro plan para cambiarlas',409,'PLAN_TERMS_IMMUTABLE');
     }
     const { data, error } = await supabaseAdmin
       .from('plan')
@@ -188,7 +193,7 @@ const PlanService = {
       .select()
       .single();
 
-    if (error && /CLOUDBOX_(PLAN_TERMS_IMMUTABLE|FREE_PLAN_PROTECTED)/.test(error.message||''))
+    if (error && /CLOUDBOX_(PLAN_NAME_IMMUTABLE|PLAN_TERMS_IMMUTABLE|FREE_PLAN_PROTECTED)/.test(error.message||''))
       throw createServiceError('Las condiciones contratadas y Free están protegidos',409,error.message.replace('CLOUDBOX_',''));
     if (error) {
       throw createServiceError(`Error al actualizar plan: ${error.message}`, 500, 'DATABASE_ERROR');

@@ -96,10 +96,10 @@ async function concurrent(text){
  r:=public.cloudbox_subscribe_paid_v1(111,1,1,'RENAMEBUY111',false);
  UPDATE public.suscripcion SET fecha_fin=CURRENT_DATE+120 WHERE id_usuario=111 AND id_estado=2;
  r:=public.cloudbox_subscription_change_v1(111,2,1,'RENAMEZERO111',false);
- IF (r->>'amountDue')::numeric<>0 OR (r->>'remainingCredit')::numeric<>27 THEN RAISE EXCEPTION 'credit carry: %',r; END IF;
+ IF (r->>'amountDue')::numeric<>0 OR (r->>'remainingCredit')::numeric<>11 THEN RAISE EXCEPTION 'credit carry: %',r; END IF;
  IF EXISTS(SELECT 1 FROM public.pago WHERE referencia='RENAMEZERO111') THEN RAISE EXCEPTION 'zero payment created'; END IF;
  r:=public.cloudbox_subscription_change_v1(102,2,1,'RENAMEUP102',false);
- IF (r->>'creditGenerated')::numeric<>14.50 OR (r->>'amountDue')::numeric<>74.50 THEN RAISE EXCEPTION 'credit: %',r; END IF;
+ IF (r->>'creditGenerated')::numeric<>4.50 OR (r->>'amountDue')::numeric<>20.50 THEN RAISE EXCEPTION 'credit: %',r; END IF;
  r:=public.cloudbox_subscription_change_v1(103,2,1,'RENAMEFAIL103',true);
  IF r->>'code'<>'PAYMENT_DECLINED' THEN RAISE EXCEPTION 'decline: %',r; END IF;
  r:=public.cloudbox_subscription_change_v1(104,2,1,'RENAMEUP104',false);

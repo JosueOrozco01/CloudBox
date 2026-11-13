@@ -1,6 +1,7 @@
 'use strict';
 const { createClient } = require('@supabase/supabase-js');
 const {utcDay,isCurrent,isFree} = require('./commercial-policy');
+const {getRecordedAmounts} = require('./subscription-recorded-amounts');
 
 let admin;
 function database() {
@@ -29,13 +30,13 @@ function daysRemaining(date, now = new Date()) {
   if (Number.isNaN(end.getTime())) return null;
   return Math.max(0, Math.ceil((end.getTime() - new Date(utcDay(now)).getTime()) / 86400000));
 }
-function normalize(row, plan, status, now = new Date()) {
+function normalize(row, plan, status, now = new Date(), price = plan?.precio) {
   return {
     id: row.id,
     planId: row.id_plan,
     planName: plan?.nombre || null,
     capacityGb: plan?.espacio_maximo_gb == null ? null : Number(plan.espacio_maximo_gb),
-    price: plan?.precio == null ? null : Number(plan.precio),
+    price: price == null ? null : Number(price),
     status: status || null,
     startDate: row.fecha_inicio,
     endDate: row.fecha_fin,
@@ -43,7 +44,7 @@ function normalize(row, plan, status, now = new Date()) {
       ? (isFree(plan) ? null : daysRemaining(row.fecha_fin,now)) : 0
   };
 }
-async function enrich(rows) {
+async function enrich(rows, { historicPrice = false } = {}) {
   if (!rows.length) return [];
   const planIds = [...new Set(rows.map(r => r.id_plan))];
   const stateIds = [...new Set(rows.map(r => r.id_estado))];
@@ -53,7 +54,16 @@ async function enrich(rows) {
   ]);
   const plans = new Map(assertResult(planResult).map(p => [p.id, p]));
   const states = new Map(assertResult(stateResult).map(s => [s.id, s.nombre]));
-  return rows.map(r => normalize(r, plans.get(r.id_plan), states.get(r.id_estado)));
+  const recordedAmounts = historicPrice ? await getRecordedAmounts(database(), rows) : null;
+  const now = new Date();
+  return rows.map(r => {
+    const plan = plans.get(r.id_plan);
+    const recorded = recordedAmounts?.get(r.id);
+    const price = historicPrice
+      ? (recorded?.hasRecord ? recorded.amount : (Number(plan?.precio) === 0 ? 0 : null))
+      : plan?.precio;
+    return normalize(r, plan, states.get(r.id_estado), now, price);
+  });
 }
 async function getCurrent(userId) {
   const rows = assertResult(await database().from('suscripcion')
@@ -70,6 +80,6 @@ async function getHistory(userId) {
     .select('id,id_usuario,id_plan,id_estado,fecha_inicio,fecha_fin')
     .eq('id_usuario', userId).order('fecha_inicio', { ascending: false })
     .order('id', { ascending: false }).limit(100));
-  return enrich(rows);
+  return enrich(rows, { historicPrice: true });
 }
 module.exports = { getCurrent, getHistory, daysRemaining, normalize };

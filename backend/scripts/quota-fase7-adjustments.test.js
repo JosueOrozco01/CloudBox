@@ -43,9 +43,9 @@ const mockCatalogEstadoSuscripcion = [
 
 const mockPlans = [
     { id: 8, nombre: 'Free', precio: 0, espacio_maximo_gb: 1, id_estado: 1 },
-    { id: 1, nombre: 'Básico', precio: 29, espacio_maximo_gb: 5, id_estado: 1 },
-    { id: 2, nombre: 'Pro', precio: 89, espacio_maximo_gb: 50, id_estado: 1 },
-    { id: 3, nombre: 'Premium', precio: 149, espacio_maximo_gb: 100, id_estado: 1 }
+    { id: 1, nombre: 'Básico', precio: 9, espacio_maximo_gb: 5, id_estado: 1 },
+    { id: 2, nombre: 'Pro', precio: 25, espacio_maximo_gb: 50, id_estado: 1 },
+    { id: 3, nombre: 'Premium', precio: 39, espacio_maximo_gb: 100, id_estado: 1 }
 ];
 
 function buildMockDb(initialSubscriptions = [], files = []) {

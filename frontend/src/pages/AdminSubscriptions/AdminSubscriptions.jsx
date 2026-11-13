@@ -40,7 +40,7 @@ export default function AdminSubscriptions() {
           {rows.length > 0 ? <Table rows={rows} columns={[
             { label: 'Usuario', render: row => <div className="as-user"><UserAvatar user={{ name: userName(row) }} className="as-avatar" /><div><strong>{userName(row)}</strong><p>{row.usuario?.correo || 'Correo no disponible'}</p></div></div> },
             { label: 'Plan contratado', render: row => <span className="as-plan-tag"><Layers3 size={14} aria-hidden="true" />{row.plan?.nombre || '—'}</span> },
-            { label: 'Precio del plan', render: row => <span className="as-price">{money(row.plan?.precio)}</span> },
+            { label: 'Valor registrado', render: row => <span className="as-price">{row.monto_registrado == null ? 'No disponible' : money(row.monto_registrado)}</span> },
             { label: 'Estado', render: row => <span className="as-status"><>{row.estado === 'PorVencer' ? <span className="module-badge warning">Por vencer</span> : <Badge>{row.estado}</Badge>}</></span> },
             { label: 'Fecha de inicio', render: row => <span className="as-date"><CalendarDays size={14} aria-hidden="true" />{date(row.fecha_inicio)}</span> },
             { label: 'Vencimiento', render: row => Number(row.plan?.precio) === 0 ? <span className="as-no-expiry">Sin vencimiento</span> : <span className={`as-date ${row.estado === 'Vencida' ? 'as-expired' : ''}`}>{date(row.fecha_vencimiento)}</span> },

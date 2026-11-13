@@ -38,7 +38,7 @@ INSERT INTO auth.users VALUES ('00000000-0000-0000-0000-000000000010'),('0000000
 INSERT INTO public.usuario(id,nombre,apellido,correo,id_rol,id_estado,auth_user_id) OVERRIDING SYSTEM VALUE VALUES
  (10,'Prueba','Uno','uno@local.invalid',1,1,'00000000-0000-0000-0000-000000000010'),(20,'Prueba','Dos','dos@local.invalid',2,1,'00000000-0000-0000-0000-000000000020');
 INSERT INTO public.estado_plan(nombre) VALUES('Activo'),('Inactivo');
-INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(1,'Básico',29,5,30,1);
+INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(1,'Básico',9,5,30,1);
 INSERT INTO public.estado_suscripcion(nombre) VALUES('Pendiente'),('Activa'),('PorVencer'),('Vencida'),('Renovada'),('Cancelada');
 INSERT INTO public.estado_pago(nombre) VALUES('Aprobado'),('Rechazado');
 INSERT INTO public.metodo_pago(nombre) VALUES('Simulado');

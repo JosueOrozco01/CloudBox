@@ -27,7 +27,7 @@ test(`audit migration enforces quota, deletion, ownership, tickets and preferenc
       INSERT INTO public.usuario(id,nombre,apellido,correo,id_rol,id_estado,auth_user_id) OVERRIDING SYSTEM VALUE
         VALUES(1,'Cuenta','Uno','one@example.invalid',1,1,'11111111-1111-4111-8111-111111111111'),
               (2,'Cuenta','Dos','two@example.invalid',1,1,'22222222-2222-4222-8222-222222222222');
-      INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(7,'Premium',29,5,30,1);
+      INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(7,'Premium',39,5,30,1);
       INSERT INTO public.estado_suscripcion(id,nombre) OVERRIDING SYSTEM VALUE VALUES(2,'Activa');
     `);
     const preflight=fs.readFileSync(path.join(__dirname,'../../supabase/manual/review/20261103_pre_migration_check.sql'),'utf8');

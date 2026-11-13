@@ -36,7 +36,7 @@ const today=policy.utcDay(),tomorrow=policy.utcDay(new Date(Date.now()+86400000)
 test('UTC civil dates include the contracted last day and exclude future starts',async()=>{
   assert.equal(policy.utcDay(new Date('2026-10-27T20:00:00-06:00')),'2026-10-28');
   const data=db({suscripcion:[{id:1,id_usuario:1,id_plan:1,id_estado:2,fecha_inicio:today,fecha_fin:today}],
-    plan:[{id:1,nombre:'Básico',precio:29,espacio_maximo_gb:5}],estado_suscripcion:[{id:2,nombre:'Activa'}]});
+    plan:[{id:1,nombre:'Básico',precio:9,espacio_maximo_gb:5}],estado_suscripcion:[{id:2,nombre:'Activa'}]});
   const service=load('subscription.service.js',data);
   assert.equal((await service.getCurrent(1)).id,1);
   assert.equal(service.daysRemaining(today),0); // Full days after today, not an expiry predicate.
@@ -102,14 +102,17 @@ test('user status filters use the real FK, and failed subscription enrichment is
   data.fail=table=>table==='plan';await assert.rejects(service.getAllSubscriptions());
 });
 
-test('referenced plan terms are immutable and Free stays Q0 / 1 GB / active',async()=>{
-  const plan={id:1,nombre:'Básico',precio:29,espacio_maximo_gb:5,vigencia_dias:30,id_estado:1};
+test('referenced plan price can change while plan identity and contracted terms stay protected',async()=>{
+  const plan={id:1,nombre:'Básico',precio:9,espacio_maximo_gb:5,vigencia_dias:30,id_estado:1};
   const data=db({plan:[plan,free],suscripcion:[{id:1,id_plan:1}]});const service=load('plan.service.js',data);
-  for(const patch of [{precio:100},{vigencia_dias:60},{espacio_maximo_gb:9}])await assert.rejects(service.updatePlan(1,patch),{status:409,code:'PLAN_TERMS_IMMUTABLE'});
+  for(const patch of [{vigencia_dias:60},{espacio_maximo_gb:9}])await assert.rejects(service.updatePlan(1,patch),{status:409,code:'PLAN_TERMS_IMMUTABLE'});
+  await assert.rejects(service.updatePlan(1,{nombre:'Otro'}),{status:409,code:'PLAN_NAME_IMMUTABLE'});
   for(const patch of [{precio:1},{nombre:'Otro'},{espacio_maximo_gb:2}])await assert.rejects(service.updatePlan(42,patch),{status:409});
   await assert.rejects(service.setPlanStatus(42,2),{status:409});
-  assert.equal(data.calls.filter(c=>c.values).length,0);
-  assert.equal((await service.updatePlan(1,{descripcion:'Descripción actualizada'})).precio,29);
+  const repriced=await service.updatePlan(1,{precio:25});
+  assert.equal(repriced.precio,25);assert.equal(repriced.nombre,'Básico');assert.equal(repriced.espacio_maximo_gb,5);assert.equal(repriced.vigencia_dias,30);
+  assert.equal(JSON.stringify(data.calls.filter(c=>c.table==='plan'&&c.values).at(-1).values),JSON.stringify({precio:25}));
+  assert.equal((await service.updatePlan(1,{descripcion:'Descripción actualizada'})).precio,25);
   const version=await service.createPlan({nombre:'Básico nueva tarifa',precio:35,espacio_maximo_gb:5,vigencia_dias:30});
   assert.equal(version.precio,35);assert.notEqual(version.id,1);
   assert.equal((await service.updatePlan(version.id,{precio:36})).precio,36);

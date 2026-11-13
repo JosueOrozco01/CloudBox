@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { normalize } = require('../src/services/subscription.service');
 const date = new Date('2026-10-25T00:00:00Z');
 const row = { id: 15, id_plan: 1, fecha_inicio: '2026-10-25', fecha_fin: '2026-12-24' };
-const paid = { nombre: 'Básico', precio: 29, espacio_maximo_gb: 5 };
+const paid = { nombre: 'Básico', precio: 9, espacio_maximo_gb: 5 };
 test('Cancelada y Renovada conservan fechas pero no días disponibles', () => {
   for (const status of ['Cancelada','Renovada','Vencida','Pendiente']) {
     const out = normalize(row, paid, status, date);

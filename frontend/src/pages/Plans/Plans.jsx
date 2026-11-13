@@ -120,8 +120,8 @@ export default function Plans({
           label: 'Fin',
           render: r => r.price === 0 ? 'Sin vencimiento' : date(r.endDate)
         }, {
-          label: 'Precio',
-          render: r => money(r.price)
+          label: 'Monto registrado',
+          render: r => r.price == null ? 'No disponible' : money(r.price)
         }]} /></Panel></>}
     {publicCatalog && <><section className="plans-public-included"><div><ShieldCheck size={24} /><h2>Lo esencial va contigo</h2><p>Todos los planes te permiten organizar tus archivos, compartir recursos y consultar tu actividad. La capacidad y la vigencia de cada opción se muestran en su tarjeta.</p></div><Link to="/caracteristicas">Conocer las características<ArrowRight size={15} /></Link></section><section className="plans-public-faq"><div><span className="plans-kicker">ANTES DE ELEGIR</span><h2>Tu espacio, sin dudas</h2><p>Algunas respuestas para encontrar tu siguiente plan.</p></div><div>{[['¿Cómo empiezo?', 'Crea tu cuenta y entra a Mi plan para consultar tu suscripción y las opciones disponibles.'], ['¿Puedo cambiar de plan?', 'Puedes elegir otro plan desde tu cuenta. Las mejoras pueden aplicar crédito proporcional; los cambios a un plan menor se programan al finalizar la vigencia.'], ['¿Qué pasa si cancelo mi suscripción?', 'Conservas el servicio pagado hasta el final de la vigencia y después regresas al plan Free. Si excedes su cuota, las nuevas subidas quedan bloqueadas.'], ['¿Dónde consulto mis pagos?', 'En la sección Pagos de tu cuenta puedes revisar las operaciones registradas y consultar sus comprobantes.']].map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={16} /></summary><p>{answer}</p></details>)}</div></section></>}
     {action && <Modal title={action.type === 'cancel' ? 'Cancelar suscripción' : `${action.type === 'renew' ? 'Renovar' : 'Elegir'} ${action.plan.nombre}`} onClose={() => setAction(null)} busy={busy}><form className="module-form" onSubmit={submit}><Feedback error={error} />{declined && <button type="button" className="module-button" onClick={() => {

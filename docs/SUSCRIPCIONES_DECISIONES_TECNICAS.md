@@ -92,7 +92,7 @@ Preparar migración transaccional para libro de créditos y operaciones programa
 
 ### Ejemplo de upgrade acumulado
 
-Básico Q29/30 días, 60 días restantes: crédito = Q58.00. Pro Q89/30 días: pago Q31.00, saldo Q0.00. Con 120 días restantes, crédito = Q116.00: pago Q0.00 y saldo Q27.00 a favor; se genera ajuste auditable sin recibo de pago por Q0.
+Básico Q9/30 días, 60 días restantes: crédito = Q18.00. Pro Q25/30 días: pago Q7.00, saldo Q0.00. Con 120 días restantes, crédito = Q36.00: pago Q0.00 y saldo Q11.00 a favor; se genera ajuste auditable sin recibo de pago por Q0.
 
 **Limitación comercial:** este modelo valora días mediante el precio fijo del plan original, sin descuentos históricos ni impuestos. Cualquier cambio futuro en tarifas, promociones o política de reembolso requerirá un libro de períodos comprados con precios de origen, antes de habilitar cobros reales.
 

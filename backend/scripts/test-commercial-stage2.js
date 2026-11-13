@@ -66,7 +66,7 @@ const sleepTimeout=()=>new Promise((_,reject)=>{const timer=setTimeout(()=>rejec
     denied('DELETE FROM public.plan WHERE id=8;',/FREE_PLAN_PROTECTED/);
     for(const update of ['precio=100','vigencia_dias=60','espacio_maximo_gb=9'])denied(`UPDATE public.plan SET ${update} WHERE id=1;`,/PLAN_TERMS_IMMUTABLE/);
     const upgrade=JSON.parse(sql(call('cloudbox_subscription_change_v1',101,2,'UPGRADEHIST01')));
-    assert.equal(upgrade.creditGenerated,14.5);assert.equal(upgrade.amountDue,74.5);checks+=2;
+    assert.equal(upgrade.creditGenerated,4.5);assert.equal(upgrade.amountDue,20.5);checks+=2;
     denied(call('cloudbox_subscribe_paid_v1',101,1,'BYPASSDOWN01'),/CHANGE_PLAN_REQUIRED/);
     const downgrade=JSON.parse(sql(call('cloudbox_subscription_change_v1',101,1,'DOWNGRADE001')));
     assert.equal(downgrade.scheduled,true);checks++;
@@ -101,7 +101,7 @@ const sleepTimeout=()=>new Promise((_,reject)=>{const timer=setTimeout(()=>rejec
     assert.equal(ledgerSnapshot(),ledgerBefore);checks++;
     sql('INSERT INTO public.credito_suscripcion(id_usuario,saldo) VALUES(103,200);');
     const zero=JSON.parse(sql(call('cloudbox_subscription_change_v1',103,2,'CREDITZERO01')));
-    assert.equal(zero.amountDue,0);assert.equal(zero.remainingCredit,125.5);checks+=2;
+    assert.equal(zero.amountDue,0);assert.equal(zero.remainingCredit,179.5);checks+=2;
     equal("SELECT count(*) FROM public.pago WHERE referencia='CREDITZERO01';",'0');
     denied("SELECT public.cloudbox_subscription_renew_v1(103,1,'CREDITZERO01',false);",/Referencia duplicada/);
     denied("SELECT public.cloudbox_subscription_renew_v1(101,1,'PENDINGFAIL01',true);",/PENDING_ACTION_EXISTS/);

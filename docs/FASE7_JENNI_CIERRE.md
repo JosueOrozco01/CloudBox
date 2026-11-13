@@ -25,7 +25,7 @@ La función `cloudbox_subscription_prevent_renew_with_schedule` protege **Cancel
 
 ## Decisiones comerciales
 
-- 5 GB del Básico llenos **no consume el tiempo**: con 15 días restantes, crédito Q14.50 contra Q89 Pro, importe a pagar Q74.50.
+- 5 GB del Básico llenos **no consume el tiempo**: con 15 días restantes, crédito Q4.50 contra Q25 Pro, importe a pagar Q20.50.
 - Los períodos renovados acumulados forman parte del crédito por tiempo no consumido.
 - El downgrade se paga una sola vez al programarse; se activa al vencimiento; no hay cargo automático futuro.
 - Cancelación conserva servicios pagados hasta el final.

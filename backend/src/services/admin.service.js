@@ -2,6 +2,7 @@ const { countsTowardStorage } = require('./storage-policy');
 const { isOwnedAvatarPath } = require('./avatar-path');
 
 const {utcDay,isCurrent,readPages,calendarDate} = require('./commercial-policy');
+const {getRecordedAmounts} = require('./subscription-recorded-amounts');
 const { createClient } = require("@supabase/supabase-js");
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
@@ -788,15 +789,21 @@ const AdminService = {
     if (plansRes.error) throw plansRes.error;
     const usersMap = new Map((usersRes.data || []).map(u => [u.id, u]));
     const plansMap = new Map((plansRes.data || []).map(p => [p.id, p]));
+    const recordedAmounts = await getRecordedAmounts(supabaseAdmin, subs);
 
-    const subscriptions = subs.map(s => ({
-      id: s.id,
-      usuario: usersMap.get(s.id_usuario) || null,
-      plan: plansMap.get(s.id_plan) || null,
-      estado: s.estado?.nombre || (s.id_estado === 2 ? 'Activa' : (s.id_estado === 3 ? 'PorVencer' : 'Inactiva')),
-      fecha_inicio: s.fecha_inicio,
-      fecha_vencimiento: s.fecha_vencimiento || s.fecha_fin || null
-    }));
+    const subscriptions = subs.map(s => {
+      const plan = plansMap.get(s.id_plan) || null;
+      const recorded = recordedAmounts.get(s.id);
+      return {
+        id: s.id,
+        usuario: usersMap.get(s.id_usuario) || null,
+        plan,
+        monto_registrado: recorded?.hasRecord ? recorded.amount : (Number(plan?.precio) === 0 ? 0 : null),
+        estado: s.estado?.nombre || (s.id_estado === 2 ? 'Activa' : (s.id_estado === 3 ? 'PorVencer' : 'Inactiva')),
+        fecha_inicio: s.fecha_inicio,
+        fecha_vencimiento: s.fecha_vencimiento || s.fecha_fin || null
+      };
+    });
 
     return {
       subscriptions,

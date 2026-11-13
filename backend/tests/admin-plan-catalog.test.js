@@ -7,14 +7,14 @@ const authorizeRole = require('../src/middlewares/role.middleware');
 test('administrative catalog includes inactive plans and normalizes commercial numbers', async () => {
   const db = database({ plan: [
     { id: 1, nombre: 'Free', precio: '0', espacio_maximo_gb: '1', id_estado: 1 },
-    { id: 2, nombre: 'Anterior', precio: '29.00', espacio_maximo_gb: '5', id_estado: 2 },
+    { id: 2, nombre: 'Anterior', precio: '9.00', espacio_maximo_gb: '5', id_estado: 2 },
   ] });
   const service = load('services/plan.service.js', { '@supabase/supabase-js': { createClient: () => db } });
   const rows = await service.getAllPlans();
   assert.equal(rows.length, 2);
   const inactive = rows.find(row => row.id === 2);
   assert.equal(inactive.estado, 'Inactivo');
-  assert.equal(inactive.precio, 29);
+  assert.equal(inactive.precio, 9);
   assert.equal(inactive.espacio_maximo_gb, 5);
   db.fail({ message: 'private database detail' });
   await assert.rejects(service.getAllPlans(), error => error.code === 'DATABASE_ERROR' && !error.message.includes('private'));

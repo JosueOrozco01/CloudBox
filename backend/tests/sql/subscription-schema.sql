@@ -56,7 +56,7 @@ CREATE TABLE public.cloudbox_subscription_credit_event(id bigint GENERATED ALWAY
 INSERT INTO public.rol(nombre) VALUES('Cliente');
 INSERT INTO public.estado_usuario(nombre) VALUES('Activo');
 INSERT INTO public.estado_plan(nombre) VALUES('Activo');
-INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(1,'Básico',29,5,30,1),(2,'Pro',89,50,30,1),(3,'Premium',149,100,30,1);
+INSERT INTO public.plan(id,nombre,precio,espacio_maximo_gb,vigencia_dias,id_estado) OVERRIDING SYSTEM VALUE VALUES(8,'Free',0,1,36500,1),(1,'Básico',9,5,30,1),(2,'Pro',25,50,30,1),(3,'Premium',39,100,30,1);
 INSERT INTO public.estado_suscripcion(nombre) VALUES('Pendiente'),('Activa'),('PorVencer'),('Vencida'),('Renovada'),('Cancelada');
 INSERT INTO public.estado_pago(nombre) VALUES('Aprobado'),('Rechazado');
 INSERT INTO public.metodo_pago(nombre) VALUES('Simulado');
